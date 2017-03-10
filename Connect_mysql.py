@@ -19,14 +19,14 @@ class mysql:
         insert_sql = """INSERT INTO `wows_account` (`account ID`, `nickname`) VALUES %s"""
         for record in data_list:
             self.write_single(insert_sql=insert_sql, record=record, cursor=cursor)
-        print("Database write finished")
+        print("********************Database write finished********************")
 
     def write_single(self, insert_sql, record, cursor):
         try:
             # 执行sql语句
             cursor.execute(query=insert_sql, args=[record])
             self.db.commit()
-            print("%s write finished!" % (record,))
+            print("%s written." % (record,))
         except:
             # 如果发生错误则回滚
             self.db.rollback()
