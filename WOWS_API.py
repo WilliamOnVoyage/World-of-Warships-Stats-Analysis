@@ -1,4 +1,4 @@
-from urllib import request, parse
+from urllib import request, parse, error
 import json
 import socket
 import ipgetter
@@ -27,7 +27,9 @@ def request_player():
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    account_ID = 1000002000
+    account_ID = 1001220200
+    result_list = []
+    size_per_write = 100
 
     while account_ID < 2000000000:
         idlist, account_ID = create_idlist(account_ID)
@@ -35,18 +37,35 @@ def request_player():
 
         url = account_url + '?' + parameter
 
-        result = request.urlopen(url).read().decode("utf-8")
-        # print(result)
-        data = json.loads(result)
+        try:
+            result = request.urlopen(url).read().decode("utf-8")
+            # print(result)
+            data = json.loads(result)
+            if data["status"] == "ok":
+                for acc_id in data["data"]:
+                    if data["data"][acc_id] is not None:
+                        nickname = data["data"][acc_id]["nickname"]
+                        record = (str(acc_id), str(nickname))
+                        result_list.append(record)
+            else:
+                print(data["error"])  # print error message
+        except error.URLError:  # API url request failed
+            print("API request failed!")
+            continue
+        if len(result_list) == 10:  # write when data has 100 records
+            write_database(result_list)
+            result_list = []
 
-        if (data["status"] == "ok"):
-            try:
-                db = mysql()
-                db.write_db(data)
-                db.close_db()
-            except ConnectionError:
-                print("Database connection failed!")
     return "Request finished!"
+
+
+def write_database(data_list):
+    try:
+        db = mysql()
+        db.write_db(data_list)
+        db.close_db()
+    except ConnectionError:
+        print("Database connection failed!")
 
 
 def create_idlist(account_ID):
