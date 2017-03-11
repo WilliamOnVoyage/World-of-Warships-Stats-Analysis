@@ -27,7 +27,7 @@ def request_player():
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    account_ID = 1001220200
+    account_ID = 1004590200
     result_list = []
     size_per_write = 100
 
@@ -52,7 +52,7 @@ def request_player():
         except error.URLError:  # API url request failed
             print("API request failed!")
             continue
-        if len(result_list) == 10:  # write when data has 100 records
+        if len(result_list) == size_per_write:  # write when data has 100 records
             write_database(result_list)
             result_list = []
 

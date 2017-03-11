@@ -23,17 +23,17 @@ class mysql:
 
     def write_single(self, insert_sql, record, cursor):
         try:
-            # 执行sql语句
+            # execute sql in database
             cursor.execute(query=insert_sql, args=[record])
             self.db.commit()
             print("%s written." % (record,))
         except:
-            # 如果发生错误则回滚
+            # roll back if error
             self.db.rollback()
             print("%s write failed!" % (record,))
 
     def close_db(self):
-        # 关闭数据库连接
+        # disconnect
         self.db.close()
 
 
