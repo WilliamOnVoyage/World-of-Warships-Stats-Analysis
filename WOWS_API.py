@@ -27,7 +27,7 @@ def request_player():
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    account_ID = 1004590200
+    account_ID = 1000000000
     result_list = []
     size_per_write = 100
 
@@ -71,9 +71,10 @@ def write_database(data_list):
 def create_idlist(account_ID):
     id = []
     Length = 100
+    account_ID /= 100
     for i in range(Length):
-        id.append(account_ID + i)
-    return id, account_ID + Length
+        id.append(100 * (account_ID + i) + 99)
+    return id, (account_ID + Length) * 100
 
 
 if __name__ == '__main__':
