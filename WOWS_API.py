@@ -72,7 +72,7 @@ def create_idlist(account_ID):
     Length = 100
     account_ID /= 100
     for i in range(Length):
-        id.append(100 * (account_ID + i) + 99)
+        id.append((int)(100 * (account_ID + i) + 99))
     return id, (account_ID + Length) * 100
 
 
