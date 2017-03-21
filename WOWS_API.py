@@ -51,7 +51,7 @@ def request_player():
                 print(data["error"])  # print error message
         except error.URLError:  # API url request failed
             print("API request failed!")
-        if len(result_list) == size_per_write:  # write when data has 100 records
+        if len(result_list) >= size_per_write:  # write when data has 100 records
             write_database(result_list)
             result_list = []
 
