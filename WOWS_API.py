@@ -70,9 +70,10 @@ def write_database(data_list):
 def create_idlist(account_ID):
     id = []
     Length = 100
+    account_ID /= 100
     for i in range(Length):
-        id.append(account_ID + i)
-    return id, account_ID + Length
+        id.append(100 * (account_ID + i) + 99)
+    return id, (account_ID + Length) * 100
 
 
 if __name__ == '__main__':
