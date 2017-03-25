@@ -143,7 +143,7 @@ def request_API():
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    # request_allID(account_url, application_id)
+    request_allID(account_url, application_id)
     request_statsbyID(account_url, application_id)
     return "Request finished!"
 

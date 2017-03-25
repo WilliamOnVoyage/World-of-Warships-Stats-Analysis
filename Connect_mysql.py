@@ -28,11 +28,14 @@ class mysql:
 
     def write_ID(self, data_list):
         cursor = self.db.cursor()
-        insert_sql = """INSERT INTO `wowstats`.`wows_stats` (`accountID`, `nickname`) VALUES %s"""
+        insert_sql = """
+        INSERT INTO `wowstats`.`wows_stats` (`accountID`, `nickname`) VALUES %s
+        ON DUPLICATE KEY UPDATE `nickname` = %s
+        """
         for record in data_list:
             try:
                 # execute sql in database
-                cursor.execute(query=insert_sql, args=[record])
+                cursor.execute(query=insert_sql, args=[record, record[1]])
                 self.db.commit()
                 print("%s written." % (record,))
             except:
