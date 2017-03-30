@@ -14,9 +14,12 @@ class mysql:
         self.db = sql.connect(host="wowstats.cctqbu5psiq5.us-east-2.rds.amazonaws.com", port=3306, user="moliangzhou",
                               password="33906413", database="wowstats")
 
-    def get_IDlist(self):
+    def get_IDlist(self,overwrite = True):
         cursor = self.db.cursor()
-        getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats`"""
+        if overwrite:
+            getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats`"""
+        else:
+            getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NOT NULL"""
         try:
             # execute sql in database
             cursor.execute(query=getid_sql)
@@ -37,7 +40,7 @@ class mysql:
                 # execute sql in database
                 cursor.execute(query=insert_sql, args=[record, record[1]])
                 self.db.commit()
-                print("%s written." % (record,))
+                # print("%s written." % (record,))
             except:
                 # roll back if error
                 self.db.rollback()
@@ -58,7 +61,7 @@ class mysql:
                 cursor.execute(query=update_sql,
                                args=[record[1], record[2], record[3], record[4], record[5], record[0]])
                 self.db.commit()
-                print("%s written." % (record,))
+                # print("%s written." % (record,))
             except:
                 # roll back if error
                 self.db.rollback()

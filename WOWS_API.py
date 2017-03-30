@@ -2,8 +2,7 @@ from urllib import request, parse, error
 import json
 import socket
 import ipgetter
-from Connect_mysql import mysql
-
+from WOWS_RDS import mysql
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -14,6 +13,7 @@ from Connect_mysql import mysql
 
 size_per_write = 1000
 
+
 def check_ip():
     external_ip = ipgetter.myip()
     print("External ip:%s " % external_ip)
@@ -21,10 +21,10 @@ def check_ip():
     print("Local ip:%s " % local_ip)
 
 
-def get_idlistfromsql():
+def get_idlistfromsql(overwrite=True):
     try:
         db = mysql()
-        idlist = db.get_IDlist()
+        idlist = db.get_IDlist(overwrite=overwrite)
         db.close_db()
         return idlist
     except ConnectionError:
@@ -51,13 +51,13 @@ def convertlisttopara(list):
 
 def request_statsbyID(account_url, application_id):
     result_list = []
-    idlist = get_idlistfromsql()
+    idlist = get_idlistfromsql(overwrite=False)
     sublist = []
     for id in idlist:
         sublist.append(id[0])
         if len(sublist) == 100:
-            sublist = convertlisttopara(sublist)
-            parameter = parse.urlencode({'application_id': application_id, 'account_id': sublist})
+            idlist = convertlisttopara(sublist)
+            parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
             url = account_url + '?' + parameter
             try:
                 result = request.urlopen(url).read().decode("utf-8")
@@ -71,7 +71,7 @@ def request_statsbyID(account_url, application_id):
 
 
 def request_allID(account_url, application_id):
-    account_ID = 1000000000
+    account_ID = 1025630660
     result_list = []
 
     while account_ID < 2000000000:
@@ -89,7 +89,6 @@ def request_allID(account_url, application_id):
 
 
 def record_ID(data, result_list):
-
     if data["status"] == "ok":
         for acc_id in data["data"]:
             if data["data"][acc_id] is not None:
@@ -103,6 +102,7 @@ def record_ID(data, result_list):
             db = mysql()
             db.write_ID(result_list)
             db.close_db()
+            print("Last account id: ", result_list[size_per_write - 1][0])
         except ConnectionError:
             print("Database connection failed!")
         result_list = []
@@ -123,7 +123,7 @@ def record_detail(data, result_list):
                 record = (str(acc_id), str(nickname), str(total), str(win), str(defeat), str(draw))
                 result_list.append(record)
             else:
-                print("User data private or null")
+                print("User %s data private or null" % acc_id)
     else:
         print(data["error"])  # print error message
     if len(result_list) >= size_per_write:  # write when data has 100 records
@@ -143,7 +143,7 @@ def request_API():
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    request_allID(account_url, application_id)
+    # request_allID(account_url, application_id)
     request_statsbyID(account_url, application_id)
     return "Request finished!"
 
