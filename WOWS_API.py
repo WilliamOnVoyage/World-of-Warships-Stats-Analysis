@@ -49,9 +49,9 @@ def convertlisttopara(list):
     return s
 
 
-def request_statsbyID(account_url, application_id):
+def request_statsbyID(account_url, application_id,overwrite = True):
     result_list = []
-    idlist = get_idlistfromsql(overwrite=False)
+    idlist = get_idlistfromsql(overwrite=overwrite)
     sublist = []
     for id in idlist:
         sublist.append(id[0])
@@ -143,8 +143,8 @@ def request_API():
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    # request_allID(account_url, application_id)
-    request_statsbyID(account_url, application_id)
+    request_allID(account_url, application_id)
+    request_statsbyID(account_url, application_id,overwrite = False)
     return "Request finished!"
 
 
