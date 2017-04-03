@@ -14,12 +14,12 @@ class mysql:
         self.db = sql.connect(host="wowstats.cctqbu5psiq5.us-east-2.rds.amazonaws.com", port=3306, user="moliangzhou",
                               password="33906413", database="wowstats")
 
-    def get_IDlist(self,overwrite = True):
+    def get_IDlist(self, overwrite=True):
         cursor = self.db.cursor()
         if overwrite:
             getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats`"""
         else:
-            getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NOT NULL"""
+            getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NULL"""
         try:
             # execute sql in database
             cursor.execute(query=getid_sql)
@@ -32,13 +32,13 @@ class mysql:
     def write_ID(self, data_list):
         cursor = self.db.cursor()
         insert_sql = """
-        INSERT INTO `wowstats`.`wows_stats` (`accountID`, `nickname`) VALUES %s
+        INSERT INTO `wowstats`.`wows_stats` (`Date`,`accountID`, `nickname`) VALUES %s
         ON DUPLICATE KEY UPDATE `nickname` = %s
         """
         for record in data_list:
             try:
                 # execute sql in database
-                cursor.execute(query=insert_sql, args=[record, record[1]])
+                cursor.execute(query=insert_sql, args=[record, record[2]])
                 self.db.commit()
                 # print("%s written." % (record,))
             except:
@@ -52,14 +52,13 @@ class mysql:
         update_sql = """
         UPDATE `wowstats`.`wows_stats`
         SET `nickname` = %s,`total` = %s, `win`= %s, `defeat`= %s, `draw`= %s
-        WHERE `accountID`=%s
+        WHERE `Date` = %s AND `accountID`=%s
         """
         for record in data_list:
-
             try:
                 # execute sql in database
                 cursor.execute(query=update_sql,
-                               args=[record[1], record[2], record[3], record[4], record[5], record[0]])
+                               args=[record[2], record[3], record[4], record[5], record[6], record[0], record[1]])
                 self.db.commit()
                 # print("%s written." % (record,))
             except:
@@ -67,6 +66,18 @@ class mysql:
                 self.db.rollback()
                 print("%s write failed!" % (record,))
         print("********************Database write finished********************")
+
+    def execute_single(self, sql, arg=None):
+        cursor = self.db.cursor()
+        try:
+            # execute sql in database
+            cursor.execute(query=sql, args=[arg])
+            return cursor.fetchall()
+            # print("%s written." % (record,))
+        except:
+            # roll back if error
+            self.db.rollback()
+            print(sql + " Execution failed!!!")
 
     def close_db(self):
         # disconnect

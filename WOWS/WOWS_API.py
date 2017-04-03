@@ -1,8 +1,12 @@
-from urllib import request, parse, error
 import json
 import socket
+import datetime
+import time
+from urllib import request, parse, error
+
 import ipgetter
-from WOWS_RDS import mysql
+
+from WOWS.WOWS_RDS import mysql
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -19,6 +23,11 @@ def check_ip():
     print("External ip:%s " % external_ip)
     local_ip = socket.gethostbyname(socket.gethostname())
     print("Local ip:%s " % local_ip)
+
+
+def check_date():
+    d = datetime.datetime.now().date()
+    return d
 
 
 def get_idlistfromsql(overwrite=True):
@@ -49,7 +58,8 @@ def convertlisttopara(list):
     return s
 
 
-def request_statsbyID(account_url, application_id,overwrite = True):
+def request_statsbyID(account_url, application_id, overwrite=True):
+    date = check_date()
     result_list = []
     idlist = get_idlistfromsql(overwrite=overwrite)
     sublist = []
@@ -64,14 +74,15 @@ def request_statsbyID(account_url, application_id,overwrite = True):
                 # print(result)
                 data = json.loads(result)
                 # result_list = record_ID(data, result_list)
-                result_list = record_detail(data, result_list)
+                result_list = record_detail(date, data, result_list)
                 sublist = []
             except error.URLError:  # API url request failed
                 print("API request failed!")
 
 
 def request_allID(account_url, application_id):
-    account_ID = 1025630660
+    date = check_date()
+    account_ID = 1025676757
     result_list = []
 
     while account_ID < 2000000000:
@@ -83,17 +94,18 @@ def request_allID(account_url, application_id):
             result = request.urlopen(url).read().decode("utf-8")
             # print(result)
             data = json.loads(result)
-            result_list = record_ID(data, result_list)
+            result_list = record_ID(date, data, result_list)
         except error.URLError:  # API url request failed
             print("API request failed!")
+            print(error.URLError)
 
 
-def record_ID(data, result_list):
+def record_ID(date, data, result_list):
     if data["status"] == "ok":
         for acc_id in data["data"]:
             if data["data"][acc_id] is not None:
                 nickname = data["data"][acc_id]["nickname"]
-                record = (str(acc_id), str(nickname))
+                record = (str(date), str(acc_id), str(nickname))
                 result_list.append(record)
     else:
         print(data["error"])  # print error message
@@ -109,21 +121,22 @@ def record_ID(data, result_list):
     return result_list
 
 
-def record_detail(data, result_list):
+def record_detail(date, data, result_list):
     if data["status"] == "ok":
         for acc_id in data["data"]:
             case = data["data"][acc_id]
-            if case is not None and not case["hidden_profile"]:
-                nickname = case["nickname"]
-                pvp = case["statistics"]["pvp"]
-                total = pvp["battles"]
-                win = pvp["wins"]
-                defeat = pvp["losses"]
-                draw = pvp["draws"]
-                record = (str(acc_id), str(nickname), str(total), str(win), str(defeat), str(draw))
-                result_list.append(record)
-            else:
-                print("User %s data private or null" % acc_id)
+            if case is not None:
+                if not case["hidden_profile"]:
+                    nickname = case["nickname"]
+                    pvp = case["statistics"]["pvp"]
+                    total = pvp["battles"]
+                    win = pvp["wins"]
+                    defeat = pvp["losses"]
+                    draw = pvp["draws"]
+                    record = (str(date), str(acc_id), str(nickname), str(total), str(win), str(defeat), str(draw))
+                    result_list.append(record)
+                    # else:
+                    # print("User %s data private" % acc_id)
     else:
         print(data["error"])  # print error message
     if len(result_list) >= size_per_write:  # write when data has 100 records
@@ -137,18 +150,30 @@ def record_detail(data, result_list):
     return result_list
 
 
-def request_API():
+def request_API(days=7):
     # Request API url
     # player_url = 'https://api.worldofwarships.com/wows/account/list/'
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
-    request_allID(account_url, application_id)
-    request_statsbyID(account_url, application_id,overwrite = False)
-    return "Request finished!"
+    # request_allID(account_url, application_id)
+    iter = days
+    last_date = None
+    while iter != 0:
+        if datetime.datetime.now() != last_date:
+            check_ip()
+            start = datetime.datetime.now()
+            last_date = start
+            request_statsbyID(account_url, application_id, overwrite=True)
+            # date = datetime.datetime.now().date()
+            end = datetime.datetime.now()
+            iter -= 1
+            print("%s data update finished, time usage: %s" % (start.date().strftime("%Y-%m-%d"), end - start))
+        else:
+            time.sleep(1800)  # wait 30 mins for next check
+    return "Main request finished!"
 
 
 if __name__ == '__main__':
-    check_ip()
     result = request_API()
     print(result)
