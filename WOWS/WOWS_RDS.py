@@ -16,10 +16,12 @@ class mysql:
 
     def get_IDlist(self, overwrite=True):
         cursor = self.db.cursor()
+        # Get all ids from ID_table whether id has valid stats
         if overwrite:
-            getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats`"""
+            getid_sql = """SELECT `accountID` FROM wowstats.`ID_table`"""
+        # Get the ids only have valid stats in the day
         else:
-            getid_sql = """SELECT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NULL"""
+            getid_sql = """SELECT DISTINCT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NULL"""
         try:
             # execute sql in database
             cursor.execute(query=getid_sql)

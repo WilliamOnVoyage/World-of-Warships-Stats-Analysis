@@ -15,7 +15,7 @@ from WOWS.WOWS_RDS import mysql
 # elseif ($id < 3000000000) return 'ASIA';
 # elseif ($id >= 3000000000) return 'KR';
 
-size_per_write = 1000
+size_per_write = 10000
 
 
 def check_ip():
