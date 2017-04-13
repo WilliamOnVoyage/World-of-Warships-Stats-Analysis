@@ -11,14 +11,21 @@ class mysql:
             raise ConnectionError
 
     def connect_db(self):
-        self.db = sql.connect(host="wowstats.cctqbu5psiq5.us-east-2.rds.amazonaws.com", port=3306, user="moliangzhou",
-                              password="33906413", database="wowstats")
+        # self.db = sql.connect(host="wowstats.cctqbu5psiq5.us-east-2.rds.amazonaws.com", port=3306, user="moliangzhou",
+        #                       password="33906413", database="wowstats")
+        hostname = "127.0.0.1"
+        pn = 3306
+        usr = "root"
+        pw = "33906413"
+        dbname = "wowstats"
+        self.db = sql.connect(host=hostname, port=pn, user=usr, password=pw, database=dbname)
+        print("Data base %s connected at port %d!" % (hostname, pn))
 
     def get_IDlist(self, overwrite=True):
         cursor = self.db.cursor()
         # Get all ids from ID_table whether id has valid stats
         if overwrite:
-            getid_sql = """SELECT `accountID` FROM wowstats.`ID_table`"""
+            getid_sql = """SELECT `accountID` FROM wowstats.`wows_idlist`"""
         # Get the ids only have valid stats in the day
         else:
             getid_sql = """SELECT DISTINCT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NULL"""
@@ -34,33 +41,34 @@ class mysql:
     def write_ID(self, data_list):
         cursor = self.db.cursor()
         insert_sql = """
-        INSERT INTO `wowstats`.`wows_stats` (`Date`,`accountID`, `nickname`) VALUES %s
+        INSERT INTO `wowstats`.`wows_idlist` (`accountID`, `nickname`) VALUES %s
         ON DUPLICATE KEY UPDATE `nickname` = %s
         """
+        fail_count = 0
         for record in data_list:
             try:
                 # execute sql in database
-                cursor.execute(query=insert_sql, args=[record, record[2]])
+                cursor.execute(query=insert_sql, args=[record, record[1]])
                 self.db.commit()
                 # print("%s written." % (record,))
             except:
                 # roll back if error
                 self.db.rollback()
-                print("%s write failed!" % (record,))
-        print("********************Database write finished********************")
+                fail_count += 1
+                # print("%s write failed!" % (record,))
+        print("********************Database write finished, %d cases failed********************" % fail_count)
 
     def write_detail(self, data_list):
         cursor = self.db.cursor()
         update_sql = """
-        UPDATE `wowstats`.`wows_stats`
-        SET `nickname` = %s,`total` = %s, `win`= %s, `defeat`= %s, `draw`= %s
-        WHERE `Date` = %s AND `accountID`=%s
+        INSERT INTO `wowstats`.`wows_stats` (`Date`,`accountID`,`nickname`,`public`,`total`,`win`,`defeat`,`draw`)
+        VALUES %s ON DUPLICATE KEY UPDATE `total` = %s,`win` =%s,`defeat` = %s,`draw` = %s
         """
         for record in data_list:
             try:
                 # execute sql in database
                 cursor.execute(query=update_sql,
-                               args=[record[2], record[3], record[4], record[5], record[6], record[0], record[1]])
+                               args=[record,record[4],record[5],record[6],record[7]])
                 self.db.commit()
                 # print("%s written." % (record,))
             except:

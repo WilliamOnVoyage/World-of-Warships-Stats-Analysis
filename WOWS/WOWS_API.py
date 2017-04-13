@@ -2,11 +2,9 @@ import json
 import socket
 import datetime
 import time
-from urllib import request, parse, error
-
 import ipgetter
-
 from WOWS.WOWS_RDS import mysql
+from urllib import request, parse, error
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -46,13 +44,13 @@ def create_idlist(account_ID):
     # account_ID /= 100
     for i in range(Length):
         id.append(int(account_ID + i))
-    return id, account_ID + Length
+    return id, Length
 
 
 def convertlisttopara(list):
     s = ""
     for i in list:
-        if (s != ""):
+        if s != "":
             s += ","
         s += str(i)
     return s
@@ -71,22 +69,23 @@ def request_statsbyID(account_url, application_id, overwrite=True):
             url = account_url + '?' + parameter
             try:
                 result = request.urlopen(url).read().decode("utf-8")
-                # print(result)
                 data = json.loads(result)
-                # result_list = record_ID(data, result_list)
+                while data["status"] != "ok":  # keep requesting until get ok
+                    result = request.urlopen(url).read().decode("utf-8")
+                    data = json.loads(result)
                 result_list = record_detail(date, data, result_list)
                 sublist = []
             except error.URLError:  # API url request failed
                 print("API request failed!")
+                print(error.URLError)
 
 
 def request_allID(account_url, application_id):
-    date = check_date()
-    account_ID = 1025676757
+    account_ID = 1000000000
     result_list = []
 
     while account_ID < 2000000000:
-        idlist, account_ID = create_idlist(account_ID)
+        idlist, increment = create_idlist(account_ID)
         idlist = convertlisttopara(idlist)
         parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
         url = account_url + '?' + parameter
@@ -94,22 +93,23 @@ def request_allID(account_url, application_id):
             result = request.urlopen(url).read().decode("utf-8")
             # print(result)
             data = json.loads(result)
-            result_list = record_ID(date, data, result_list)
+            if data["status"] == "ok":
+                result_list = record_ID(data, result_list)
+                account_ID += increment
+            else:
+                print(data["error"])  # print error message
         except error.URLError:  # API url request failed
             print("API request failed!")
             print(error.URLError)
 
 
-def record_ID(date, data, result_list):
-    if data["status"] == "ok":
-        for acc_id in data["data"]:
-            if data["data"][acc_id] is not None:
-                nickname = data["data"][acc_id]["nickname"]
-                record = (str(date), str(acc_id), str(nickname))
-                result_list.append(record)
-    else:
-        print(data["error"])  # print error message
-    if len(result_list) >= size_per_write:  # write when data has 100 records
+def record_ID(data, result_list):
+    for acc_id in data["data"]:
+        if data["data"][acc_id] is not None:
+            nickname = data["data"][acc_id]["nickname"]
+            record = (str(acc_id), str(nickname))
+            result_list.append(record)
+    if len(result_list) >= size_per_write:  # write when data has certain size
         try:
             db = mysql()
             db.write_ID(result_list)
@@ -133,7 +133,9 @@ def record_detail(date, data, result_list):
                     win = pvp["wins"]
                     defeat = pvp["losses"]
                     draw = pvp["draws"]
-                    record = (str(date), str(acc_id), str(nickname), str(total), str(win), str(defeat), str(draw))
+                    public = 1
+                    record = (
+                    str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat), str(draw))
                     result_list.append(record)
                     # else:
                     # print("User %s data private" % acc_id)
@@ -156,14 +158,14 @@ def request_API(days=7):
     account_url = 'https://api.worldofwarships.com/wows/account/info/'
     # Request params
     application_id = 'bc7a1942582313fd553a85240bd491c8'
+    check_ip()
     # request_allID(account_url, application_id)
     iter = days
     last_date = None
     while iter != 0:
-        if datetime.datetime.now() != last_date:
-            check_ip()
-            start = datetime.datetime.now()
-            last_date = start
+        start = datetime.datetime.now()
+        if start.date() != last_date:
+            last_date = start.date()
             request_statsbyID(account_url, application_id, overwrite=True)
             # date = datetime.datetime.now().date()
             end = datetime.datetime.now()
