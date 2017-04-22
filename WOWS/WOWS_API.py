@@ -56,8 +56,17 @@ def convertlisttopara(list):
     return s
 
 
-def request_statsbyID(account_url, application_id, overwrite=True):
-    date = check_date()
+def update_winRate(date):
+    try:
+        db = mysql()
+        sql = """update wowstats.wows_stats set `winRate` = `win`/`total` where `Date`=%s and `accountID`<>0 and `total` is not null;"""
+        db.execute_single(sql=sql, arg=[date])
+        db.close_db()
+    except ConnectionError:
+        print("Database connection failed!")
+
+
+def request_statsbyID(account_url, application_id, date, overwrite=True):
     result_list = []
     idlist = get_idlistfromsql(overwrite=overwrite)
     sublist = []
@@ -101,6 +110,7 @@ def request_allID(account_url, application_id):
         except error.URLError:  # API url request failed
             print("API request failed!")
             print(error.URLError)
+            continue
 
 
 def record_ID(data, result_list):
@@ -135,7 +145,8 @@ def record_detail(date, data, result_list):
                     draw = pvp["draws"]
                     public = 1
                     record = (
-                    str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat), str(draw))
+                        str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat),
+                        str(draw))
                     result_list.append(record)
                     # else:
                     # print("User %s data private" % acc_id)
@@ -166,7 +177,8 @@ def request_API(days=7):
         start = datetime.datetime.now()
         if start.date() != last_date:
             last_date = start.date()
-            request_statsbyID(account_url, application_id, overwrite=True)
+            request_statsbyID(account_url, application_id, last_date, overwrite=True)
+            update_winRate(last_date)
             # date = datetime.datetime.now().date()
             end = datetime.datetime.now()
             iter -= 1
