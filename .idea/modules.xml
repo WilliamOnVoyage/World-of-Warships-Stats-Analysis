@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://E:/PycharmProjects/Video2TextChallange/.idea/Video2TextChallange.iml" filepath="E:/PycharmProjects/Video2TextChallange/.idea/Video2TextChallange.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/WOWS_Stats.iml" filepath="$PROJECT_DIR$/.idea/WOWS_Stats.iml" />
     </modules>
   </component>
