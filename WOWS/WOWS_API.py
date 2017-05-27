@@ -76,17 +76,21 @@ def request_statsbyID(account_url, application_id, date, overwrite=True):
             idlist = convertlisttopara(sublist)
             parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
             url = account_url + '?' + parameter
-            try:
-                result = request.urlopen(url).read().decode("utf-8")
-                data = json.loads(result)
-                while data["status"] != "ok":  # keep requesting until get ok
+            n_try = 10
+            while n_try > 0:
+                try:
                     result = request.urlopen(url).read().decode("utf-8")
                     data = json.loads(result)
-                result_list = record_detail(date, data, result_list)
-                sublist = []
-            except error.URLError:  # API url request failed
-                print("API request failed!")
-                print(error.URLError)
+                    while data["status"] != "ok":  # keep requesting until get ok
+                        result = request.urlopen(url).read().decode("utf-8")
+                        data = json.loads(result)
+                    result_list = record_detail(date, data, result_list)
+                    sublist = []
+                except error.URLError:  # API url request failed
+                    print("API request failed!")
+                    print(error.URLError)
+                    continue
+                break
 
 
 def request_allID(account_url, application_id):
