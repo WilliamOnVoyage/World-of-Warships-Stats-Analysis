@@ -1,4 +1,3 @@
 pymysql
-urllib
 ipgetter
 socket
