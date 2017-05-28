@@ -1,4 +1,5 @@
 import pymysql as sql
+from builtins import ConnectionError
 
 
 class mysql:
@@ -68,7 +69,7 @@ class mysql:
             try:
                 # execute sql in database
                 cursor.execute(query=update_sql,
-                               args=[record,record[4],record[5],record[6],record[7]])
+                               args=[record, record[4], record[5], record[6], record[7]])
                 self.db.commit()
                 # print("%s written." % (record,))
             except:

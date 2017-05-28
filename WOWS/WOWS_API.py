@@ -39,17 +39,17 @@ def get_idlistfromsql(overwrite=True):
 
 
 def create_idlist(account_ID):
-    id = []
-    Length = 100
+    ids = []
+    l = 100
     # account_ID /= 100
-    for i in range(Length):
-        id.append(int(account_ID + i))
-    return id, Length
+    for i in range(l):
+        ids.append(int(account_ID + i))
+    return ids, l
 
 
-def convertlisttopara(list):
+def convertlisttopara(list_ids):
     s = ""
-    for i in list:
+    for i in list_ids:
         if s != "":
             s += ","
         s += str(i)
@@ -70,8 +70,8 @@ def request_statsbyID(account_url, application_id, date, overwrite=True):
     result_list = []
     idlist = get_idlistfromsql(overwrite=overwrite)
     sublist = []
-    for id in idlist:
-        sublist.append(id[0])
+    for ids in idlist:
+        sublist.append(ids[0])
         if len(sublist) == 100:
             idlist = convertlisttopara(sublist)
             parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
@@ -175,9 +175,9 @@ def request_API(days=7):
     application_id = 'bc7a1942582313fd553a85240bd491c8'
     check_ip()
     # request_allID(account_url, application_id)
-    iter = days
+    day_count = days
     last_date = None
-    while iter != 0:
+    while day_count != 0:
         start = datetime.datetime.now()
         if start.date() != last_date:
             last_date = start.date()
@@ -185,7 +185,7 @@ def request_API(days=7):
             update_winRate(last_date)
             # date = datetime.datetime.now().date()
             end = datetime.datetime.now()
-            iter -= 1
+            day_count -= 1
             print("%s data update finished, time usage: %s" % (start.date().strftime("%Y-%m-%d"), end - start))
         else:
             time.sleep(1800)  # wait 30 mins for next check

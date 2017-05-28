@@ -1,7 +1,7 @@
 from WOWS.WOWS_RDS import mysql
 
 
-class RDS:
+class rds:
     def __init__(self):
         self.db = mysql()
 
@@ -18,3 +18,4 @@ class RDS:
         sql = """SELECT * FROM wowstats.wows_stats
         WHERE (`total` > %d AND `winRate` is not null)""" % total_thres
         detail = self.db.execute_single(sql=sql)
+        print(detail)
