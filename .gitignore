@@ -90,4 +90,3 @@ ENV/
 
 # config file
 config.json
-.travis.yml
