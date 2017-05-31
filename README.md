@@ -44,3 +44,6 @@ The players' statistical data can then be retrieved through SQL and analyzed for
 * [1000000000, 2000000000) : 'NA';
 * [2000000000, 3000000000) : 'ASIA';
 * [3000000000, ) : 'KR';
+
+---
+More projects on [my private repository summary](https://williamonvoyage.github.io/Private-Repository-Summary/)
