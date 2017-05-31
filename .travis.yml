@@ -6,4 +6,4 @@ install: "pip install -r requirements.txt"
 script: py.test test.py
 os: windows
 after_sucess:
-  - CODECLIMATE_REPO_TOKEN=<a74fc65f583d29b0d35dd8b4731079be3d9cc9f30712e3aa63f8f3eb93b3ef52> codeclimate-test-reporter
+  - CODECLIMATE_REPO_TOKEN=a74fc65f583d29b0d35dd8b4731079be3d9cc9f30712e3aa63f8f3eb93b3ef52 codeclimate-test-reporter
