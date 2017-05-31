@@ -7,7 +7,7 @@ import ipgetter
 from util import read_config
 from WOWS.WOWS_RDS import wows_database
 from urllib import request, parse, error
-from mysql.connector import Error as mysqlErr
+from pymysql import MySQLError as mysqlErr
 
 # account ID range
 # if ($id <  500000000) return 'RU';
