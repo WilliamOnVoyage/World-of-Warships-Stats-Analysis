@@ -1,9 +1,9 @@
-from WOWS.WOWS_RDS import mysql
+from WOWS.WOWS_RDS import wows_database
 
 
 class rds:
     def __init__(self):
-        self.db = mysql()
+        self.db = wows_database()
 
     def __del__(self):
         self.db.close_db()

@@ -1,17 +1,16 @@
-import pymysql as sql
+import mysql.connector
 import json
-from builtins import ConnectionError
 from util import read_config
 
 
-class mysql:
+class wows_database:
     def __init__(self):
         try:
             self.connect_db()
             # print("Database connected!")
-        except:
+        except mysql.connector.Error as err:
             print("Connection failed!")
-            raise ConnectionError
+            raise err
 
     def connect_db(self, database='mysql'):
         # Read database config file
@@ -24,7 +23,7 @@ class mysql:
         dbname = config_data[database]['dbname']
 
         print(hostname, port, usr, pw, dbname)
-        self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
+        self.db = mysql.connector.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
         print("Data base %s connected at port %d!" % (hostname, port))
 
     def get_IDlist(self, overwrite=True):
@@ -102,7 +101,7 @@ class mysql:
 
 if __name__ == '__main__':
     try:
-        db = mysql()
+        db = wows_database()
         db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
         db.close_db()
     except ConnectionError:

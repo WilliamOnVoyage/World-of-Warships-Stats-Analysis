@@ -5,8 +5,9 @@ import time
 import ipgetter
 
 from util import read_config
-from WOWS.WOWS_RDS import mysql
+from WOWS.WOWS_RDS import wows_database
 from urllib import request, parse, error
+from mysql.connector import Error as mysqlErr
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -32,11 +33,11 @@ def check_date():
 
 def get_idlistfromsql(overwrite=True):
     try:
-        db = mysql()
+        db = wows_database()
         idlist = db.get_IDlist(overwrite=overwrite)
         db.close_db()
         return idlist
-    except ConnectionError:
+    except mysqlErr:
         print("Get ID list connection failed!")
 
 
@@ -60,11 +61,11 @@ def convertlisttopara(list_ids):
 
 def update_winRate(date):
     try:
-        db = mysql()
+        db = wows_database()
         sql = """update wowstats.wows_stats set `winRate` = `win`/`total` where `Date`=%s and `accountID`<>0 and `total` is not null;"""
         db.execute_single(sql=sql, arg=[date])
         db.close_db()
-    except ConnectionError:
+    except mysqlErr:
         print("Database connection failed!")
 
 
@@ -127,11 +128,11 @@ def record_ID(data, result_list):
             result_list.append(record)
     if len(result_list) >= size_per_write:  # write when data has certain size
         try:
-            db = mysql()
+            db = wows_database()
             db.write_ID(result_list)
             db.close_db()
             print("Last account id: ", result_list[size_per_write - 1][0])
-        except ConnectionError:
+        except mysqlErr:
             print("Database connection failed!")
         result_list = []
     return result_list
@@ -160,10 +161,10 @@ def record_detail(date, data, result_list):
         print(data["error"])  # print error message
     if len(result_list) >= size_per_write:  # write when data has 100 records
         try:
-            db = mysql()
+            db = wows_database()
             db.write_detail(result_list)
             db.close_db()
-        except ConnectionError:
+        except mysqlErr:
             print("Database connection failed!")
         result_list = []
     return result_list
