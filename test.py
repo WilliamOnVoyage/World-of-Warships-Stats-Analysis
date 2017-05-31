@@ -1,5 +1,6 @@
 import WOWS.WOWS_API as wows
 import util.read_config as config
+import coverage
 
 
 def test_WOWS_API():
