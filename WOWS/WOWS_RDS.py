@@ -23,6 +23,7 @@ class mysql:
         pw = config_data[database]['pw']
         dbname = config_data[database]['dbname']
 
+        print(hostname, port, usr, pw, dbname)
         self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
         print("Data base %s connected at port %d!" % (hostname, port))
 
