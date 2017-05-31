@@ -1,5 +1,7 @@
 import pymysql as sql
+import json
 from builtins import ConnectionError
+from util import read_config
 
 
 class mysql:
@@ -11,16 +13,18 @@ class mysql:
             print("Connection failed!")
             raise ConnectionError
 
-    def connect_db(self):
-        # self.db = sql.connect(host="wowstats.cctqbu5psiq5.us-east-2.rds.amazonaws.com", port=3306, user="moliangzhou",
-        #                       password="33906413", database="wowstats")
-        hostname = "127.0.0.1"
-        pn = 3306
-        usr = "root"
-        pw = "33906413"
-        dbname = "wowstats"
-        self.db = sql.connect(host=hostname, port=pn, user=usr, password=pw, database=dbname)
-        print("Data base %s connected at port %d!" % (hostname, pn))
+    def connect_db(self, database='mysql'):
+        # Read database config file
+        cg = read_config.config()
+        config_data = json.loads(cg.read_config())
+        hostname = config_data[database]["hostname"]
+        port = config_data[database]['port']
+        usr = config_data[database]['usr']
+        pw = config_data[database]['pw']
+        dbname = config_data[database]['dbname']
+
+        self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
+        print("Data base %s connected at port %d!" % (hostname, port))
 
     def get_IDlist(self, overwrite=True):
         cursor = self.db.cursor()

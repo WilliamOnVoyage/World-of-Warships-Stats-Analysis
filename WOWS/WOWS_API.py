@@ -3,6 +3,8 @@ import socket
 import datetime
 import time
 import ipgetter
+
+from util import read_config
 from WOWS.WOWS_RDS import mysql
 from urllib import request, parse, error
 
@@ -167,13 +169,15 @@ def record_detail(date, data, result_list):
     return result_list
 
 
-def request_API(days=7):
-    # Request API url
-    # player_url = 'https://api.worldofwarships.com/wows/account/list/'
-    account_url = 'https://api.worldofwarships.com/wows/account/info/'
-    # Request params
-    application_id = 'bc7a1942582313fd553a85240bd491c8'
+def request_main(days=7):
+    # Request params from config file
+    cg = read_config.config()
+    config_data = json.loads(cg.read_config())
+    application_id = config_data['wows_api']['application_id']
+    account_url = config_data['wows_api']['account_url']
+    player_url = config_data['wows_api']['player_url']
     check_ip()
+
     # request_allID(account_url, application_id)
     day_count = days
     last_date = None
@@ -193,5 +197,5 @@ def request_API(days=7):
 
 
 if __name__ == '__main__':
-    result = request_API()
+    result = request_main()
     print(result)
