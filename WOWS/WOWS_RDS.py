@@ -1,4 +1,4 @@
-import mysql.connector
+import pymysql as sql
 import json
 from util import read_config
 
@@ -8,9 +8,9 @@ class wows_database:
         try:
             self.connect_db()
             # print("Database connected!")
-        except mysql.connector.Error as err:
+        except:
             print("Connection failed!")
-            raise err
+            raise sql.MySQLError
 
     def connect_db(self, database='mysql'):
         # Read database config file
@@ -23,7 +23,7 @@ class wows_database:
         dbname = config_data[database]['dbname']
 
         print(hostname, port, usr, pw, dbname)
-        self.db = mysql.connector.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
+        self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
         print("Data base %s connected at port %d!" % (hostname, port))
 
     def get_IDlist(self, overwrite=True):
@@ -38,7 +38,7 @@ class wows_database:
             # execute sql in database
             cursor.execute(query=getid_sql)
             return cursor.fetchall()
-        except:
+        except sql.MySQLError:
             # roll back if error
             self.db.rollback()
             print("Fetch failed!!!")
@@ -56,7 +56,7 @@ class wows_database:
                 cursor.execute(query=insert_sql, args=[record, record[1]])
                 self.db.commit()
                 # print("%s written." % (record,))
-            except:
+            except sql.MySQLError:
                 # roll back if error
                 self.db.rollback()
                 fail_count += 1
@@ -76,7 +76,7 @@ class wows_database:
                                args=[record, record[4], record[5], record[6], record[7]])
                 self.db.commit()
                 # print("%s written." % (record,))
-            except:
+            except sql.MySQLError:
                 # roll back if error
                 self.db.rollback()
                 print("%s write failed!" % (record,))
@@ -89,7 +89,7 @@ class wows_database:
             cursor.execute(query=sql, args=[arg])
             return cursor.fetchall()
             # print("%s written." % (record,))
-        except:
+        except sql.MySQLError:
             # roll back if error
             self.db.rollback()
             print(sql + " Execution failed!!!")
@@ -104,5 +104,5 @@ if __name__ == '__main__':
         db = wows_database()
         db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
         db.close_db()
-    except ConnectionError:
+    except sql.MySQLError:
         print("Database connection failed!")

@@ -1,4 +1,4 @@
 # pymysql
 ipgetter
 mysql-connector-python-rf
-codeclimate-test-reporter
+codeclimate-test-reporter<4.4
