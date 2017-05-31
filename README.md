@@ -13,7 +13,7 @@ The script connects relational database (MySQL, AWS RDS, etc.) for storing extra
 
 ----
 ### Local configuration file format
-
+  
 {
     "wows_api": {
     "application_id": "XXXX",
