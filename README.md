@@ -21,7 +21,6 @@ The players' statistical data can then be retrieved through SQL and analyzed for
     "application_id": "XXX",
     "player_url": "https://api.worldofwarships.com/wows/account/list/",
     "account_url": "https://api.worldofwarships.com/wows/account/info/"
-    // more urls
   },
   "mysql": {
     "dbname": "XXX",
@@ -37,7 +36,6 @@ The players' statistical data can then be retrieved through SQL and analyzed for
     "hostname": "XXX",
     "port": 0000
   }
-  // more elements
 }
 ```
 ### Account id range
