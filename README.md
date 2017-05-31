@@ -15,10 +15,10 @@ The script connects relational database (MySQL, AWS RDS, etc.) for storing extra
 ### Local configuration file format
 ```
 {
-    "wows_api": {
-    "application_id": "XXXX",
+  "wows_api": {
+    "application_id": "XXX",
     "player_url": "https://api.worldofwarships.com/wows/account/list/",
-    "account_url": "https://api.worldofwarships.com/wows/account/info/",
+    "account_url": "https://api.worldofwarships.com/wows/account/info/"
     ...
   },
   "mysql": {
