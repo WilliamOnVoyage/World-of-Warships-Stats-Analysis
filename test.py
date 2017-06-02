@@ -11,5 +11,5 @@ def test_WOWS_API():
 if __name__ == "__main__":
     test_WOWS_API()
     cg = config.config()
-    json_data = cg.read_config()
+    json_data = cg.read_config(config_file="sample_config.json")
     print(json_data)
