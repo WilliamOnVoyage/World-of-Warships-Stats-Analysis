@@ -24,7 +24,7 @@ class wows_database:
         dbname = config_data[database]['dbname']
         self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
         print(
-            "Data base %s%s%s connected at host %s%s%s port %s%d%s!" % (
+            "Database %s%s%s connected at host %s%s%s port %s%d%s!" % (
                 tf.BLUE, dbname, tf.ENDC, tf.BLUE, hostname, tf.ENDC, tf.BLUE, port, tf.ENDC))
 
     def get_IDlist(self, overwrite=True):
@@ -63,7 +63,7 @@ class wows_database:
                 fail_count += 1
                 # print("%s write failed!" % (record,))
         print("********************ID list write finished, %s%d%s cases failed********************" % (
-            tf.RED, fail_count, tf.ENDC))
+            tf.GREEN if fail_count == 0 else tf.RED, fail_count, tf.ENDC))
 
     def write_detail(self, data_list):
         cursor = self.db.cursor()
@@ -85,7 +85,7 @@ class wows_database:
                 fail_count += 1
                 print("%s%s%s write failed!" % (tf.RED, record, tf.RED))
         print("********************Detail write finished, %s%d%s cases failed********************" % (
-            tf.RED, fail_count, tf.ENDC))
+            tf.GREEN if fail_count == 0 else tf.RED, fail_count, tf.ENDC))
 
     def execute_single(self, query, arg=None):
         cursor = self.db.cursor()
