@@ -1,21 +1,23 @@
 import WOWS.WOWS_API as wows
 import util.read_config as config
 import pymysql as sql
+import datetime
 from WOWS.WOWS_RDS import wows_database
 
 
-def test_WOWS_API():
+def test_wows_api():
     try:
         wows.check_ip()
         wows.check_date()
         idlist = wows.create_idlist(account_ID=1000000000)
         wows.convertlisttopara(idlist)
+        wows.update_winRate(date=datetime.datetime.now().date())
         wows.request_main(days=1)
     except:
         print("WOWS API test failed!")
 
 
-def test_WOWS_RDS():
+def test_wows_rds():
     try:
         db = wows_database()
         db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
@@ -33,10 +35,10 @@ def test_config():
         json_data = cg.read_config(config_file="sample_config.json")
         print(json_data)
     except:
-        print("read_config test failed!")
+        print("read config test failed!")
 
 
 if __name__ == "__main__":
-    test_WOWS_API()
-    test_WOWS_RDS()
+    test_wows_api()
+    test_wows_rds()
     test_config()

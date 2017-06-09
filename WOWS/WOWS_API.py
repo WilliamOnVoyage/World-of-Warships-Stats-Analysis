@@ -8,6 +8,7 @@ from util import read_config
 from WOWS.WOWS_RDS import wows_database
 from urllib import request, parse, error
 from pymysql import MySQLError as mysqlErr
+from util.string_format import bcolors as tf
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -62,8 +63,8 @@ def convertlisttopara(list_ids):
 def update_winRate(date):
     try:
         db = wows_database()
-        sql = """update wowstats.wows_stats set `winRate` = `win`/`total` where `Date`=%s and `accountID`<>0 and `total` is not null;"""
-        db.execute_single(sql=sql, arg=[date])
+        sql = """update wowstats.wows_stats set `winRate` = round(`win`/`total`,4) where `Date`=%s and `accountID`<>0 and `total` is not null;"""
+        db.execute_single(query=sql, arg=str(date))
         db.close_db()
     except mysqlErr:
         print("Database connection failed!")
@@ -191,7 +192,8 @@ def request_main(days=7):
             # date = datetime.datetime.now().date()
             end = datetime.datetime.now()
             day_count -= 1
-            print("%s data update finished, time usage: %s" % (start.date().strftime("%Y-%m-%d"), end - start))
+            print("%s data update finished, time usage: %s%s%s" % (
+            start.date().strftime("%Y-%m-%d"), tf.DARKGREEN, end - start, tf.ENDC))
         else:
             time.sleep(1800)  # wait 30 mins for next check
     return "Main request finished!"
