@@ -4,7 +4,7 @@ from util import read_config
 from util.ansi_code import ANSI_escode as tf
 
 
-class wows_database:
+class wows_database(object):
     def __init__(self):
         try:
             self.connect_db()

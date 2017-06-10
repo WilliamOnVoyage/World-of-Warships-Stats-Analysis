@@ -8,8 +8,8 @@ class config(object):
 
     def read_config(self, config_file="config.json"):
         path = os.path.dirname(self.path)
-        file = os.path.join(path, config_file)
-        json_data = open(file).read()
+        file_name = os.path.join(path, config_file)
+        json_data = open(file_name).read()
         return json_data
 
 

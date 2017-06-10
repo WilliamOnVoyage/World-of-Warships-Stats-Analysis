@@ -1,7 +1,7 @@
 from WOWS.WOWS_RDS import wows_database
 
 
-class rds:
+class rds(object):
     def __init__(self):
         self.db = wows_database()
 
