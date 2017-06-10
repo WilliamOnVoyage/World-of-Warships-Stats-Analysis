@@ -1,7 +1,7 @@
 import pymysql as sql
 import json
 from util import read_config
-from util.string_format import bcolors as tf
+from util.ansi_code import ANSI_escode as tf
 
 
 class wows_database:
@@ -99,6 +99,7 @@ class wows_database:
             # roll back if error
             self.db.rollback()
             print(tf.RED + query + " Execution failed!!!")
+            raise sql.MySQLError
 
     def close_db(self):
         # disconnect

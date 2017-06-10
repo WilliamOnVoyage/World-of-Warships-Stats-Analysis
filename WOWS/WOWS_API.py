@@ -8,7 +8,7 @@ from util import read_config
 from WOWS.WOWS_RDS import wows_database
 from urllib import request, parse, error
 from pymysql import MySQLError as mysqlErr
-from util.string_format import bcolors as tf
+from util.ansi_code import ANSI_escode as ansi
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -65,9 +65,10 @@ def update_winRate(date):
         db = wows_database()
         sql = """update wowstats.wows_stats set `winRate` = round(`win`/`total`,4) where `Date`=%s and `accountID`<>0 and `total` is not null;"""
         db.execute_single(query=sql, arg=str(date))
+        print("%s%s%s winRate update %sfinished!" % (ansi.BLUE, str(date), ansi.ENDC, ansi.DARKGREEN))
         db.close_db()
     except mysqlErr:
-        print("Database connection failed!")
+        print("%s%s%s winRate update %sfailed!" % (ansi.BLUE, str(date), ansi.ENDC, ansi.RED))
 
 
 def request_statsbyID(account_url, application_id, date, overwrite=True):
@@ -192,8 +193,8 @@ def request_main(days=7):
             # date = datetime.datetime.now().date()
             end = datetime.datetime.now()
             day_count -= 1
-            print("%s data update finished, time usage: %s%s%s" % (
-            start.date().strftime("%Y-%m-%d"), tf.DARKGREEN, end - start, tf.ENDC))
+            print("%s%s%s data update finished, time usage: %s%s%s" % (
+                ansi.BLUE, start.date().strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, end - start, ansi.ENDC))
         else:
             time.sleep(1800)  # wait 30 mins for next check
     return "Main request finished!"

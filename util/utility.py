@@ -1,5 +1,5 @@
 import datetime
-from util.string_format import bcolors as tf
+from util.ansi_code import ANSI_escode as tf
 
 
 def getcurrent_date():

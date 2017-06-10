@@ -1,4 +1,4 @@
-class bcolors:
+class ANSI_escode:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
@@ -18,4 +18,4 @@ class bcolors:
 
 
 if __name__ == "__main__":
-    print(bcolors.RED + "This is to test" + bcolors.ENDC)
+    print(ANSI_escode.RED + "This is to test" + ANSI_escode.ENDC)
