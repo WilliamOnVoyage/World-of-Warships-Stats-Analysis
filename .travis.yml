@@ -1,0 +1,11 @@
+language: python
+python:
+  - "3.5"
+  - "3.5-dev"
+install: "pip install -r requirements.txt"
+script: py.test test.py
+os: windows
+after_success:
+  - coverage run test.py
+  - coverage report
+  - codeclimate-test-reporter --token 4bd72cc32eeeff64a7dc82d371978eb92199ac231051ed13e1cbde389e4730d8

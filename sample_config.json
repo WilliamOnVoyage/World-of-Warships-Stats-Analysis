@@ -1,0 +1,21 @@
+{
+  "wows_api": {
+    "application_id": "XXX",
+    "player_url": "https://api.worldofwarships.com/wows/account/list/",
+    "account_url": "https://api.worldofwarships.com/wows/account/info/"
+  },
+  "mysql": {
+    "dbname": "XXX",
+    "usr": "XXX",
+    "pw": "XXX",
+    "hostname": "XX.XX.XX.XX",
+    "port": 1111
+  },
+  "AWS_RDS": {
+    "dbname": "XXX",
+    "usr": "XXX",
+    "pw": "XXX",
+    "hostname": "XX.XX.XX.XX",
+    "port": 2222
+  }
+}
