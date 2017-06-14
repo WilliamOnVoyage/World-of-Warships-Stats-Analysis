@@ -92,8 +92,8 @@ def request_statsbyID(account_url, application_id, date, overwrite=True):
                     result_list = record_detail(date, data, result_list)
                     sublist = []
                 except error.URLError:  # API url request failed
-                    print("API request failed!")
-                    print(error.URLError)
+                    print("%sAPI request failed!" % ansi.RED)
+                    print("URL: %s, Error type: %s%s" % (url, ansi.RED, error.URLError.__str__))
                     continue
                 break
 
@@ -117,8 +117,8 @@ def request_allID(account_url, application_id):
             else:
                 print(data["error"])  # print error message
         except error.URLError:  # API url request failed
-            print("API request failed!")
-            print(error.URLError)
+            print("%sAPI request failed!" % ansi.RED)
+            print("URL: %s, Error type: %s%s" % (url, ansi.RED, error.URLError.__str__))
             continue
 
 
@@ -193,7 +193,7 @@ def request_main(days=7):
             # date = datetime.datetime.now().date()
             end = datetime.datetime.now()
             day_count -= 1
-            print("%s%s%s data update finished, time usage: %s%s%s" % (
+            print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
                 ansi.BLUE, start.date().strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, end - start, ansi.ENDC))
         else:
             time.sleep(1800)  # wait 30 mins for next check
