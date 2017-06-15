@@ -103,6 +103,18 @@ class wows_database(object):
             print(tf.RED + query + " Execution failed!!!")
             raise sql.MySQLError
 
+    def get_statsbyDate(self, date):
+        cursor = self.db.cursor()
+        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `Date` = %s"""
+        try:
+            # execute sql in database
+            cursor.execute(query=getid_sql, args=[date])
+            return cursor.fetchall()
+        except sql.MySQLError:
+            # roll back if error
+            self.db.rollback()
+            print("Fetch failed!!!")
+
     def close_db(self):
         # disconnect
         self.db.close()
