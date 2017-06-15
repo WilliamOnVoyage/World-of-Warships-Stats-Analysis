@@ -1,8 +1,10 @@
-import WOWS.WOWS_API as wows
-import util.read_config as config
-import pymysql as sql
 import datetime
-from WOWS.WOWS_RDS import wows_database
+
+import pymysql as sql
+
+import api_database.wows_api as wows
+import util.read_config as config
+from api_database.wows_DB import wows_database
 
 
 def test_wows_api():
@@ -14,7 +16,7 @@ def test_wows_api():
         wows.update_winRate(date=datetime.datetime.now().date())
         wows.request_main(days=1)
     except:
-        print("WOWS API test failed!")
+        print("api_database API test failed!")
 
 
 def test_wows_rds():
@@ -26,7 +28,7 @@ def test_wows_rds():
         db.write_ID(data_list=['1000000000', 'xxxxxxx'])
         db.close_db()
     except sql.MySQLError:
-        print("WOWS RDS test failed!")
+        print("api_database RDS test failed!")
 
 
 def test_config():

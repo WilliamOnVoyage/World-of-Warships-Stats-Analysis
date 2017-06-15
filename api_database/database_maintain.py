@@ -1,4 +1,4 @@
-from WOWS.WOWS_RDS import wows_database
+from api_database.wows_DB import wows_database
 
 
 class rds(object):

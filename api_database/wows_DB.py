@@ -1,5 +1,7 @@
-import pymysql as sql
 import json
+
+import pymysql as sql
+
 from util import read_config
 from util.ansi_code import ANSI_escode as tf
 
