@@ -9,6 +9,7 @@ from api_database.wows_db import wows_database
 from util import read_config, utility
 from util.ansi_code import ANSI_escode as ansi
 
+
 # account ID range
 # if ($id <  500000000) return 'RU';
 # elseif ($id < 1000000000) return 'EU';
@@ -16,11 +17,12 @@ from util.ansi_code import ANSI_escode as ansi
 # elseif ($id < 3000000000) return 'ASIA';
 # elseif ($id >= 3000000000) return 'KR';
 
-size_per_write = 10000
+
 
 
 class wows_api_req(object):
     def __init__(self):
+        self.size_per_write = 10000
         print("API initialized")
 
     def get_idlistfromsql(self, overwrite=True):
@@ -116,12 +118,12 @@ class wows_api_req(object):
                 nickname = data["data"][acc_id]["nickname"]
                 record = (str(acc_id), str(nickname))
                 result_list.append(record)
-        if len(result_list) >= size_per_write:  # write when data has certain size
+        if len(result_list) >= self.size_per_write:  # write when data has certain size
             try:
                 db = wows_database()
                 db.write_ID(result_list)
                 db.close_db()
-                print("Last account id: ", result_list[size_per_write - 1][0])
+                print("Last account id: ", result_list[self.size_per_write - 1][0])
             except mysqlErr:
                 print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
             result_list = []
@@ -148,7 +150,7 @@ class wows_api_req(object):
                         # print("User %s data private" % acc_id)
         else:
             print(data["error"])  # print error message
-        if len(result_list) >= size_per_write:  # write when data has 100 records
+        if len(result_list) >= self.size_per_write:  # write when data has 100 records
             try:
                 db = wows_database()
                 db.write_detail(result_list)
@@ -158,7 +160,7 @@ class wows_api_req(object):
             result_list = []
         return result_list
 
-    def main(self, days=7):
+    def api_main(self, days=7):
         # Request params from config file
         cg = read_config.config()
         config_data = json.loads(cg.read_config())
@@ -189,5 +191,5 @@ class wows_api_req(object):
 
 
 if __name__ == '__main__':
-    result = wows_api_req().main()
+    result = wows_api_req().api_main()
     print(result)
