@@ -68,7 +68,7 @@ def main(days=7):
 
 
 if __name__ == '__main__':
-    # result = main()
+    # result = api_main()
     # print(result)
 
     model_update(date=datetime.date.today())

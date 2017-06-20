@@ -125,4 +125,4 @@ class winRate_model(object):
 
 
 if __name__ == "__main__":
-    print("winRate prediction main")
+    print("winRate prediction api_main")
