@@ -16,7 +16,7 @@ def test_wows_api():
         idlist = wows.create_idlist(account_ID=1000000000)
         wows.convertlisttopara(idlist)
         wows.update_winRate(date=datetime.datetime.now().date())
-        wows.api_main(days=1)
+        wows.api_main(days=0)
     except:
         print("api_database API test failed!")
 
@@ -24,7 +24,7 @@ def test_wows_api():
 def test_wows_rds():
     try:
         db = wows_database()
-        db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
+        db.write_detail(data_list=[('2017-01-01', '1000000000', 'xxxxxxx', '1', '0', '0', '0', '0')])
         id_list = db.get_IDlist()
         print(id_list)
         db.write_ID(data_list=['1000000000', 'xxxxxxx'])
