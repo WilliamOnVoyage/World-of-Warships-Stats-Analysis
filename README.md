@@ -12,6 +12,19 @@ There are several limitations, as well as specific JSON format regarding differe
 The script connects relational database (MySQL, AWS RDS, etc.) for storing extracted data. The players' id list is stored in an individual table `wows_idlist`, which is essential for efficient API request since the complete id list is not officially provided, and the account number is sparsely distributed in a large range ([WOWS account number range](#account-id-range)). Some statistics like the number of battles are stored in `wows_stats`, and you can customize your own database as well.
 
 The players' statistical data can then be retrieved through SQL and analyzed for your own purpose.
+## Analysis
+### Data Preprocessing
+
+When retrieving players' data from database, we use `pandas` Panel to construct the 3D DataFrame as:
+|ID\day|1|2|3|...|
+|:---:|:---:|:---:|:---:|:---:|
+|10001|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
+|10002|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
+|10003|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
+
+The `[t,w,l,d]` is the vector of one day's stats of `[total,win,loss,draw]`.
+
+### LSTM Model
 
 ----
 ### Local configuration file format
