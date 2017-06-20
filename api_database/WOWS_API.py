@@ -19,7 +19,7 @@ from util.ansi_code import ANSI_escode as ansi
 size_per_write = 10000
 
 
-class wows_api(object):
+class wows_api_req(object):
     def __init__(self):
         print("API initialized")
 
@@ -158,37 +158,36 @@ class wows_api(object):
             result_list = []
         return result_list
 
+    def main(self, days=7):
+        # Request params from config file
+        cg = read_config.config()
+        config_data = json.loads(cg.read_config())
+        application_id = config_data['wows_api']['application_id']
+        account_url = config_data['wows_api']['account_url']
+        player_url = config_data['wows_api']['player_url']
+        utility.check_ip()
 
-def main(days=7):
-    # Request params from config file
-    cg = read_config.config()
-    config_data = json.loads(cg.read_config())
-    application_id = config_data['wows_api']['application_id']
-    account_url = config_data['wows_api']['account_url']
-    player_url = config_data['wows_api']['player_url']
-    utility.check_ip()
-
-    # request_allID(account_url, application_id)
-    day_count = days
-    last_date = None
-    while day_count != 0:
-        start = datetime.datetime.now()
-        if start.date() != last_date:
-            last_date = start.date()
-            api = wows_api()
-            api.request_statsbyID(account_url=account_url, application_id=application_id, date=last_date,
-                                  overwrite=True)
-            api.update_winRate(date=last_date)
-            # date = datetime.datetime.now().date()
-            end = datetime.datetime.now()
-            day_count -= 1
-            print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
-                ansi.BLUE, start.date().strftime("%y_trn-%m-%d"), ansi.ENDC, ansi.DARKGREEN, end - start, ansi.ENDC))
-        else:
-            time.sleep(1800)  # wait 30 mins for next check
-    return "Main request finished!"
+        # request_allID(account_url, application_id)
+        day_count = days
+        last_date = None
+        while day_count != 0:
+            start = datetime.datetime.now()
+            if start.date() != last_date:
+                last_date = start.date()
+                self.request_statsbyID(account_url=account_url, application_id=application_id, date=last_date,
+                                       overwrite=True)
+                self.update_winRate(date=last_date)
+                # date = datetime.datetime.now().date()
+                end = datetime.datetime.now()
+                day_count -= 1
+                print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
+                    ansi.BLUE, start.date().strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, end - start,
+                    ansi.ENDC))
+            else:
+                time.sleep(1800)  # wait 30 mins for next check
+        return "Main request finished!"
 
 
 if __name__ == '__main__':
-    result = main()
+    result = wows_api_req().main()
     print(result)

@@ -18,7 +18,7 @@ def database_update(date):
     account_url = config_data['wows_api']['account_url']
     player_url = config_data['wows_api']['player_url']
     utility.check_ip()
-    wows_api = wows.wows_api()
+    wows_api = wows.wows_api_req()
     wows_api.request_statsbyID(account_url, application_id, date, overwrite=True)
     wows_api.update_winRate(date)
 
