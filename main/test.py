@@ -1,6 +1,11 @@
 import datetime
+import os
+import sys
 
 import pymysql as sql
+
+myPath = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, myPath + '/../')
 
 from api_database.wows_api import wows_api_req
 from api_database.wows_db import wows_database
