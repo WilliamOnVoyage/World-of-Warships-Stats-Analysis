@@ -2,4 +2,4 @@ pymysql
 ipgetter
 codeclimate-test-reporter
 coverage<=4.3.4
-pandas
+pandas>=0.19.2
