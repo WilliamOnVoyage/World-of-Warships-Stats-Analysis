@@ -2,7 +2,7 @@ import datetime
 
 import pymysql as sql
 
-import api_database.wows_api as wows
+from api_database import wows_api as wows
 from api_database.wows_db import wows_database
 from util import read_config as config
 from util import utility as ut
