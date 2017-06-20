@@ -1,32 +1,81 @@
-import datetime
+import random
+from datetime import timedelta
 
+import numpy as np
+from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
-import api_database.wows_DB as wows_db
+import api_database.wows_db as wows_db
 
 
-def db_retrieve(date):
+def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, public=3,
+                stat_columns=np.array([4, 5, 6, 7])):
     try:
+        day_dict = {}
+        day_str = "day "
+        day_columns = ['total', 'win', 'loss', 'draw']
+
+        data_frames = []
         db = wows_db.wows_database()
-        stats = db.get_statsbyDate(date=date)
+        # Convert the cases from database into tuple like [case,[total,win,loss,draw]], erase date, nickname and public information
+        i = 0
+        count = timewindow
+        while count > 0:
+            single_frame = DataFrame(columns=day_columns)
+            data = np.asarray(db.get_statsbyDate(date=last_day - timedelta(i)))
+            if data is not None:
+                ids = data[:, id_column]
+                stats = data[:, stat_columns]
+                for j in range(100):
+                    single_frame.loc[ids[j], day_columns] = np.array(stats[j])
+                day_dict[day_str + str(count + 1)] = single_frame
+                count -= 1
+            i += 1
         db.close_db()
-        return stats
+        result = Panel(day_dict)
+        return result
     except mysqlErr:
         print("Get ID list connection failed!")
         return None
 
 
-def convert_train(data, time_window=1):
-    x = []
-    y = []
-    return x, y
+# This function requires the items in data be consistent (same major index values)
+def convert_train_vali(data, y_column=1, r=0.8, shuffle=False):
+    last_day = data.shape[0] - y_column
+    # Sample by major index (ids)
+    rd_index = np.asarray(random.sample(range(data.shape[1]), int(r * data.shape[1])))
+    trn_dict = {}
+    val_dict = {}
+    for d in data.keys():
+        labels = data[d].axes[0][rd_index]
+        trn_dict[d] = data[d].loc[labels, :]
+        val_dict[d] = data[d].drop(labels)
 
-
-def convert_test(data):
-    x = []
-    return x
+    data_trn = Panel(trn_dict)
+    data_val = Panel(val_dict)
+    # Select items
+    x_trn = data_trn[0:last_day]
+    x_val = data_val[0:last_day]
+    y_trn = data_trn[last_day:data.shape[0]]
+    y_val = data_val[last_day:data.shape[0]]
+    return x_trn, y_trn, x_val, y_val
 
 
 if __name__ == "__main__":
-    data = db_retrieve(datetime.datetime.now().date())
+    data = DataFrame(columns=['t', 'w', 'l', 'd'])
     print(data)
+
+    columns = {'d1': data, 'd2': data, 'd3': data, 'd4': data}
+    pd = Panel(columns)
+    pd['d2'].loc[1000, ['t', 'w', 'l', 'd']] = [3, 3, 3, 3]
+    pd['d2'].loc[1001, 't'] = 3.5
+    pd['d2'].loc[1002, 't'] = 4
+
+    print(pd)
+    droped = pd['d2'].drop(1001)
+    print(droped)
+
+    # date = date.today()
+    # data = db_retrieve(last_day=date)
+    # # x, y = convert_train_vali(data)
+    # print(data)

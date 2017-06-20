@@ -4,17 +4,17 @@ from keras import objectives
 from keras.layers import Dense, LSTM
 from keras.models import Sequential
 
-import model.winRate_dataprocess as winR_data
-
 
 class winRate_model(object):
-    def __init__(self, x, y, time_step=1):
+    def __init__(self, x_trn, y_trn, x_val, y_val, time_step=1):
         # Suppose x = (id,date,[total,win,lose,draw]), the shape of x will be (id number, date range, 4)
         # Predict y as the next day's [total,win,lose,draw], which is a vector of (id number,4)
-        self.X = x
-        self.Y = y
-        self.x_shape = np.asarray(self.X).shape
-        self.y_shape = np.asarray(self.Y).shape
+        self.x_trn = x_trn
+        self.y_trn = y_trn
+        self.x_val = x_val
+        self.y_val = y_val
+        self.x_shape = self.x_trn.shape
+        self.y_shape = self.y_trn.shape
         self.batch_size = self.y_shape[1]
         self.epoch = 1000
         self.lr = 0.001
@@ -32,7 +32,7 @@ class winRate_model(object):
         self.model = self.construct_model()
 
         # Files directory
-        self.model_dir = 'model_results/'
+        self.model_dir = '/model_results/'
         self.model_postfix = '_AP_tw_' + str(time_step) + '_batch_' + str(self.batch_size)
         self.model_file = self.model_dir + 'activity model' + self.model_postfix + '.h5'
         self.model_weights = self.model_dir + 'activity model_weights' + self.model_postfix + '.h5'
@@ -43,7 +43,7 @@ class winRate_model(object):
         # LSTM layers
         model.add(
             LSTM(self.lstm1_node, batch_input_shape=(self.batch_size, self.time_window, self.y_shape[1]),
-                 init='glorot_normal',
+                 init='glorot_normal', return_sequences=True,
                  stateful=True),
         )
         # self.model.add(MaxPooling1D(2))
@@ -63,7 +63,7 @@ class winRate_model(object):
             self.model.load_weights(self.model_file)
 
         # split the train and validation set
-        x_train, y_train = winR_data.convert_train(self.X)
+        x_trn, y_trn, x_val, y_val = self.x_trn, self.y_trn, self.x_val, self.y_val
         for ep in range(self.epoch):
             init_score = [0, 0]
             # Manual learning rate decay
@@ -73,10 +73,10 @@ class winRate_model(object):
                                    metrics=['accuracy'])
             for index in range(self.train_size):
 
-                self.model.fit(x=x_train, y=y_train,
+                self.model.fit(x=x_trn, y=y_trn,
                                batch_size=self.batch_size,
                                nb_epoch=1, shuffle=False, verbose=0)
-                score = self.model.evaluate(x=x_train, y=y_train,
+                score = self.model.evaluate(x=x_val, y=y_val,
                                             batch_size=self.batch_size, verbose=0)
                 init_score[0] += score[0]
                 init_score[1] += score[1]
@@ -103,15 +103,14 @@ class winRate_model(object):
                         init_score[0], init_score[1] * 100))
                 break
 
-    def predict_case(self, X):
+    def predict_case(self, x):
         winRate_prediction = []
         # Check shape, abandon predict if test & train shapes are different
-        shape = np.asarray(X).shape
+        shape = np.asarray(x).shape
         assert shape[1] == self.x_shape[1] and shape[2] == self.x_shape[2]
-        x_test = winR_data.convert_test(self.X)
-        for index in range(len(X)):
+        for index in range(len(x)):
             print("Testing trace: " + str(index))
-            prediction = self.model.predict(x=x_test, batch_size=self.batch_size, verbose=0)
+            prediction = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
             self.model.reset_states()
             winRate_prediction.append(prediction)
 
@@ -123,3 +122,7 @@ class winRate_model(object):
         with open(self.model_json, "w") as json_file:
             json_file.write(model_json)
         self.model.save_weights(self.model_weights)
+
+
+if __name__ == "__main__":
+    print("winRate prediction main")
