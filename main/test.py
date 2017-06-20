@@ -7,11 +7,10 @@ import pymysql as sql
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '/../')
 
-from api_database.wows_api import wows_api_req
-from api_database.wows_db import wows_database
 from util import read_config as config
 from util import utility as ut
-
+from api_database.wows_api import wows_api_req
+from api_database.wows_db import wows_database
 
 def test_wows_api():
     try:
