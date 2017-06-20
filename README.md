@@ -14,10 +14,10 @@ The script connects relational database (MySQL, AWS RDS, etc.) for storing extra
 The players' statistical data can then be retrieved through SQL and analyzed for your own purpose.
 ## Analysis
 ### Data Preprocessing
-
 When retrieving players' data from database, we use `pandas` Panel to construct the 3D DataFrame as:
+
 |ID\day|1|2|3|...|
-|:---:|:---:|:---:|:---:|:---:|
+|:----:|:----:|:----:|:----:|:----:|
 |10001|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
 |10002|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
 |10003|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
