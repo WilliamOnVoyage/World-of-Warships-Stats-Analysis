@@ -55,10 +55,10 @@ class wows_api_req(object):
             db = wows_database()
             sql = """update wowstats.wows_stats set `winRate` = round(`win`/`total`,4) where `Date`=%s and `accountID`<>0 and `total` is not null;"""
             db.execute_single(query=sql, arg=str(date))
-            print("%s%s%s winRate update %sfinished!" % (ansi.BLUE, str(date), ansi.ENDC, ansi.DARKGREEN))
+            print("%s%s%s winRate update %sfinished!%s" % (ansi.BLUE, str(date), ansi.ENDC, ansi.DARKGREEN, ansi.ENDC))
             db.close_db()
         except mysqlErr:
-            print("%s%s%s winRate update %sfailed!" % (ansi.BLUE, str(date), ansi.ENDC, ansi.RED))
+            print("%s%s%s winRate update %sfailed!%s" % (ansi.BLUE, str(date), ansi.ENDC, ansi.RED, ansi.ENDC))
 
     def request_statsbyID(self, account_url, application_id, date, overwrite=True):
         result_list = []

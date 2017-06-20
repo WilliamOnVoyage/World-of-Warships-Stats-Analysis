@@ -1,4 +1,5 @@
 pymysql
+pytest
 ipgetter
 codeclimate-test-reporter
 coverage<=4.3.4
