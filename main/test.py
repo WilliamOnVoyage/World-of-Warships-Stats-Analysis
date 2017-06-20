@@ -2,10 +2,10 @@ import datetime
 
 import pymysql as sql
 
-from .api_database.wows_api import wows_api_req
-from .api_database.wows_db import wows_database
-from .util import read_config as config
-from .util import utility as ut
+from api_database.wows_api import wows_api_req
+from api_database.wows_db import wows_database
+from util import read_config as config
+from util import utility as ut
 
 
 def test_wows_api():
