@@ -25,6 +25,7 @@ When retrieving players' data from database, we use `pandas` Panel to construct 
 The `[t,w,l,d]` is the vector of one day's stats of `[total,win,loss,draw]`.
 
 ### LSTM Model
+We use LSTM without attention model to predict the players' performance based on previous days' stats. The prediction is within certain time window and the objective is to minimize the distance between the ground truth and predicted stats vectors:
 
 ----
 ### Local configuration file format
