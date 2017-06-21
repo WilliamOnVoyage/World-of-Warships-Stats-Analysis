@@ -4,3 +4,4 @@ ipgetter
 codeclimate-test-reporter
 coverage<=4.3.4
 pandas>=0.19.2
+keras>=2.0.4
