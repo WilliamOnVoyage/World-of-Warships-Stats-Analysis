@@ -65,7 +65,6 @@ class winRate_model(object):
     def train_case(self, contd=False):
         if contd:
             self.model.load_weights(self.model_file)
-
         # split the train and validation set
         x_trn, y_trn, x_val, y_val = self.x_trn, self.y_trn, self.x_val, self.y_val
         for ep in range(self.epoch):
@@ -131,22 +130,22 @@ class winRate_model(object):
             print(ansi.RED + self.model_file + "save failed!!!" + ansi.ENDC)
 
 
-if __name__ == "__main__":
+def test():
     df1 = DataFrame(columns=['t', 'w', 'l', 'd'])
     df2 = DataFrame(columns=['t', 'w', 'l', 'd'])
     df1.loc[1000, ['t', 'w', 'l', 'd']] = [1, 0, 1, 0]
     df1.loc[1001, ['t', 'w', 'l', 'd']] = [1, 1, 0, 0]
     df1.loc[1002, ['t', 'w', 'l', 'd']] = [2, 1, 1, 0]
     for i in range(1, len(df1.columns)):
-        df1[df1.columns[i]] = df1[df1.columns[i]] / df1[df1.columns[0]]
-    df1[df1.columns[0]] += 0.001
+        df1.iloc[:, i] = df1.iloc[:, i] / df1.iloc[:, 0]
+    df1.iloc[:, 0] += 0.001
 
     df2.loc[1000, ['t', 'w', 'l', 'd']] = [13, 4, 5, 4]
     df2.loc[1001, ['t', 'w', 'l', 'd']] = [4, 1, 1, 2]
     df2.loc[1002, ['t', 'w', 'l', 'd']] = [5, 3, 2, 0]
     for i in range(1, len(df2.columns)):
-        df2[df1.columns[i]] = df2[df2.columns[i]] / df2[df2.columns[0]]
-    df2[df2.columns[0]] = 1
+        df2.iloc[:, i] = df2.iloc[:, i] / df2.iloc[:, 0]
+    df2.iloc[:, 0] += 0.001
     df = {'d1': df1, 'd2': df2}
     pd = Panel(df)
 
@@ -154,7 +153,12 @@ if __name__ == "__main__":
     print(pd['d2'])
 
     x_trn, y_trn, x_val, y_val = winRate_dataprocess.convert_train_vali(data=pd)
-    model = winRate_model(x_trn=x_trn.values, y_trn=y_trn.values, x_val=x_val.values, y_val=y_val.values, time_step=1)
+    model = winRate_model(x_trn=x_trn.values, y_trn=y_trn.values, x_val=x_val.values, y_val=y_val.values,
+                          time_step=1)
     model.train_case()
     model.save_model()
+
+
+if __name__ == "__main__":
+    test()
     print("winRate prediction api_main")

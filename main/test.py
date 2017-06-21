@@ -4,6 +4,8 @@ import pymysql as sql
 
 import apidatabase.wows_api as wows_api
 import apidatabase.wows_db as wows_db
+from model import winRate_dataprocess as winRate_dataprocess
+from model import winRate_prediction
 from util import read_config as config
 from util import utility as ut
 
@@ -33,6 +35,20 @@ def test_wows_rds():
         print("apidatabase RDS test failed!")
 
 
+def test_winR_prediction():
+    try:
+        winRate_prediction.test()
+    except OSError:
+        print("win Rate prediction test failed!")
+
+
+def test_winR_datapro():
+    try:
+        winRate_dataprocess.test()
+    except OSError:
+        print("win Rate data process test failed!")
+
+
 def test_config():
     try:
         cg = config.config()
@@ -45,4 +61,6 @@ def test_config():
 if __name__ == "__main__":
     test_wows_api()
     test_wows_rds()
+    test_winR_prediction()
+    test_winR_datapro()
     test_config()

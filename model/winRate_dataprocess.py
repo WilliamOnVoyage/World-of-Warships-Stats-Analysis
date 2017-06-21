@@ -29,9 +29,9 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
                 for j in range(len(ids)):
                     single_frame.loc[ids[j], day_columns] = np.array(stats[j])
                 for d in range(1, len(single_frame.columns)):
-                    single_frame[single_frame.columns[d]] = single_frame[single_frame.columns[d]] / (
-                        single_frame[single_frame.columns[0]] + 0.001)
-                single_frame[single_frame.columns[0]] = 1
+                    single_frame[:, d] = single_frame[:, d] / (
+                        single_frame[:, 0] + 0.001)  # plus 0.001 to avoid all 0s from database
+                single_frame[:, 0] = 1
                 day_dict[day_str + str(count + 1)] = single_frame
                 count -= 1
             i += 1
@@ -65,7 +65,7 @@ def convert_train_vali(data, y_column=1, r=0.8, shuffle=False):
     return x_trn, y_trn, x_val, y_val
 
 
-if __name__ == "__main__":
+def test():
     data = DataFrame(columns=['t', 'w', 'l', 'd'])
     print(data)
 
@@ -79,6 +79,9 @@ if __name__ == "__main__":
     droped = pd['d2'].drop(1001)
     print(droped)
 
+
+if __name__ == "__main__":
+    test()
     # date = date.today()
     # data = db_retrieve(last_day=date)
     # # x, y = convert_train_vali(data)
