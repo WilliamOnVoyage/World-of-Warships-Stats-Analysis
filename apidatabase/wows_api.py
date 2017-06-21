@@ -5,7 +5,7 @@ from urllib import request, parse, error
 
 from pymysql import MySQLError as mysqlErr
 
-from api_database.wows_db import wows_database
+from apidatabase.wows_db import wows_database
 from util import read_config, utility
 from util.ansi_code import ANSI_escode as ansi
 

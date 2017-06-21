@@ -2,7 +2,7 @@ import datetime
 import json
 import time
 
-import api_database.wows_api as wows
+import apidatabase.wows_api as wows
 import model.winRate_dataprocess as winR_data
 import util.read_config as read_config
 from model.winRate_prediction import winRate_model as winR_model

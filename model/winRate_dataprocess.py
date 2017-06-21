@@ -5,7 +5,7 @@ import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
-import api_database.wows_db as wows_db
+import apidatabase.wows_db as wows_db
 
 
 def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, public=3,
