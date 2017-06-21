@@ -24,20 +24,17 @@ def database_update(date):
 
 
 def model_update(date):
-    timewindow = 2
+    timewindow = 8
     # retrieve 8 days data, last day is the y_trn and previous 7 days are the x_trn
-    # Data in pandas.DataFrame format
+    # Data in pandas.Panel format
     data = winR_data.db_retrieve(last_day=date, timewindow=timewindow)
     x_trn, y_trn, x_val, y_val = winR_data.convert_train_vali(data=data)
     # initialize model
-    # x = [[1, 2, 3, 4]]
-    # y = [[1, 2, 3, 4]]
-
-    model = winR_model(x_trn=x_trn, y_trn=y_trn, x_val=x_val, y_val=y_val, time_step=timewindow)
+    model = winR_model(x_trn=x_trn, y_trn=y_trn, x_val=x_val, y_val=y_val, time_step=1)
     model.train_case(contd=False)
 
 
-def main(days=7):
+def systemRun(days=7):
     day_count = days
     last_date = None
     while day_count != 0:
@@ -49,17 +46,17 @@ def main(days=7):
 
             db_time = end - start
             print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y_trn-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time, ansi.ENDC))
+                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time, ansi.ENDC))
 
             start = datetime.datetime.now()
             model_update(date=last_date)
             end = datetime.datetime.now()
             model_time = end - start
             print("\n%s%s%s model update finished, time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y_trn-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))
+                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))
 
             print("\n%s%s%s function finished, total time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y_trn-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time + model_time,
+                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time + model_time,
                 ansi.ENDC))
             day_count -= 1
         else:
@@ -68,7 +65,7 @@ def main(days=7):
 
 
 if __name__ == '__main__':
-    # result = api_main()
-    # print(result)
-
-    model_update(date=datetime.date.today())
+    systemRun()
+    # lastday = datetime.date.today()
+    # database_update(date=lastday)
+    # model_update(date=lastday)

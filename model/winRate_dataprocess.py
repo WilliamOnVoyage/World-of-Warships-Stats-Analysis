@@ -26,8 +26,12 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
             if data is not None:
                 ids = data[:, id_column]
                 stats = data[:, stat_columns]
-                for j in range(100):
+                for j in range(len(ids)):
                     single_frame.loc[ids[j], day_columns] = np.array(stats[j])
+                for d in range(1, len(single_frame.columns)):
+                    single_frame[single_frame.columns[d]] = single_frame[single_frame.columns[d]] / (
+                        single_frame[single_frame.columns[0]] + 0.001)
+                single_frame[single_frame.columns[0]] = 1
                 day_dict[day_str + str(count + 1)] = single_frame
                 count -= 1
             i += 1
@@ -54,10 +58,10 @@ def convert_train_vali(data, y_column=1, r=0.8, shuffle=False):
     data_trn = Panel(trn_dict)
     data_val = Panel(val_dict)
     # Select items
-    x_trn = data_trn[0:last_day]
-    x_val = data_val[0:last_day]
-    y_trn = data_trn[last_day:data.shape[0]]
-    y_val = data_val[last_day:data.shape[0]]
+    x_trn = data_trn[0:last_day].swapaxes(0, 1)
+    x_val = data_val[0:last_day].swapaxes(0, 1)
+    y_trn = data_trn[last_day:data.shape[0]].swapaxes(0, 1)
+    y_val = data_val[last_day:data.shape[0]].swapaxes(0, 1)
     return x_trn, y_trn, x_val, y_val
 
 

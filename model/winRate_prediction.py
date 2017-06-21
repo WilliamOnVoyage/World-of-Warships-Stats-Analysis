@@ -3,6 +3,10 @@ import numpy as np
 from keras import objectives
 from keras.layers import Dense, LSTM
 from keras.models import Sequential
+from pandas import DataFrame, Panel
+
+import model.winRate_dataprocess as winRate_dataprocess
+from util.ansi_code import ANSI_escode as ansi
 
 
 class winRate_model(object):
@@ -15,7 +19,7 @@ class winRate_model(object):
         self.y_val = y_val
         self.x_shape = self.x_trn.shape
         self.y_shape = self.y_trn.shape
-        self.batch_size = self.y_shape[1]
+        self.batch_size = self.x_val.shape[0]
         self.epoch = 1000
         self.lr = 0.001
         self.lr_decay = 0.9
@@ -23,16 +27,16 @@ class winRate_model(object):
         self.lstm2_node = 250
         self.Dense1_node = 125
         self.Dense2_node = 25
-        self.init_thres = 0.1
+        self.init_threshold = 1
+        self.final_threshold = 90
         self.time_window = time_step
-        self.loss = objectives.mae
+        self.loss = objectives.mse
         self.optimizer = keras.optimizers.adam(lr=self.lr)
-        self.train_size = int(self.x_shape[0] * 0.8)
         # Initialize model
         self.model = self.construct_model()
 
         # Files directory
-        self.model_dir = '/model_results/'
+        self.model_dir = 'models/'
         self.model_postfix = '_AP_tw_' + str(time_step) + '_batch_' + str(self.batch_size)
         self.model_file = self.model_dir + 'activity model' + self.model_postfix + '.h5'
         self.model_weights = self.model_dir + 'activity model_weights' + self.model_postfix + '.h5'
@@ -42,17 +46,17 @@ class winRate_model(object):
         model = Sequential()
         # LSTM layers
         model.add(
-            LSTM(self.lstm1_node, batch_input_shape=(self.batch_size, self.time_window, self.y_shape[1]),
-                 init='glorot_normal', return_sequences=True,
+            LSTM(self.lstm1_node, batch_input_shape=(self.batch_size, self.time_window, self.y_shape[2]),
+                 kernel_initializer='glorot_normal', return_sequences=True,
                  stateful=True),
         )
         # self.model.add(MaxPooling1D(2))
         model.add(
-            LSTM(self.lstm2_node, init='glorot_normal', stateful=True))
+            LSTM(self.lstm2_node, kernel_initializer='glorot_normal', return_sequences=True, stateful=True))
         # Dense layers
-        model.add(Dense(self.Dense1_node, init='glorot_normal', activation='tanh'))
-        model.add(Dense(self.Dense2_node, init='glorot_normal', activation='sigmoid'))
-        model.add(Dense(self.y_shape[1], init='glorot_normal', activation='relu'))
+        model.add(Dense(self.Dense1_node, kernel_initializer='glorot_normal', activation='tanh'))
+        model.add(Dense(self.Dense2_node, kernel_initializer='glorot_normal', activation='tanh'))
+        model.add(Dense(self.y_shape[2], kernel_initializer='glorot_normal', activation='sigmoid'))
 
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['accuracy'])
 
@@ -71,11 +75,11 @@ class winRate_model(object):
                 self.lr *= self.lr_decay
                 self.model.compile(loss=self.loss, optimizer=self.optimizer,
                                    metrics=['accuracy'])
-            for index in range(self.train_size):
+            for index in range(len(x_trn)):
 
                 self.model.fit(x=x_trn, y=y_trn,
                                batch_size=self.batch_size,
-                               nb_epoch=1, shuffle=False, verbose=0)
+                               epochs=1, shuffle=False, verbose=0)
                 score = self.model.evaluate(x=x_val, y=y_val,
                                             batch_size=self.batch_size, verbose=0)
                 init_score[0] += score[0]
@@ -87,17 +91,17 @@ class winRate_model(object):
                     break
 
             self.save_model()  # Save model after each epoch to avoid crash
-            init_score[0] /= self.train_size
-            init_score[1] /= self.train_size
+            init_score[0] /= len(x_trn)
+            init_score[1] /= len(x_trn)
             print("Epoch %s/%s: average loss - %.4f average acc - %.4f%% learning rate - %.8f" %
                   (ep, self.epoch, init_score[0], init_score[1] * 100,
                    keras.backend.get_value(self.optimizer.lr)))
-            if (ep == 0) and (init_score[1] * 100 < self.init_thres):
+            if (ep == 0) and (init_score[1] * 100 < self.init_threshold):
                 print("Reinitialization...")
                 self.construct_model()
                 self.train_case()
                 break
-            if init_score[1] * 100 > self.init_thres:
+            if init_score[1] * 100 > self.final_threshold:
                 print(
                     "Activity prediction finished! Final average loss - %.4f acc - %.4f%%" % (
                         init_score[0], init_score[1] * 100))
@@ -117,12 +121,40 @@ class winRate_model(object):
         return winRate_prediction
 
     def save_model(self):
-        self.model.save(self.model_file)
-        model_json = self.model.to_json()
-        with open(self.model_json, "w") as json_file:
-            json_file.write(model_json)
-        self.model.save_weights(self.model_weights)
+        try:
+            self.model.save(self.model_file)
+            model_json = self.model.to_json()
+            with open(self.model_json, "w") as json_file:
+                json_file.write(model_json)
+            self.model.save_weights(self.model_weights)
+        except OSError:
+            print(ansi.RED + self.model_file + "save failed!!!" + ansi.ENDC)
 
 
 if __name__ == "__main__":
+    df1 = DataFrame(columns=['t', 'w', 'l', 'd'])
+    df2 = DataFrame(columns=['t', 'w', 'l', 'd'])
+    df1.loc[1000, ['t', 'w', 'l', 'd']] = [1, 0, 1, 0]
+    df1.loc[1001, ['t', 'w', 'l', 'd']] = [1, 1, 0, 0]
+    df1.loc[1002, ['t', 'w', 'l', 'd']] = [2, 1, 1, 0]
+    for i in range(1, len(df1.columns)):
+        df1[df1.columns[i]] = df1[df1.columns[i]] / df1[df1.columns[0]]
+    df1[df1.columns[0]] += 0.001
+
+    df2.loc[1000, ['t', 'w', 'l', 'd']] = [13, 4, 5, 4]
+    df2.loc[1001, ['t', 'w', 'l', 'd']] = [4, 1, 1, 2]
+    df2.loc[1002, ['t', 'w', 'l', 'd']] = [5, 3, 2, 0]
+    for i in range(1, len(df2.columns)):
+        df2[df1.columns[i]] = df2[df2.columns[i]] / df2[df2.columns[0]]
+    df2[df2.columns[0]] = 1
+    df = {'d1': df1, 'd2': df2}
+    pd = Panel(df)
+
+    print(pd['d1'])
+    print(pd['d2'])
+
+    x_trn, y_trn, x_val, y_val = winRate_dataprocess.convert_train_vali(data=pd)
+    model = winRate_model(x_trn=x_trn.values, y_trn=y_trn.values, x_val=x_val.values, y_val=y_val.values, time_step=1)
+    model.train_case()
+    model.save_model()
     print("winRate prediction api_main")
