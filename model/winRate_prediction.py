@@ -6,7 +6,6 @@ from keras.models import Sequential
 from pandas import DataFrame, Panel
 
 import model.winRate_dataprocess as winRate_dataprocess
-import util.utility as ut
 from util.ansi_code import ANSI_escode as ansi
 
 
@@ -14,13 +13,13 @@ class winRate_model(object):
     def __init__(self, x_trn, y_trn, x_val, y_val, time_step=1):
         # Suppose x = (id,date,[total,win,lose,draw]), the shape of x will be (id number, date range, 4)
         # Predict y as the next day's [total,win,lose,draw], which is a vector of (id number,4)
-        self.x_trn = x_trn
-        self.y_trn = y_trn
-        self.x_val = x_val
-        self.y_val = y_val
-        self.x_shape = self.x_trn.shape
-        self.y_shape = self.y_trn.shape
-        self.batch_size = ut.lca(x_trn.shape[0], x_val.shape[0])
+        self.x_trn = x_trn.values
+        self.x_val = x_val.values
+        self.x_shape = x_trn.shape
+        self.y_shape = y_trn.shape
+        self.y_trn = np.squeeze(y_trn.values, axis=1)
+        self.y_val = np.squeeze(y_val.values, axis=1)
+        self.batch_size = 1
         self.epoch = 1000
         self.lr = 0.001
         self.lr_decay = 0.9
@@ -53,7 +52,7 @@ class winRate_model(object):
         )
         # self.model.add(MaxPooling1D(2))
         model.add(
-            LSTM(self.lstm2_node, kernel_initializer='glorot_normal', return_sequences=True, stateful=True))
+            LSTM(self.lstm2_node, kernel_initializer='glorot_normal', return_sequences=False, stateful=True))
         # Dense layers
         model.add(Dense(self.Dense1_node, kernel_initializer='glorot_normal', activation='tanh'))
         model.add(Dense(self.Dense2_node, kernel_initializer='glorot_normal', activation='tanh'))
