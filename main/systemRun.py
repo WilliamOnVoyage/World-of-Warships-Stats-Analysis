@@ -30,7 +30,7 @@ def model_update(date):
     data = winR_data.db_retrieve(last_day=date, timewindow=timewindow)
     x_trn, y_trn, x_val, y_val = winR_data.convert_train_vali(data=data)
     # initialize model
-    model = winR_model(x_trn=x_trn, y_trn=y_trn, x_val=x_val, y_val=y_val, time_step=1)
+    model = winR_model(x_trn=x_trn, y_trn=y_trn, x_val=x_val, y_val=y_val, time_step=timewindow - 1)
     model.train_case(contd=False)
 
 

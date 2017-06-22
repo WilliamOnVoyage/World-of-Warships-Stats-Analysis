@@ -23,7 +23,7 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
         while count > 0:
             data = np.asarray(
                 db.get_statsbyDate(para=[last_day - timedelta(i), 100]))  # filter total>100, ~300k per day
-            if data is not None:
+            if data.any():
                 ids = data[:, id_column]
                 stats = data[:, stat_columns]
                 single_frame = DataFrame(data=stats, index=ids, columns=day_columns)

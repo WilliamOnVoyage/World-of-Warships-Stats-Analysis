@@ -19,7 +19,7 @@ class winRate_model(object):
         self.y_val = y_val
         self.x_shape = self.x_trn.shape
         self.y_shape = self.y_trn.shape
-        self.batch_size = self.x_val.shape[0]
+        self.batch_size = 1
         self.epoch = 1000
         self.lr = 0.001
         self.lr_decay = 0.9
