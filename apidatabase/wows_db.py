@@ -103,12 +103,12 @@ class wows_database(object):
             print(tf.RED + query + " Execution failed!!!")
             raise sql.MySQLError
 
-    def get_statsbyDate(self, date):
+    def get_statsbyDate(self, para):
         cursor = self.db.cursor()
-        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `Date` = %s"""
+        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `Date` = %s AND `total`>%s"""
         try:
             # execute sql in database
-            cursor.execute(query=getid_sql, args=[date])
+            cursor.execute(query=getid_sql, args=para)
             return cursor.fetchall()
         except sql.MySQLError:
             # roll back if error

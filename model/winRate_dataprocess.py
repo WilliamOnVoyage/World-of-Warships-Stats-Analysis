@@ -21,17 +21,17 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
         i = 0
         count = timewindow
         while count > 0:
-            single_frame = DataFrame(columns=day_columns)
-            data = np.asarray(db.get_statsbyDate(date=last_day - timedelta(i)))
+            data = np.asarray(
+                db.get_statsbyDate(para=[last_day - timedelta(i), 100]))  # filter total>100, ~300k per day
             if data is not None:
                 ids = data[:, id_column]
                 stats = data[:, stat_columns]
-                for j in range(len(ids)):
-                    single_frame.loc[ids[j], day_columns] = np.array(stats[j])
-                for d in range(1, len(single_frame.columns)):
-                    single_frame[:, d] = single_frame[:, d] / (
-                        single_frame[:, 0] + 0.001)  # plus 0.001 to avoid all 0s from database
-                single_frame[:, 0] = 1
+                single_frame = DataFrame(data=stats, index=ids, columns=day_columns)
+                for d in day_columns:
+                    if d != day_columns[0]:
+                        single_frame[d] = single_frame[d] / (
+                            single_frame[day_columns[0]] + 0.001)  # plus 0.001 to avoid all 0s from database
+                single_frame[day_columns[0]] = 1
                 day_dict[day_str + str(count + 1)] = single_frame
                 count -= 1
             i += 1

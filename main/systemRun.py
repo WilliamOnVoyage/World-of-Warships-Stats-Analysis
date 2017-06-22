@@ -41,7 +41,7 @@ def systemRun(days=7):
         start = datetime.datetime.now()
         if start.date() != last_date:
             last_date = start.date()
-            database_update(date=last_date)
+            # database_update(date=last_date)
             end = datetime.datetime.now()
 
             db_time = end - start
