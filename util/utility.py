@@ -23,5 +23,24 @@ def getcurrent_date():
     print(tf.DARKGREEN + str(time) + tf.ENDC)
 
 
+def lca(x, y):
+    negate = False
+    if (x > 0 and y < 0) or (x < 0 and y > 0):
+        negate = True
+    x = abs(x)
+    y = abs(y)
+    if x == 0 or y == 0:
+        return 0
+    if x == y:
+        return x
+    if x > y:
+        r = lca(x - y, y)
+    else:
+        r = lca(y - x, x)
+    if negate:
+        r = -r
+    return r
+
+
 if __name__ == "__main__":
     getcurrent_date()
