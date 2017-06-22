@@ -34,13 +34,21 @@ def lca(x, y):
     if x == y:
         return x
     if x > y:
-        r = lca(x - y, y)
+        if x % y == 0:
+            r = y
+        else:
+            r = lca(x - y, y)
     else:
-        r = lca(y - x, x)
+        if y % x == 0:
+            r = x
+        else:
+            r = lca(y - x, x)
     if negate:
         r = -r
     return r
 
 
 if __name__ == "__main__":
+    x = lca(288, 108)
+    print(x)
     getcurrent_date()
