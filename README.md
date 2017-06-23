@@ -1,4 +1,4 @@
-# World of Warships API request and database
+# World of Warships data retrieval and analysis
 
 [![Build Status](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis.svg?branch=master)](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis) [![Pythonversion](https://img.shields.io/badge/python-3.5-blue.svg)](https://sourceforge.net/projects/winpython/files/WinPython_3.5/3.5.2.3/) [![database](https://img.shields.io/badge/mysql-5.5-orange.svg)](https://dev.mysql.com/downloads/windows/installer/5.5.html) [![Test Coverage](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/badges/coverage.svg)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/coverage) [![Code Health](https://landscape.io/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/master/landscape.svg?style=flat)](https://landscape.io/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/master)
 
@@ -21,11 +21,12 @@ When retrieving players' data from database, we use `pandas` Panel to construct 
 |10001|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
 |10002|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
 |10003|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
+|...|...|...|...|...|
 
 The `[t,w,l,d]` is the vector of one day's stats of `[total,win,loss,draw]`.
 
 ### LSTM Model
-We use LSTM without attention model to predict the players' performance based on previous days' stats. The prediction is within certain time window and the objective is to minimize the distance between the ground truth and predicted stats vectors:
+We use the LSTM without attention model to predict the players' performance based on previous days' stats. The prediction is within certain time window and the objective is to minimize the distance between the ground truth and predicted stats vectors:
 
 ----
 ### Local configuration file format
