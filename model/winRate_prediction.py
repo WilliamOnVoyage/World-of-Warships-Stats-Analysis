@@ -128,7 +128,8 @@ class winRate_model(object):
                 json_file.write(model_json)
             self.model.save_weights(self.model_weights)
         except OSError:
-            print(ansi.RED + self.model_file + "save failed!!!" + ansi.ENDC)
+            print(ansi.RED + self.model_file + " save failed!!! Error Message: " + ansi.ENDC)
+            print(OSError)
 
 
 def test():

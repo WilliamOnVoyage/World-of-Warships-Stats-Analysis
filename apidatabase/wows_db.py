@@ -3,7 +3,7 @@ import json
 import pymysql as sql
 
 from util import read_config
-from util.ansi_code import ANSI_escode as tf
+from util.ansi_code import ANSI_escode as ansi
 
 
 class wows_database(object):
@@ -27,7 +27,7 @@ class wows_database(object):
         self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
         print(
             "Database %s%s%s connected at host %s%s%s port %s%d%s!" % (
-                tf.BLUE, dbname, tf.ENDC, tf.BLUE, hostname, tf.ENDC, tf.BLUE, port, tf.ENDC))
+                ansi.BLUE, dbname, ansi.ENDC, ansi.BLUE, hostname, ansi.ENDC, ansi.BLUE, port, ansi.ENDC))
 
     def get_IDlist(self, overwrite=True):
         cursor = self.db.cursor()
@@ -65,7 +65,7 @@ class wows_database(object):
                 fail_count += 1
                 # print("%s write failed!" % (record,))
         print("********************ID list write finished, %s%d%s cases failed********************" % (
-            tf.GREEN if fail_count == 0 else tf.RED, fail_count, tf.ENDC))
+            ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
     def write_detail(self, data_list):
         cursor = self.db.cursor()
@@ -75,19 +75,23 @@ class wows_database(object):
         """
         fail_count = 0
         for record in data_list:
-            try:
-                # execute sql in database
-                cursor.execute(query=update_sql,
-                               args=[record, record[4], record[5], record[6], record[7]])
-                self.db.commit()
-                # print("%s written." % (record,))
-            except sql.MySQLError:
-                # roll back if error
-                self.db.rollback()
+            ntry = 10
+            while ntry > 0:
+                try:
+                    # execute sql in database
+                    cursor.execute(query=update_sql,
+                                   args=[record, record[4], record[5], record[6], record[7]])
+                    self.db.commit()
+                    # print("%s written." % (record,))
+                    break
+                except sql.MySQLError:
+                    # roll back if error
+                    ntry -= 1
+                    self.db.rollback()
+                    print("%s%s%s write failed!%s" % (ansi.RED, record, ansi.RED, ansi.ENDC))
                 fail_count += 1
-                print("%s%s%s write failed!" % (tf.RED, record, tf.RED))
         print("********************Detail write finished, %s%d%s cases failed********************" % (
-            tf.GREEN if fail_count == 0 else tf.RED, fail_count, tf.ENDC))
+            ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
     def execute_single(self, query, arg=None):
         cursor = self.db.cursor()
@@ -100,7 +104,7 @@ class wows_database(object):
         except sql.MySQLError:
             # roll back if error
             self.db.rollback()
-            print(tf.RED + query + " Execution failed!!!")
+            print(ansi.RED + query + " Execution failed!!!")
             raise sql.MySQLError
 
     def get_statsbyDate(self, para):
@@ -126,4 +130,4 @@ if __name__ == '__main__':
         db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
         db.close_db()
     except sql.MySQLError:
-        print(tf.RED + "Database connection failed!")
+        print(ansi.RED + "Database connection failed!")

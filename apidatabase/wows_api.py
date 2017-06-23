@@ -142,12 +142,13 @@ class wows_api_req(object):
                         defeat = pvp["losses"]
                         draw = pvp["draws"]
                         public = 1
-                        record = (
-                            str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat),
-                            str(draw))
-                        result_list.append(record)
-                        # else:
-                        # print("User %s data private" % acc_id)
+                        if total > 0:  # Discard info of players who played no pvp game
+                            record = (
+                                str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat),
+                                str(draw))
+                            result_list.append(record)
+                            # else:
+                            # print("User %s data private" % acc_id)
         else:
             print(data["error"])  # print error message
         if len(result_list) >= self.size_per_write:  # write when data has 100 records
