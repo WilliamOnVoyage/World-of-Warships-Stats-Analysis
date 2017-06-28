@@ -21,8 +21,8 @@ def database_update(date):
     player_url = config_data['wows_api']['player_url']
     utility.check_ip()
     wows_api = wows.wows_api_req()
-    wows_api.request_statsbyID(account_url, application_id, date, overwrite=True)
-    wows_api.update_winRate(date)
+    wows_api.request_statsbyID(account_url=account_url, application_id=application_id, date=date, overwrite=True)
+    wows_api.update_winRate(date=date)
     end = datetime.datetime.now()
     db_time = end - start
     print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (

@@ -9,20 +9,19 @@ from apidatabase.wows_db import wows_database
 from util import read_config, utility
 from util.ansi_code import ANSI_escode as ansi
 
-
 # account ID range
 # if ($id <  500000000) return 'RU';
 # elseif ($id < 1000000000) return 'EU';
 # elseif ($id < 2000000000) return 'NA';
 # elseif ($id < 3000000000) return 'ASIA';
 # elseif ($id >= 3000000000) return 'KR';
-
-
+NA_lo = 1000000000
+NA_hi = 2000000000
 
 
 class wows_api_req(object):
     def __init__(self):
-        self.size_per_write = 10000
+        self.size_per_write = 100000
         print("API initialized")
 
     def get_idlistfromsql(self, overwrite=True):
@@ -90,10 +89,9 @@ class wows_api_req(object):
                     break
 
     def request_allID(self, account_url, application_id):
-        account_ID = 1000000000
+        account_ID = NA_lo  # NA limit
         result_list = []
-
-        while account_ID < 2000000000:
+        while account_ID < NA_hi:  # NA limit
             idlist, increment = self.create_idlist(account_ID)
             idlist = self.convertlisttopara(idlist)
             parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
@@ -123,10 +121,10 @@ class wows_api_req(object):
                 db = wows_database()
                 db.write_ID(result_list)
                 db.close_db()
-                print("Last account id: ", result_list[self.size_per_write - 1][0])
+                print("Last account id: ", result_list[len(result_list) - 1][0])
+                result_list = []
             except mysqlErr:
                 print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
-            result_list = []
         return result_list
 
     def record_detail(self, date, data, result_list):
@@ -156,9 +154,9 @@ class wows_api_req(object):
                 db = wows_database()
                 db.write_detail(result_list)
                 db.close_db()
+                result_list = []
             except mysqlErr:
                 print("Database connection failed!")
-            result_list = []
         return result_list
 
     def api_main(self, days=7):
