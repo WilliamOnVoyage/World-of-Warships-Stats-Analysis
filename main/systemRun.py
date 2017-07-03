@@ -38,7 +38,7 @@ def systemRun(days=7):
     day_count = days
     last_date = None
     while day_count != 0:
-        start = datetime.datetime.now()
+        start = datetime.datetime.strptime('2017-06-20', '%Y-%m-%d')
         if start.date() != last_date:
             last_date = start.date()
             # database_update(date=last_date)
@@ -46,17 +46,17 @@ def systemRun(days=7):
 
             db_time = end - start
             print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time, ansi.ENDC))
+                ansi.BLUE, last_date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time, ansi.ENDC))
 
             start = datetime.datetime.now()
             model_update(date=last_date)
             end = datetime.datetime.now()
             model_time = end - start
             print("\n%s%s%s model update finished, time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))
+                ansi.BLUE, last_date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))
 
             print("\n%s%s%s function finished, total time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time + model_time,
+                ansi.BLUE, last_date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time + model_time,
                 ansi.ENDC))
             day_count -= 1
         else:
