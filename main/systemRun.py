@@ -1,33 +1,16 @@
 import datetime
-import json
 import time
 
 import apidatabase.wows_api as wows
 import model.winRate_dataprocess as winR_data
-import util.read_config as read_config
 from model.winRate_prediction import winRate_model as winR_model
-from util import utility
 from util.ansi_code import ANSI_escode as ansi
 
 
 def database_update(date):
     # Request params from config file
-    start = datetime.datetime.now()
-    last_date = start.date()
-    cg = read_config.config()
-    config_data = json.loads(cg.read_config())
-    application_id = config_data['wows_api']['application_id']
-    account_url = config_data['wows_api']['account_url']
-    player_url = config_data['wows_api']['player_url']
-    utility.check_ip()
-    wows_api = wows.wows_api_req()
-    wows_api.request_statsbyID(account_url=account_url, application_id=application_id, date=date, overwrite=True)
-    wows_api.update_winRate(date=date)
-    end = datetime.datetime.now()
-    db_time = end - start
-    print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
-        ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time, ansi.ENDC))
-    return db_time
+    timing = wows.wows_api_req().api_singleDay(date=date)
+    return timing
 
 
 def model_update(date):
@@ -44,7 +27,7 @@ def model_update(date):
     end = datetime.datetime.now()
     model_time = end - start
     print("\n%s%s%s model update finished, time usage: %s%s%s\n" % (
-        ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))
+        ansi.BLUE, date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))
     return model_time
 
 
