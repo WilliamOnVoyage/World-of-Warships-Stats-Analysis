@@ -22,7 +22,7 @@ NA_hi = 2000000000
 
 class wows_api_req(object):
     def __init__(self):
-        self.size_per_write = 100000
+        self.size_per_write = 10000
         print("API initialized")
 
     def get_idlistfromsql(self, overwrite=True):
@@ -79,11 +79,11 @@ class wows_api_req(object):
                         data = json.loads(request.urlopen(url).read().decode("utf-8"))
                         while data["status"] != "ok":  # keep requesting until get ok
                             data = json.loads(request.urlopen(url).read().decode("utf-8"))
+                        break
                     except error.URLError:  # API url request failed
                         print("%sAPI request failed!%s" % (ansi.RED, ansi.ENDC))
                         print("URL: %s, Error type: %s%s%s" % (url, ansi.RED, error.URLError, ansi.ENDC))
                         n_try -= 1
-                        continue
                 result_list = self.json2detail(date, data, result_list)
                 if self.record_detail(result_list):
                     result_list = []
@@ -186,19 +186,18 @@ class wows_api_req(object):
         # request all IDs, only need to execute once per (month, year) ?
         # request_allID(account_url, application_id)
         # initialize date counter
-        day_count = days
         last_date = None
         start = datetime.date.today()
         if start_date is not None:
             d = datetime.datetime.strptime(start_date, '%Y-%m-%d')
             start.replace(year=d.year, month=d.month, day=d.day)
 
-        while day_count != 0:
+        while days != 0:
             if start != last_date:
                 # update
                 last_date = start
                 self.api_singleDay(date=last_date)
-                day_count -= 1
+                days -= 1
             else:
                 time.sleep(1800)  # wait 30 mins for next check
             start = datetime.date.today()
@@ -206,5 +205,5 @@ class wows_api_req(object):
 
 
 if __name__ == '__main__':
-    result = wows_api_req().api_main(start_date='2017-07-02')
+    result = wows_api_req().api_main(start_date='2017-07-03')
     print(result)
