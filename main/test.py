@@ -16,8 +16,8 @@ def test_wows_api():
         ut.check_date()
         wows = wows_api.wows_api_req()
         idlist = wows.create_idlist(account_ID=1000000000)
-        wows.convertlisttopara(idlist)
-        wows.update_winRate(date=datetime.datetime.now().date())
+        wows.list2param(idlist)
+        wows.update_winrate(date=datetime.datetime.now().date())
         wows.api_main(days=0)
     except:
         print("apidatabase API test failed!")

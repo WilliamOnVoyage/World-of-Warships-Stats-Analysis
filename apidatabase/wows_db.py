@@ -75,7 +75,7 @@ class wows_database(object):
         """
         fail_count = 0
         for record in data_list:
-            ntry = 10
+            ntry = 3
             while ntry > 0:
                 try:
                     # execute sql in database
@@ -89,7 +89,7 @@ class wows_database(object):
                     ntry -= 1
                     self.db.rollback()
                     print("%s%s%s write failed!%s" % (ansi.RED, record, ansi.RED, ansi.ENDC))
-                fail_count += 1
+                    fail_count += 1
         print("********************Detail write finished, %s%d%s cases failed********************" % (
             ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
