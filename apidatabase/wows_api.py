@@ -82,15 +82,14 @@ class wows_api_req(object):
                         api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                         # print(api_back)
                         data = json.loads(api_back)
-                        while data["status"] != "ok":  # keep requesting until get ok
-                            print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
-                            api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
-                            data = json.loads(api_back)
-                        break
+                        # while data["status"] != "ok":  # keep requesting until get ok
+                        #     api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
+                        #     data = json.loads(api_back)
+                        # break
                     except (error.URLError, timeoutError) as e:  # API url request failed
                         print("%sAPI request failed!%s %s" % (ansi.RED, e, ansi.ENDC))
                         if e is timeoutError:  # Request limit exceeds, wait for 10s
-                            time.sleep(10)
+                            time.sleep(self.request_delay)
                         n_try -= 1
                 result_list = self.json2detail(date, data, result_list)
                 # print("result_list length: %d" % (len(result_list)))
@@ -98,7 +97,7 @@ class wows_api_req(object):
                     result_list = []
                 sublist = []
                 count += ACCOUNT_ID_LIMIT
-                time.sleep(10)
+                time.sleep(self.request_delay)
         print("Stats request finished!")
 
     def json2detail(self, date, data, result_list):
@@ -118,6 +117,8 @@ class wows_api_req(object):
                             str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat),
                             str(draw))
                         result_list.append(record)
+        elif data is not None and data["status"] != "ok":
+            print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
         else:
             print("%sCannot convert JSON to detail!%s" % (ansi.RED, ansi.ENDC))  # print error message
         return result_list
