@@ -93,6 +93,30 @@ class wows_database(object):
         print("********************Detail write finished, %s%d%s cases failed********************" % (
             ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
+    def write_detailbydict(self, dict_list):
+        cursor = self.db.cursor()
+        update_sql = """
+        INSERT INTO `wowstats`.`wows_stats` %s VALUES %s
+        """
+        fail_count = 0
+        for dict in dict_list:
+            ntry = 3
+            while ntry > 0:
+                try:
+                    # execute sql in database
+                    cursor.execute(query=update_sql, args=[dict.keys(), dict.values()])
+                    self.db.commit()
+                    # print("%s written." % (record,))
+                    break
+                except sql.MySQLError:
+                    # roll back if error
+                    ntry -= 1
+                    self.db.rollback()
+                    print("%s%s%s write failed!%s" % (ansi.RED, dict, ansi.RED, ansi.ENDC))
+                    fail_count += 1
+        print("********************Detail write finished, %s%d%s cases failed********************" % (
+            ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
+
     def execute_single(self, query, arg=None):
         cursor = self.db.cursor()
         try:

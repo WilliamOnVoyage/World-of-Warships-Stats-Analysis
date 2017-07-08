@@ -53,13 +53,12 @@ class wows_api_req(object):
                 print("URL: %s, Error type: %s%s%s" % (url, ansi.RED, error.URLError, ansi.ENDC))
                 continue
 
-    def request_statsbyID(self, account_url, application_id, date, overwrite=True):
+    def request_statsbyID(self, account_url, application_id, date, overwrite=True, url_timeout=45):
         total_idlist = self.idlist_sql(overwrite=overwrite)
         total_count = len(total_idlist)
         count = 0
         sublist = []
         result_list = []
-        url_timeout = 60
         print("Task: Total request number to be executed: %s%d%s" % (
             ansi.BLUE, int(np.ceil(total_count / ACCOUNT_ID_LIMIT)), ansi.ENDC))
         start_time = datetime.datetime.now()
@@ -69,7 +68,6 @@ class wows_api_req(object):
                 idlist = self.list2param(sublist)
                 parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
                 url = account_url + '?' + parameter
-                data = []
                 n_try = 10
                 while n_try > 0:
                     try:
@@ -82,16 +80,16 @@ class wows_api_req(object):
                         api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                         # print(api_back)
                         data = json.loads(api_back)
-                        # while data["status"] != "ok":  # keep requesting until get ok
-                        #     api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
-                        #     data = json.loads(api_back)
-                        # break
-                    except (error.URLError, timeoutError) as e:  # API url request failed
+                        while data["status"] != "ok":  # keep requesting until get ok
+                            api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
+                            data = json.loads(api_back)
+                        result_list = self.singleday_json2detail(date, data, result_list)
+                        break
+                    except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
                         print("%sAPI request failed!%s %s" % (ansi.RED, e, ansi.ENDC))
                         if e is timeoutError:  # Request limit exceeds, wait for 10s
                             time.sleep(self.request_delay)
                         n_try -= 1
-                result_list = self.json2detail(date, data, result_list)
                 # print("result_list length: %d" % (len(result_list)))
                 if self.record_detail(result_list):
                     result_list = []
@@ -100,7 +98,55 @@ class wows_api_req(object):
                 time.sleep(self.request_delay)
         print("Stats request finished!")
 
-    def json2detail(self, date, data, result_list):
+    def request_statsbyDate(self, account_url, application_id, dates, overwrite=True, url_timeout=45):
+        total_idlist = self.idlist_sql(overwrite=overwrite)
+        total_count = len(total_idlist)
+        date_para = self.list2param(dates)
+        result_list = []
+        for id in total_idlist:
+            parameter = parse.urlencode({'application_id': application_id, 'account_id': id, 'dates': date_para})
+            url = account_url + '?' + parameter
+            n_try = 10
+            while n_try > 0:
+                try:
+                    api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
+                    # print(api_back)
+                    data = json.loads(api_back)
+                    while data["status"] != "ok":  # keep requesting until get ok
+                        api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
+                        data = json.loads(api_back)
+                    result_list = self.history_json2detail(data, result_list)
+                    break
+                except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
+                    print("%sAPI request failed!%s %s" % (ansi.RED, e, ansi.ENDC))
+                    if e is timeoutError:  # Request limit exceeds, wait for 10s
+                        time.sleep(self.request_delay)
+                    n_try -= 1
+                if self.record_detail(result_list):
+                    result_list = []
+                time.sleep(self.request_delay)
+            print("Stats request finished!")
+
+    def history_json2detail(self, data, result_list):
+        if data is not None and data["status"] == "ok":
+            for acc_id in data["data"]:
+                case = data["data"][acc_id]
+                if case is not None:
+                    pvp = case["pvp"]
+                    for date in pvp:
+                        stats = pvp[date]
+                        total = stats["battles"]
+                        stats['account_id'] = acc_id
+                        stats['date'] = date
+                        if total > 0:  # Discard info of players who played no pvp game
+                            result_list.append(stats)
+        elif data is not None and data["status"] != "ok":
+            print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
+        else:
+            print("%sCannot convert JSON to detail!%s" % (ansi.RED, ansi.ENDC))  # print error message
+        return result_list
+
+    def singleday_json2detail(self, date, data, result_list):
         if data is not None and data["status"] == "ok":
             for acc_id in data["data"]:
                 case = data["data"][acc_id]
@@ -139,6 +185,19 @@ class wows_api_req(object):
             except mysqlErr:
                 print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
         return result_list
+
+    def record_detailbydict(self, result_list):
+        success = False
+        if len(result_list) >= self.size_per_write:  # write data
+            try:
+                print("Start writing database")
+                db = wows_database()
+                db.write_detailbydict(result_list)
+                db.close_db()
+                success = True
+            except mysqlErr:
+                print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
+        return success
 
     def record_detail(self, result_list):
         success = False
@@ -192,9 +251,9 @@ class wows_api_req(object):
             ids.append(int(account_ID + i))
         return ids, l
 
-    def list2param(self, list_ids):
+    def list2param(self, lists):
         s = ""
-        for i in list_ids:
+        for i in lists:
             if s != "":
                 s += ","
             s += str(i)
