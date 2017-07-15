@@ -39,7 +39,7 @@ def test_wows_rds():
 def test_winrateprediction():
     try:
         print("tensorflow test unavailable")
-        winRate_prediction.test()
+        # winRate_prediction.test()
     except OSError:
         print("win Rate prediction test failed!")
 
@@ -60,9 +60,18 @@ def test_config():
         print("read config test failed!")
 
 
+def test_util():
+    print("Testing check date: %s" % ut.check_date())
+    print("Testing check ip: %s" % ut.check_ip())
+    print("Testing check current date: %s" % ut.getcurrent_date())
+    print("Testing factor of %d and %d %d" % (36, 120, ut.common_factorbylimit(36, 120)))
+    print("Testing max hundered of %d: %d" % (12345679, ut.max_hundred(12345679)))
+
+
 if __name__ == "__main__":
     test_wows_api()
     test_wows_rds()
     test_winrateprediction()
     test_winR_datapro()
     test_config()
+    test_util()
