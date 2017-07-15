@@ -21,7 +21,7 @@ from util.read_config import config
 NA_lo = 1000000000
 NA_hi = 2000000000
 ACCOUNT_ID_LIMIT = 100
-SIZE_PER_WRITE = 10000
+SIZE_PER_WRITE = 100000
 
 
 class wows_api_req(object):
@@ -73,11 +73,11 @@ class wows_api_req(object):
                 n_try = 10
                 while n_try > 0:
                     try:
-                        print("Sending request %s%d%s... ETA: %s%s%s" % (
-                            ansi.BLUE, count / ACCOUNT_ID_LIMIT + 1, ansi.ENDC, ansi.BLUE,
-                            (datetime.datetime.now() - start_time) / (count / ACCOUNT_ID_LIMIT + 1) * (
-                                int(np.ceil(total_count / ACCOUNT_ID_LIMIT)) - (count / ACCOUNT_ID_LIMIT + 1)),
-                            ansi.ENDC))
+                        # print("Sending request %s%d%s... ETA: %s%s%s" % (
+                        #     ansi.BLUE, count / ACCOUNT_ID_LIMIT + 1, ansi.ENDC, ansi.BLUE,
+                        #     (datetime.datetime.now() - start_time) / (count / ACCOUNT_ID_LIMIT + 1) * (
+                        #         int(np.ceil(total_count / ACCOUNT_ID_LIMIT)) - (count / ACCOUNT_ID_LIMIT + 1)),
+                        #     ansi.ENDC))
 
                         api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                         # print(api_back)
@@ -98,7 +98,7 @@ class wows_api_req(object):
                     result_list = []
                 sublist = []
                 count += ACCOUNT_ID_LIMIT
-                time.sleep(10)
+                # time.sleep(10)
         print("Stats request finished!")
 
     def json2detail(self, date, data, result_list):
