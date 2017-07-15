@@ -18,10 +18,13 @@ from util.read_config import config
 # elseif ($id < 2000000000) return 'NA';
 # elseif ($id < 3000000000) return 'ASIA';
 # elseif ($id >= 3000000000) return 'KR';
-NA_lo = 1000000000
-NA_hi = 2000000000
-ACCOUNT_ID_LIMIT = 100
-SIZE_PER_WRITE = 10000
+NA_LO = 1000000000
+NA_HI = 2000000000
+IDLIST_LIMIT = 100
+SIZE_PER_WRITE = 100000
+URL_DELAY = 10
+URL_TIMEOUT = 45
+API_REQ_NUM = 10
 
 
 class wows_api_req(object):
@@ -30,14 +33,14 @@ class wows_api_req(object):
         self.size_per_write = SIZE_PER_WRITE
         self.stats_dictionary = {"battles", "wins", "losses", "draws", "damage_dealt", "frags", "planes_killed", "xp",
                                  "capture_points", "dropped_capture_points", "survived_battles"}
-        self.request_delay = 10  # delay 10 seconds between requests
+        self.request_delay = URL_DELAY  # delay 10 seconds between requests
         print("API initialized")
 
     def request_allID(self, account_url, application_id):
-        account_ID = NA_lo  # NA limit
+        account_ID = NA_LO  # NA limit
         result_list = []
-        while account_ID < NA_hi:  # NA limit
-            idlist, increment = self.create_idlist(account_ID)
+        while account_ID < NA_HI:  # NA limit
+            idlist = self.create_idlist(account_ID)
             idlist = self.list2param(idlist)
             parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
             url = account_url + '?' + parameter
@@ -47,42 +50,41 @@ class wows_api_req(object):
                 data = json.loads(result)
                 if data["status"] == "ok":
                     result_list = self.record_ID(data, result_list)
-                    account_ID += increment
+                    account_ID += IDLIST_LIMIT
                 else:
                     print(data["error"])  # print error message
             except error.URLError:  # API url request failed
                 print("%sAPI request failed!%s" % (ansi.RED, ansi.ENDC))
                 print("URL: %s, Error type: %s%s%s" % (url, ansi.RED, error.URLError, ansi.ENDC))
-                continue
 
-    def request_statsbyID(self, account_url, application_id, date, overwrite=True, url_timeout=45):
-        total_idlist = self.idlist_sql(overwrite=overwrite)
+    def request_statsbyID(self, account_url, application_id, date, overwrite=True, url_timeout=URL_TIMEOUT):
+        total_idlist = self.get_idlist(overwrite=overwrite)
         total_count = len(total_idlist)
         count = 0
         sublist = []
         result_list = []
         print("Task: Total request number to be executed: %s%d%s" % (
-            ansi.BLUE, int(np.ceil(total_count / ACCOUNT_ID_LIMIT)), ansi.ENDC))
+            ansi.BLUE, int(np.ceil(total_count / IDLIST_LIMIT)), ansi.ENDC))
         start_time = datetime.datetime.now()
         for ids in total_idlist:
             sublist.append(ids[0])
-            if len(sublist) == ACCOUNT_ID_LIMIT or total_count - count < ACCOUNT_ID_LIMIT:
+            if len(sublist) == IDLIST_LIMIT or total_count - count < IDLIST_LIMIT:
                 idlist = self.list2param(sublist)
                 parameter = parse.urlencode({'application_id': application_id, 'account_id': idlist})
                 url = account_url + '?' + parameter
-                n_try = 10
-                while n_try > 0:
+                numberOfTry = API_REQ_NUM
+                while numberOfTry > 0:
                     try:
-                        print("Sending request %s%d%s... ETA: %s%s%s" % (
-                            ansi.BLUE, count / ACCOUNT_ID_LIMIT + 1, ansi.ENDC, ansi.BLUE,
-                            (datetime.datetime.now() - start_time) / (count / ACCOUNT_ID_LIMIT + 1) * (
-                                int(np.ceil(total_count / ACCOUNT_ID_LIMIT)) - (count / ACCOUNT_ID_LIMIT + 1)),
-                            ansi.ENDC))
+                        # print("Sending request %s%d%s... ETA: %s%s%s" % (
+                        #     ansi.BLUE, count / IDLIST_LIMIT + 1, ansi.ENDC, ansi.BLUE,
+                        #     (datetime.datetime.now() - start_time) / (count / IDLIST_LIMIT + 1) * (
+                        #         int(np.ceil(total_count / IDLIST_LIMIT)) - (count / IDLIST_LIMIT + 1)),
+                        #     ansi.ENDC))
 
                         api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
-                        # print(api_back)
                         data = json.loads(api_back)
-                        while data["status"] != "ok":  # keep requesting until get ok
+                        # keep requesting until get ok
+                        while data["status"] != "ok":
                             print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
                             api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                             data = json.loads(api_back)
@@ -90,27 +92,27 @@ class wows_api_req(object):
                         break
                     except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
                         print("%sAPI request failed!%s %s" % (ansi.RED, e, ansi.ENDC))
-                        if e is timeoutError:  # Request limit exceeds, wait for 10s
+                        # Request limit exceeds, wait for 10s
+                        if e is timeoutError:
                             time.sleep(self.request_delay)
-                        n_try -= 1
-                # print("result_list length: %d" % (len(result_list)))
-                if self.record_detailbydict(result_list):
+                        numberOfTry -= 1
+                if self.record_detail(result_list):
                     result_list = []
                 sublist = []
-                count += ACCOUNT_ID_LIMIT
+                count += IDLIST_LIMIT
                 time.sleep(self.request_delay)
         print("Stats request finished!")
 
-    def request_statsbyDate(self, account_url, application_id, dates, overwrite=True, url_timeout=45):
-        total_idlist = self.idlist_sql(overwrite=overwrite)
+    def request_statsbyDate(self, account_url, application_id, date_list, overwrite=True, url_timeout=URL_TIMEOUT):
+        total_idlist = self.get_idlist(overwrite=overwrite)
         total_count = len(total_idlist)
-        date_para = self.list2param(dates)
+        date_para = self.list2param(date_list)
         result_list = []
         for id in total_idlist:
-            parameter = parse.urlencode({'application_id': application_id, 'account_id': id, 'dates': date_para})
+            parameter = parse.urlencode({'application_id': application_id, 'account_id': id, 'date_list': date_para})
             url = account_url + '?' + parameter
-            n_try = 10
-            while n_try > 0:
+            numberOfTry = API_REQ_NUM
+            while numberOfTry > 0:
                 try:
                     api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                     # print(api_back)
@@ -118,50 +120,41 @@ class wows_api_req(object):
                     while data["status"] != "ok":  # keep requesting until get ok
                         api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                         data = json.loads(api_back)
-                    result_list = self.history_json2detail(data, result_list)
+                    result_list = self.singleday_json2detail(date_list[0], data, result_list, history=True)
                     break
                 except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
                     print("%sAPI request failed!%s %s" % (ansi.RED, e, ansi.ENDC))
-                    if e is timeoutError:  # Request limit exceeds, wait for 10s
+                    # Request limit exceeds, wait for 10s
+                    if e is timeoutError:
                         time.sleep(self.request_delay)
-                    n_try -= 1
+                    numberOfTry -= 1
                 if self.record_detail(result_list):
                     result_list = []
                 time.sleep(self.request_delay)
             print("Stats request finished!")
 
-    def history_json2detail(self, data, result_list):
+    def singleday_json2detail(self, call_date, data, result_list, history=False):
         if data is not None and data["status"] == "ok":
             for acc_id in data["data"]:
                 case = data["data"][acc_id]
                 if case is not None:
-                    pvp = case["pvp"]
-                    for date in pvp:
-                        stats = pvp[date]
-                        dict = {'account_id': acc_id, 'date': date, "date": str(date)}
+                    if history:
+                        pvp = case["pvp"]
+                        for date in pvp:
+                            stats = pvp[date]
+                            dict = {'account_id': acc_id, 'date': date, "date": str(date)}
+                            for item in self.stats_dictionary:
+                                dict[item] = str(stats[item])
+                            if dict["battles"] != "0":  # Discard info of players who played no pvp game
+                                result_list.append(dict)
+                    elif not case["hidden_profile"]:
+                        nickname = case["nickname"]
+                        pvp = case["statistics"]["pvp"]
+                        dict = {"date": str(call_date), "account_id": str(acc_id), "nickname": str(nickname)}
                         for item in self.stats_dictionary:
-                            dict[item] = stats[item]
-
-                        if dict["battles"] > 0:  # Discard info of players who played no pvp game
+                            dict[item] = str(pvp[item])
+                        if dict["battles"] != "0":  # Discard info of players who played no pvp game
                             result_list.append(dict)
-        elif data is not None and data["status"] != "ok":
-            print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
-        else:
-            print("%sCannot convert JSON to detail!%s" % (ansi.RED, ansi.ENDC))  # print error message
-        return result_list
-
-    def singleday_json2detail(self, date, data, result_list):
-        if data is not None and data["status"] == "ok":
-            for acc_id in data["data"]:
-                case = data["data"][acc_id]
-                if case is not None and not case["hidden_profile"]:
-                    nickname = case["nickname"]
-                    pvp = case["statistics"]["pvp"]
-                    dict = {"date": str(date), "acc_id": str(acc_id), "nickname": str(nickname)}
-                    for item in self.stats_dictionary:
-                        dict[item] = pvp[item]
-                    if dict["battles"] > 0:  # Discard info of players who played no pvp game
-                        result_list.append(dict)
         elif data is not None and data["status"] != "ok":
             print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
         else:
@@ -177,7 +170,7 @@ class wows_api_req(object):
         if len(result_list) >= self.size_per_write:  # write when data has certain size
             try:
                 db = wows_database()
-                db.write_ID(result_list)
+                db.write_idlist(result_list)
                 db.close_db()
                 print("Last account id: ", result_list[len(result_list) - 1][0])
                 result_list = []
@@ -185,7 +178,7 @@ class wows_api_req(object):
                 print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
         return result_list
 
-    def record_detailbydict(self, result_list):
+    def record_detail(self, result_list):
         success = False
         if len(result_list) >= self.size_per_write:  # write data
             try:
@@ -198,44 +191,23 @@ class wows_api_req(object):
                 print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
         return success
 
-    def record_detail(self, result_list):
-        success = False
-        if len(result_list) >= self.size_per_write:  # write data
-            try:
-                print("Start writing database")
-                db = wows_database()
-                db.write_detail(result_list)
-                db.close_db()
-                success = True
-            except mysqlErr:
-                print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
-        return success
-
-    def update_winrate(self, date):
+    def update_winrate(self, start=datetime.date.today(), end=datetime.date.today()):
         try:
             db = wows_database()
-            sql = """update wowstats.wows_stats set `winRate` = round(`win`/`total`,4) where `Date`=%s and `accountID`<>0 and `total` is not null;"""
-            db.execute_single(query=sql, arg=str(date))
-            print("%s%s%s winRate update %sfinished!%s" % (ansi.BLUE, str(date), ansi.ENDC, ansi.DARKGREEN, ansi.ENDC))
-            db.close_db()
-        except mysqlErr:
-            print("%s%s%s winRate update %sfailed!%s" % (ansi.BLUE, str(date), ansi.ENDC, ansi.RED, ansi.ENDC))
-
-    def update_prevwinrate(self, start=datetime.date.today(), end=datetime.date.today()):
-        try:
-            db = wows_database()
-            sql = """update wowstats.wows_stats set `winRate` = round(`win`/`total`,4) where `Date`>%s and `Date`<=%s and `accountID`<>0 and `total` is not null;"""
+            sql = """
+            update wowstats.wows_stats set `winRate` = round(`wins`/`battles`,4) where `date`>=%s and `date`<=%s and `account_id`<>0 and `battles` is not null;
+            """
             db.execute_single(query=sql, arg=[str(start), str(end)])
             print("%s%s%s winRate update %sfinished!%s" % (ansi.BLUE, str(end), ansi.ENDC, ansi.DARKGREEN, ansi.ENDC))
             db.close_db()
         except mysqlErr:
             print("%s%s%s winRate update %sfailed!%s" % (ansi.BLUE, str(end), ansi.ENDC, ansi.RED, ansi.ENDC))
 
-    def idlist_sql(self, overwrite=True):
+    def get_idlist(self, overwrite=True):
         try:
             print("Reading ID list...")
             db = wows_database()
-            idlist = db.get_IDlist(overwrite=overwrite)
+            idlist = db.get_idlist(overwrite=overwrite)
             db.close_db()
             print("%sID list read finished%s" % (ansi.GREEN, ansi.ENDC))
             return idlist
@@ -244,19 +216,13 @@ class wows_api_req(object):
 
     def create_idlist(self, account_ID):
         ids = []
-        l = ACCOUNT_ID_LIMIT
         # account_ID /= 100
-        for i in range(l):
+        for i in range(IDLIST_LIMIT):
             ids.append(int(account_ID + i))
-        return ids, l
+        return ids
 
-    def list2param(self, lists):
-        s = ""
-        for i in lists:
-            if s != "":
-                s += ","
-            s += str(i)
-        return s
+    def list2param(self, list):
+        return ",".join(str(item) for item in list)
 
     # *****************MAJOR API FUNCTIONS****************
     def api_singleDay(self, date):
@@ -271,7 +237,7 @@ class wows_api_req(object):
         # main api request
         self.request_statsbyID(account_url=account_url, application_id=application_id, date=date,
                                overwrite=True)
-        self.update_winrate(date=date)
+        self.update_winrate()
 
         timing = datetime.datetime.now() - timer_start
         print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (
