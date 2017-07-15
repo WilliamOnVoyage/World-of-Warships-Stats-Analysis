@@ -4,7 +4,7 @@ from datetime import timedelta
 import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
-
+import util.utility as ut
 import apidatabase.wows_db as wows_db
 
 
@@ -46,10 +46,20 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
 # This function requires the items in data be consistent (same major index values)
 def convert_train_vali(data, y_column=1, r=0.8, shuffle=False):
     last_day = data.shape[0] - y_column
+
+    max_subsize = ut.max_hundred(data.shape[1])
+    discard_index = np.asarray(random.sample(range(data.shape[1]), data.shape[1] - max_subsize))
+    filter_dict = {}
+    for d in data.keys():
+        labels = data[d].axes[0][discard_index]
+        filter_dict[d] = data[d].drop(labels)
+    data = Panel(filter_dict)
+
     # Sample by major index (ids)
     rd_index = np.asarray(random.sample(range(data.shape[1]), int(r * data.shape[1])))
     trn_dict = {}
     val_dict = {}
+
     for d in data.keys():
         labels = data[d].axes[0][rd_index]
         trn_dict[d] = data[d].loc[labels, :]

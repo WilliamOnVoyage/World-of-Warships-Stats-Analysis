@@ -20,15 +20,15 @@ class winRate_model(object):
         self.y_shape = y_trn.shape
         self.y_trn = np.squeeze(y_trn.values, axis=1)
         self.y_val = np.squeeze(y_val.values, axis=1)
-        self.batch_size = ut.lca(x_trn.shape[0], x_val.shape[0])
+        self.batch_size = ut.factor(x_trn.shape[0], x_val.shape[0], limit=1000)
         self.epoch = 1000
-        self.lr = 0.001
+        self.lr = 0.01
         self.lr_decay = 0.9
-        self.lstm1_node = 500
-        self.lstm2_node = 250
+        self.lstm1_node = 64
+        self.lstm2_node = 16
         self.Dense1_node = 125
         self.Dense2_node = 25
-        self.init_threshold = 1
+        self.init_threshold = 0
         self.final_threshold = 90
         self.time_window = time_step
         self.loss = objectives.mse
@@ -47,17 +47,12 @@ class winRate_model(object):
         model = Sequential()
         # LSTM layers
         model.add(
-            LSTM(self.lstm1_node, batch_input_shape=(self.batch_size, self.time_window, self.y_shape[2]),
-                 kernel_initializer='glorot_normal', return_sequences=True,
-                 stateful=True),
+            LSTM(units=self.lstm1_node, batch_input_shape=(self.batch_size, self.time_window, self.y_shape[2]))
         )
         # self.model.add(MaxPooling1D(2))
-        model.add(
-            LSTM(self.lstm2_node, kernel_initializer='glorot_normal', return_sequences=False, stateful=True))
+        # model.add(LSTM(units=self.lstm2_node, stateful=False))
         # Dense layers
-        model.add(Dense(self.Dense1_node, kernel_initializer='glorot_normal', activation='tanh'))
-        model.add(Dense(self.Dense2_node, kernel_initializer='glorot_normal', activation='tanh'))
-        model.add(Dense(self.y_shape[2], kernel_initializer='glorot_normal', activation='sigmoid'))
+        model.add(Dense(units=self.y_shape[2], activation='sigmoid'))
 
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['accuracy'])
 
@@ -75,20 +70,18 @@ class winRate_model(object):
                 self.lr *= self.lr_decay
                 self.model.compile(loss=self.loss, optimizer=self.optimizer,
                                    metrics=['accuracy'])
-            for index in range(len(x_trn)):
 
-                self.model.fit(x=x_trn, y=y_trn,
-                               batch_size=self.batch_size,
-                               epochs=1, shuffle=False, verbose=0)
-                score = self.model.evaluate(x=x_val, y=y_val,
-                                            batch_size=self.batch_size, verbose=0)
-                init_score[0] += score[0]
-                init_score[1] += score[1]
+            self.model.fit(x=x_trn, y=y_trn,
+                           batch_size=self.batch_size,
+                           epochs=1, shuffle=False, verbose=1)
 
-                self.model.reset_states()
-                if np.isnan(score[0]):
-                    print("Model training failed! Loss becomes NaN!")
-                    break
+            score = self.model.evaluate(x=x_val, y=y_val, batch_size=self.batch_size, verbose=1)
+            init_score[0] += score[0]
+            init_score[1] += score[1]
+
+            if np.isnan(score[0]):
+                print("Model training failed! Loss becomes %sNaN%s!" % (ansi.RED, ansi.ENDC))
+                break
 
             self.save_model()  # Save model after each epoch to avoid crash
             init_score[0] /= len(x_trn)
@@ -128,7 +121,7 @@ class winRate_model(object):
                 json_file.write(model_json)
             self.model.save_weights(self.model_weights)
         except OSError:
-            print(ansi.RED + self.model_file + " save failed!!! Error Message: " + ansi.ENDC)
+            print(ansi.RED + self.model_file + " save failed!!!" + ansi.ENDC)
             print(OSError)
 
 

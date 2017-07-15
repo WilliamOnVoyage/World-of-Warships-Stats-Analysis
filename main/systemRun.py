@@ -43,7 +43,7 @@ def systemRun(days=7):
             db_time = database_update(date=last_date)
             # model_time = model_update(date=last_date)
             print("\n%s%s%s function finished, total time usage: %s%s%s\n" % (
-                ansi.BLUE, last_date.strftime("%y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time + model_time,
+                ansi.BLUE, last_date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, db_time + model_time,
                 ansi.ENDC))
             day_count -= 1
         else:

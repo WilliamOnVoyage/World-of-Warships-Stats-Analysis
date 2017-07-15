@@ -21,7 +21,7 @@ from util.read_config import config
 NA_lo = 1000000000
 NA_hi = 2000000000
 ACCOUNT_ID_LIMIT = 100
-SIZE_PER_WRITE = 10000
+SIZE_PER_WRITE = 100000
 
 
 class wows_api_req(object):
@@ -83,6 +83,7 @@ class wows_api_req(object):
                         # print(api_back)
                         data = json.loads(api_back)
                         while data["status"] != "ok":  # keep requesting until get ok
+                            print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
                             api_back = request.urlopen(url, timeout=url_timeout).read().decode("utf-8")
                             data = json.loads(api_back)
                         result_list = self.singleday_json2detail(date, data, result_list)

@@ -1,0 +1,28 @@
+{
+  "status": "ok",
+  "meta": {
+    "count": 1,
+    "hidden": null
+  },
+  "data": {
+    "1008331251": {
+      "pvp": {
+        "20170714": {
+          "capture_points": 399,
+          "account_id": 1008331251,
+          "max_xp": 4913,
+          "wins": 1742,
+          "planes_killed": 5550,
+          "battles": 2882,
+          "damage_dealt": 213130514,
+          "battle_type": "pvp",
+          "date": "20170714",
+          "xp": 3923528,
+          "frags": 3612,
+          "survived_battles": 1356,
+          "dropped_capture_points": 3629
+        }
+      }
+    }
+  }
+}

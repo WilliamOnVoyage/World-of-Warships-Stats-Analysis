@@ -1,7 +1,7 @@
 import datetime
 import socket
-
 import ipgetter
+import math
 
 from util.ansi_code import ANSI_escode as tf
 
@@ -21,6 +21,10 @@ def check_date():
 def getcurrent_date():
     time = datetime.datetime.now().date()
     print(tf.DARKGREEN + str(time) + tf.ENDC)
+
+
+def max_hundred(x):
+    return int(x / 100) * 100
 
 
 def lca(x, y):
@@ -48,7 +52,17 @@ def lca(x, y):
     return r
 
 
+def factor(x, y, limit=1000):
+    f = lca(x, y)
+    factor = 1
+    for i in range(1, min(int(math.sqrt(f)), limit) + 1):
+        if f % i == 0:
+            factor = i
+    return factor
+
+
 if __name__ == "__main__":
     x = lca(288, 108)
     print(x)
+    print(factors)
     getcurrent_date()
