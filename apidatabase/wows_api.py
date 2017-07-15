@@ -28,6 +28,8 @@ class wows_api_req(object):
     def __init__(self):
         # *************CRUCIAL PARAMETERS**************
         self.size_per_write = SIZE_PER_WRITE
+        self.stats_dictionary = {"battles", "wins", "losses", "draws", "damage_dealt", "frags", "planes_killed", "xp",
+                                 "capture_points", "dropped_capture_points", "survived_battles"}
         self.request_delay = 10  # delay 10 seconds between requests
         print("API initialized")
 
@@ -91,7 +93,7 @@ class wows_api_req(object):
                             time.sleep(self.request_delay)
                         n_try -= 1
                 # print("result_list length: %d" % (len(result_list)))
-                if self.record_detail(result_list):
+                if self.record_detailbydict(result_list):
                     result_list = []
                 sublist = []
                 count += ACCOUNT_ID_LIMIT
@@ -153,16 +155,14 @@ class wows_api_req(object):
                 if case is not None and not case["hidden_profile"]:
                     nickname = case["nickname"]
                     pvp = case["statistics"]["pvp"]
-                    total = pvp["battles"]
-                    win = pvp["wins"]
-                    defeat = pvp["losses"]
-                    draw = pvp["draws"]
-                    public = 1
-                    if total > 0:  # Discard info of players who played no pvp game
-                        record = (
-                            str(date), str(acc_id), str(nickname), str(public), str(total), str(win), str(defeat),
-                            str(draw))
-                        result_list.append(record)
+                    dict = {}
+                    dict["date"] = str(date)
+                    dict["acc_id"] = str(acc_id)
+                    dict["nickname"] = str(nickname)
+                    for item in self.stats_dictionary:
+                        dict[item] = pvp[item]
+                    if dict["battles"] > 0:  # Discard info of players who played no pvp game
+                        result_list.append(dict)
         elif data is not None and data["status"] != "ok":
             print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
         else:

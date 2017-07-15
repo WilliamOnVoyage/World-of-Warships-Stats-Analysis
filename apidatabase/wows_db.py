@@ -70,8 +70,8 @@ class wows_database(object):
     def write_detail(self, data_list):
         cursor = self.db.cursor()
         update_sql = """
-        INSERT INTO `wowstats`.`wows_stats` (`Date`,`accountID`,`nickname`,`public`,`total`,`win`,`defeat`,`draw`)
-        VALUES %s ON DUPLICATE KEY UPDATE `total` = %s,`win` =%s,`defeat` = %s,`draw` = %s
+        INSERT IGNORE INTO `wowstats`.`wows_stats` (`Date`,`accountID`,`nickname`,`public`,`total`,`win`,`defeat`,`draw`)
+        VALUES %s
         """
         fail_count = 0
         for record in data_list:
@@ -80,7 +80,7 @@ class wows_database(object):
                 try:
                     # execute sql in database
                     cursor.execute(query=update_sql,
-                                   args=[record, record[4], record[5], record[6], record[7]])
+                                   args=[record])
                     self.db.commit()
                     # print("%s written." % (record,))
                     break
@@ -96,7 +96,7 @@ class wows_database(object):
     def write_detailbydict(self, dict_list):
         cursor = self.db.cursor()
         update_sql = """
-        INSERT INTO `wowstats`.`wows_stats` %s VALUES %s
+        INSERT IGNORE INTO `wowstats`.`wows_stats` %s VALUES %s
         """
         fail_count = 0
         for dict in dict_list:
