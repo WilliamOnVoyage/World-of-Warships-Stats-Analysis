@@ -137,11 +137,12 @@ class wows_api_req(object):
                     pvp = case["pvp"]
                     for date in pvp:
                         stats = pvp[date]
-                        total = stats["battles"]
-                        stats['account_id'] = acc_id
-                        stats['date'] = date
-                        if total > 0:  # Discard info of players who played no pvp game
-                            result_list.append(stats)
+                        dict = {'account_id': acc_id, 'date': date, "date": str(date)}
+                        for item in self.stats_dictionary:
+                            dict[item] = stats[item]
+
+                        if dict["battles"] > 0:  # Discard info of players who played no pvp game
+                            result_list.append(dict)
         elif data is not None and data["status"] != "ok":
             print("%s API error message: %s%s" % (ansi.RED, data["error"], ansi.ENDC))
         else:
@@ -155,10 +156,7 @@ class wows_api_req(object):
                 if case is not None and not case["hidden_profile"]:
                     nickname = case["nickname"]
                     pvp = case["statistics"]["pvp"]
-                    dict = {}
-                    dict["date"] = str(date)
-                    dict["acc_id"] = str(acc_id)
-                    dict["nickname"] = str(nickname)
+                    dict = {"date": str(date), "acc_id": str(acc_id), "nickname": str(nickname)}
                     for item in self.stats_dictionary:
                         dict[item] = pvp[item]
                     if dict["battles"] > 0:  # Discard info of players who played no pvp game
