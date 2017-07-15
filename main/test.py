@@ -24,10 +24,10 @@ def test_wows_api():
 def test_wows_rds():
     try:
         db = wows_db.wows_database()
-        test_dict = {"date": '2017-01-01', "accound_id": '1000000000', "nickname": 'xxxxxxx', "battles": '1',
-                     "wins": '0', "losses": '0', "draws": '0', "dmg": '0'}
+        dict_list = [{'date': '2017-01-01', 'accound_id': '1000000000', 'nickname': 'xxxxxxx', 'battles': '1',
+                      'wins': '0', 'losses': '0', 'draws': '0', 'dmg': '0'}]
         db.write_detailbydict(
-            dict_list=test_dict)
+            dict_list=dict_list)
         id_list = db.get_idlist()
         print(id_list)
         db.write_idlist(data_list=['1000000000', 'xxxxxxx'])
