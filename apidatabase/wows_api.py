@@ -21,7 +21,7 @@ from util.read_config import config
 NA_lo = 1000000000
 NA_hi = 2000000000
 ACCOUNT_ID_LIMIT = 100
-SIZE_PER_WRITE = 100000
+SIZE_PER_WRITE = 10000
 
 
 class wows_api_req(object):
