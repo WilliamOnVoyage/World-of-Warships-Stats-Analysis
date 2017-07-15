@@ -68,10 +68,9 @@ def test_util():
     print("Testing max hundered of %d: %d" % (12345679, ut.max_hundred(12345679)))
 
 
-if __name__ == "__main__":
-    test_wows_api()
-    test_wows_rds()
-    test_winrateprediction()
-    test_winR_datapro()
-    test_config()
-    test_util()
+test_wows_api()
+test_wows_rds()
+test_winrateprediction()
+test_winR_datapro()
+test_config()
+test_util()
