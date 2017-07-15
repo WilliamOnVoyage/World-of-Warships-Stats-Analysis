@@ -27,9 +27,9 @@ def test_wows_rds():
     try:
         db = wows_db.wows_database()
         db.write_detail(data_list=[('2017-01-01', '1000000000', 'xxxxxxx', '1', '0', '0', '0', '0')])
-        id_list = db.get_IDlist()
+        id_list = db.get_idlist()
         print(id_list)
-        db.write_ID(data_list=['1000000000', 'xxxxxxx'])
+        db.write_idlist(data_list=['1000000000', 'xxxxxxx'])
         db.close_db()
     except sql.MySQLError:
         print("apidatabase RDS test failed!")
