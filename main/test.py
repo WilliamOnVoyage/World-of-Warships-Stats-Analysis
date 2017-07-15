@@ -1,11 +1,9 @@
-import datetime
-
 import pymysql as sql
 
 import apidatabase.wows_api as wows_api
 import apidatabase.wows_db as wows_db
 from model import winRate_dataprocess as winRate_dataprocess
-# from model import winRate_prediction as winRate_prediction
+from model import winRate_prediction as winRate_prediction
 from util import read_config as config
 from util import utility as ut
 
@@ -17,7 +15,7 @@ def test_wows_api():
         wows = wows_api.wows_api_req()
         idlist = wows.create_idlist(account_ID=1000000000)
         wows.list2param(idlist)
-        wows.update_winrate(date=datetime.datetime.now().date())
+        wows.update_winrate()
         wows.api_main(days=0)
     except:
         print("apidatabase API test failed!")
@@ -26,7 +24,10 @@ def test_wows_api():
 def test_wows_rds():
     try:
         db = wows_db.wows_database()
-        db.write_detail(data_list=[('2017-01-01', '1000000000', 'xxxxxxx', '1', '0', '0', '0', '0')])
+        test_dict = {"date": '2017-01-01', "accound_id": '1000000000', "nickname": 'xxxxxxx', "battles": '1',
+                     "wins": '0', "losses": '0', "draws": '0', "dmg": '0'}
+        db.write_detailbydict(
+            dict_list=test_dict)
         id_list = db.get_idlist()
         print(id_list)
         db.write_idlist(data_list=['1000000000', 'xxxxxxx'])
@@ -35,10 +36,10 @@ def test_wows_rds():
         print("apidatabase RDS test failed!")
 
 
-def test_winR_prediction():
+def test_winrateprediction():
     try:
         print("tensorflow test unavailable")
-        # winRate_prediction.test()
+        winRate_prediction.test()
     except OSError:
         print("win Rate prediction test failed!")
 
@@ -62,6 +63,6 @@ def test_config():
 if __name__ == "__main__":
     test_wows_api()
     test_wows_rds()
-    test_winR_prediction()
+    test_winrateprediction()
     test_winR_datapro()
     test_config()

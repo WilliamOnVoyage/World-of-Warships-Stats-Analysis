@@ -150,8 +150,8 @@ def test():
     x_trn, y_trn, x_val, y_val = winRate_dataprocess.convert_train_vali(data=pd)
     model = winRate_model(x_trn=x_trn.values, y_trn=y_trn.values, x_val=x_val.values, y_val=y_val.values,
                           time_step=1)
-    model.train_case()
-    model.save_model()
+    # model.train_case()
+    # model.save_model()
 
 
 if __name__ == "__main__":
