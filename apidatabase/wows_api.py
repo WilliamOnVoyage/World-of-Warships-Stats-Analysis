@@ -235,9 +235,8 @@ class wows_api_req(object):
         utility.check_ip()
 
         # main api request
-        self.request_statsbyID(account_url=account_url, application_id=application_id, date=date,
-                               overwrite=True)
-        self.update_winrate()
+        self.request_statsbyID(account_url=account_url, application_id=application_id, date=date)
+        self.update_winrate(start=date - datetime.timedelta(days=2), end=date)
 
         timing = datetime.datetime.now() - timer_start
         print("\n%s%s%s data update finished, time usage: %s%s%s\n" % (

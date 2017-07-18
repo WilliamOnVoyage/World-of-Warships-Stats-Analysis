@@ -1,5 +1,4 @@
 import pymysql as sql
-
 import apidatabase.wows_api as wows_api
 import apidatabase.wows_db as wows_db
 from model import winRate_dataprocess as winRate_dataprocess
