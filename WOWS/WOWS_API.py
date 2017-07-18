@@ -101,7 +101,6 @@ def request_statsbyID(account_url, application_id, date, overwrite=True):
 def request_allID(account_url, application_id):
     account_ID = 1000000000
     result_list = []
-
     while account_ID < 2000000000:
         idlist, increment = create_idlist(account_ID)
         idlist = convertlisttopara(idlist)
