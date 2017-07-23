@@ -6,10 +6,10 @@ from keras.models import Sequential
 from pandas import DataFrame, Panel
 
 import util.utility as ut
-from util.ansi_code import ANSI_escode as ansi
+from util.ansi_code import AnsiEscapeCode as ansi
 
 
-class winRate_model(object):
+class WinrateModel(object):
     def __init__(self, x_trn, y_trn, x_val, y_val, time_step=1):
         # Suppose x = (id,date,[total,win,lose,draw]), the shape of x will be (id number, date range, 4)
         # Predict y as the next day's [total,win,lose,draw], which is a vector of (id number,4)

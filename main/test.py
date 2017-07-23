@@ -2,8 +2,8 @@ import pymysql as sql
 
 import apidatabase.wows_api as wows_api
 import apidatabase.wows_db as wows_db
-from model import winRate_dataprocess as winRate_dataprocess
-from model import winRate_prediction as winRate_prediction
+from model import data_preprocess as winRate_dataprocess
+from model import winrate_prediction as winRate_prediction
 from util import read_config as config
 from util import utility as ut
 
@@ -12,7 +12,7 @@ def test_wows_api():
     try:
         ut.check_ip()
         ut.check_date()
-        wows = wows_api.wows_api_req()
+        wows = wows_api.WowsAPIRequest()
         idlist = wows.create_idlist(account_ID=1000000000)
         wows.list2param(idlist)
         wows.update_winrate()
@@ -23,14 +23,14 @@ def test_wows_api():
 
 def test_wows_rds():
     try:
-        db = wows_db.wows_database()
+        db = wows_db.DatabaseConnector()
         dict_list = [{'date': '2017-01-01', 'accound_id': '1000000000', 'nickname': 'xxxxxxx', 'battles': '1',
                       'wins': '0', 'losses': '0', 'draws': '0', 'dmg': '0'}]
-        db.write_detailbydict(
-            dict_list=dict_list)
+        db.write_detail(
+            detail_dict_list=dict_list)
         id_list = db.get_idlist()
         print(id_list)
-        db.write_idlist(data_list=['1000000000', 'xxxxxxx'])
+        db.write_accountid(id_list=['1000000000', 'xxxxxxx'])
         db.close_db()
     except sql.MySQLError:
         print("apidatabase RDS test failed!")
@@ -53,8 +53,8 @@ def test_winR_datapro():
 
 def test_config():
     try:
-        cg = config.config()
-        json_data = cg.read_config(config_file="sample_config.json")
+        cg = config.ConfigFileReader()
+        json_data = cg.read_config(file_name="sample_config.json")
         print(json_data)
     except:
         print("read config test failed!")

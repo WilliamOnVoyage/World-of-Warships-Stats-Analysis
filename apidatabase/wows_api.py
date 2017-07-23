@@ -7,10 +7,10 @@ from urllib import request, parse, error
 import numpy as np
 from pymysql import MySQLError as mysqlErr
 
-from apidatabase.wows_db import wows_database
+from apidatabase.wows_db import DatabaseConnector
 from util import utility
-from util.ansi_code import ANSI_escode as ansi
-from util.read_config import config
+from util.ansi_code import AnsiEscapeCode as ansi
+from util.read_config import ConfigFileReader
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -27,7 +27,7 @@ URL_TIMEOUT = 45
 API_REQ_NUM = 10
 
 
-class wows_api_req(object):
+class WowsAPIRequest(object):
     def __init__(self):
         # *************CRUCIAL PARAMETERS**************
         self.size_per_write = SIZE_PER_WRITE
@@ -169,8 +169,8 @@ class wows_api_req(object):
                 result_list.append(record)
         if len(result_list) >= self.size_per_write:  # write when data has certain size
             try:
-                db = wows_database()
-                db.write_idlist(result_list)
+                db = DatabaseConnector()
+                db.write_accountid(result_list)
                 db.close_db()
                 print("Last account id: ", result_list[len(result_list) - 1][0])
                 result_list = []
@@ -183,8 +183,8 @@ class wows_api_req(object):
         if len(result_list) >= self.size_per_write:  # write data
             try:
                 print("Start writing database")
-                db = wows_database()
-                db.write_detailbydict(result_list)
+                db = DatabaseConnector()
+                db.write_detail(result_list)
                 db.close_db()
                 success = True
             except mysqlErr:
@@ -193,11 +193,11 @@ class wows_api_req(object):
 
     def update_winrate(self, start=datetime.date.today(), end=datetime.date.today()):
         try:
-            db = wows_database()
+            db = DatabaseConnector()
             sql = """
             update wowstats.wows_stats set `winRate` = round(`wins`/`battles`,4) where `date`>=%s and `date`<=%s and `account_id`<>0 and `battles` is not null;
             """
-            db.execute_single(query=sql, arg=[str(start), str(end)])
+            db.fetch_by_query(query=sql, args=[str(start), str(end)])
             print("%s%s%s winRate update %sfinished!%s" % (ansi.BLUE, str(end), ansi.ENDC, ansi.DARKGREEN, ansi.ENDC))
             db.close_db()
         except mysqlErr:
@@ -206,8 +206,8 @@ class wows_api_req(object):
     def get_idlist(self, overwrite=True):
         try:
             print("Reading ID list...")
-            db = wows_database()
-            idlist = db.get_idlist(overwrite=overwrite)
+            db = DatabaseConnector()
+            idlist = db.get_idlist(get_entire_idlist=overwrite)
             db.close_db()
             print("%sID list read finished%s" % (ansi.GREEN, ansi.ENDC))
             return idlist
@@ -229,7 +229,7 @@ class wows_api_req(object):
         timer_start = datetime.datetime.now()
 
         # Request params from config file
-        config_data = json.loads(config().read_config())
+        config_data = json.loads(ConfigFileReader().read_config())
         application_id = config_data['wows_api']['application_id']
         account_url = config_data['wows_api']['account_url']
         utility.check_ip()
@@ -268,5 +268,5 @@ class wows_api_req(object):
 
 
 if __name__ == '__main__':
-    result = wows_api_req().api_main(start_date='2017-07-03')
+    result = WowsAPIRequest().api_main(start_date='2017-07-03')
     print(result)
