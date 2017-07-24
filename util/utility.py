@@ -53,7 +53,7 @@ def lca(x, y):
     return r
 
 
-def factor(x, y, limit=1000):
+def common_factorbylimit(x, y, limit=1000):
     f = lca(x, y)
     factor = 1
     for i in range(1, min(int(math.sqrt(f)), limit) + 1):
@@ -65,5 +65,4 @@ def factor(x, y, limit=1000):
 if __name__ == "__main__":
     x = lca(288, 108)
     print(x)
-    print(factors)
     getcurrent_date()
