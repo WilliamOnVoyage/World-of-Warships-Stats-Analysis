@@ -12,9 +12,19 @@ class ConfigFileReader(object):
         json_data = open(file_name).read()
         return json_data
 
+    def read_api_config(self):
+        api_config = json.loads(self.read_config())
+        application_id = api_config['wows_api']['application_id']
+        account_url = api_config['wows_api']['account_url']
+        return application_id, account_url
 
-if __name__ == '__main__':
+
+def test_config_file_reader():
     cg = ConfigFileReader()
     json_data = cg.read_config(file_name="sample_config.json")
     json_str = json.loads(json_data)
     print(json_str['mysql']['usr'])
+
+
+if __name__ == '__main__':
+    test_config_file_reader()

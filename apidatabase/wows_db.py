@@ -12,7 +12,7 @@ class DatabaseConnector(object):
     def __init__(self):
         try:
             self.connect_db()
-            print("%sDatabase connected!%s" % (ansi.GREEN, ansi.ENDC))
+            print("Database connected!")
         except:
             print("%sConnection failed!!!%s" % (ansi.RED, ansi.ENDC))
             raise sql.MySQLError
@@ -30,13 +30,13 @@ class DatabaseConnector(object):
                 ansi.BLUE, param_dict['port'], ansi.ENDC))
 
     def write_accountid(self, id_list):
-        insert_sql = """
+        sql_query = """
         INSERT INTO `wowstats`.`wows_idlist` (`accountID`, `nickname`) VALUES %s
         ON DUPLICATE KEY UPDATE `nickname` = %s
         """
         fail_count = 0
         for id_nicknames in id_list:
-            if not self.write_by_query(query=insert_sql, args=[id_nicknames, id_nicknames[1]]):
+            if not self.write_by_query(query=sql_query, args=[id_nicknames, id_nicknames[1]]):
                 fail_count += 1
         print("********************ID list write finished, %s%d%s cases failed********************" % (
             ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
@@ -55,6 +55,15 @@ class DatabaseConnector(object):
                 fail_count += 1
         print("********************Detail write finished, %s%d%s cases failed********************" % (
             ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
+
+    def update_winrate(self, start='2017-01-01', end='2017-01-01'):
+        sql_query = """
+            update wowstats.wows_stats set `winRate` = round(`wins`/`battles`,4) where `date`>=%s and `date`<=%s and `account_id`<>0 and `battles` is not null;
+            """
+        success = self.write_by_query(query=sql_query, args=[str(start), str(end)])
+        print("%s%s to %s winRate update %s%s" % (
+            ansi.GREEN if success else ansi.RED, str(start), str(end), "finished!" if success else "failed!!!",
+            ansi.ENDC))
 
     def write_by_query(self, query, args=None):
         cursor = self.db.cursor()
@@ -95,7 +104,7 @@ class DatabaseConnector(object):
         self.db.close()
 
 
-if __name__ == '__main__':
+def test_wows_db():
     try:
         db = DatabaseConnector()
         db.write_detail(detail_dict_list=[
@@ -103,4 +112,8 @@ if __name__ == '__main__':
              'frags': '0'}])
         db.close_db()
     except sql.MySQLError:
-        print("%sDatabase connection failed!%s" % (ansi.RED, ansi.ENDC))
+        print("%sDatabase test failed!%s" % (ansi.RED, ansi.ENDC))
+
+
+if __name__ == '__main__':
+    test_wows_db()

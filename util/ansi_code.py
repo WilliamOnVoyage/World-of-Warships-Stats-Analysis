@@ -17,5 +17,9 @@ class AnsiEscapeCode:
     DARKGREEN = '\033[32m'
 
 
-if __name__ == "__main__":
+def test_ansi_code():
     print(AnsiEscapeCode.RED + "This is to test" + AnsiEscapeCode.ENDC)
+
+
+if __name__ == "__main__":
+    test_ansi_code()
