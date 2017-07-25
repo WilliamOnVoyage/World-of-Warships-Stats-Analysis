@@ -146,7 +146,7 @@ def test():
     print(pd['d1'])
     print(pd['d2'])
 
-    # x_trn, y_trn, x_val, y_val = winRate_dataprocess.convert_train_vali(data=pd)
+    # x_trn, y_trn, x_val, y_val = data_preprocess.convert_train_vali(data=pd)
     # model = winRate_model(x_trn=x_trn.values, y_trn=y_trn.values, x_val=x_val.values, y_val=y_val.values,
     #                       time_step=1)
     # model.train_case()

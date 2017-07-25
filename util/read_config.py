@@ -16,7 +16,8 @@ class ConfigFileReader(object):
         api_config = json.loads(self.read_config())
         application_id = api_config['wows_api']['application_id']
         account_url = api_config['wows_api']['account_url']
-        return application_id, account_url
+        stats_by_date_url = api_config['wows_api']['stats_by_date_url']
+        return application_id, account_url, stats_by_date_url
 
 
 def test_config_file_reader():

@@ -2,7 +2,7 @@ import pymysql as sql
 
 import apidatabase.wows_api as wows_api
 import apidatabase.wows_db as wows_db
-from model import data_preprocess as winRate_dataprocess
+from model import data_preprocess as data_preprocess
 from util import read_config as config
 from util import utility as ut
 
@@ -12,8 +12,8 @@ def test_wows_api():
         ut.check_ip()
         ut.check_date()
         wows = wows_api.WowsAPIRequest()
-        idlist = wows.create_idlist(account_ID=1000000000)
-        wows.list2param(idlist)
+        idlist = wows.generate_id_list_by_range(account_ID=1000000000)
+        wows.list_to_url_params(idlist)
         wows.update_winrate()
         wows.main_request(days=0)
     except:
@@ -45,7 +45,7 @@ def test_winrateprediction():
 
 def test_winR_datapro():
     try:
-        winRate_dataprocess.test()
+        data_preprocess.test()
     except OSError:
         print("win Rate data process test failed!")
 

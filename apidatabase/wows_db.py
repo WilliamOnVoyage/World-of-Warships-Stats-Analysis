@@ -81,19 +81,19 @@ class DatabaseConnector(object):
 
     def get_idlist(self, get_entire_idlist=True):
         if get_entire_idlist:
-            getid_sql = """SELECT `accountID` FROM wowstats.`wows_idlist`"""
+            getid_sql = """SELECT `account_id` FROM wowstats.`wows_idlist`"""
         else:
-            getid_sql = """SELECT DISTINCT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NULL"""
+            getid_sql = """SELECT DISTINCT `account_id` FROM wowstats.`wows_stats` WHERE `battles` is not null"""
         return self.fetch_by_query(query=getid_sql)
 
     def get_stats_by_date(self, args='2017-01-01'):
-        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `Date` = %s"""
+        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s"""
         return self.fetch_by_query(query=getid_sql, args=args)
 
     def fetch_by_query(self, query, args=None):
         cursor = self.db.cursor()
         try:
-            cursor.execute(query=query, args=[args])
+            cursor.execute(query=query, args=args)
             self.db.commit()
         except sql.MySQLError:
             self.db.rollback()
