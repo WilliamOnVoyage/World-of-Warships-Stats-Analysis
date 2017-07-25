@@ -17,21 +17,21 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
         day_columns = ['total', 'win', 'loss', 'draw']
 
         data_frames = []
-        db = wows_db.wows_database()
+        db = wows_db.DatabaseConnector()
         # Convert the cases from database into tuple like [case,[total,win,loss,draw]], erase date, nickname and public information
         i = 0
         count = timewindow
         while count > 0:
             data = np.asarray(
-                db.get_statsbyDate(para=[last_day - timedelta(i), 100]))  # filter total>100, ~300k per day
+                db.get_stats_by_date(args=[last_day - timedelta(i), 100]))  # filter total>100, ~300k per day
             if data.any():
                 ids = data[:, id_column]
                 stats = data[:, stat_columns]
                 single_frame = DataFrame(data=stats, index=ids, columns=day_columns)
                 for d in day_columns:
                     if d != day_columns[0]:
-                        single_frame[d] = single_frame[d] / (
-                            single_frame[day_columns[0]] + 0.001)  # plus 0.001 to avoid all 0s from database
+                        single_frame[d] /= single_frame[
+                                               day_columns[0]] + 0.001  # plus 0.001 to avoid all 0s from database
                 single_frame[day_columns[0]] = 1
                 day_dict[day_str + str(count + 1)] = single_frame
                 count -= 1

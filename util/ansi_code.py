@@ -1,4 +1,4 @@
-class ANSI_escode:
+class AnsiEscapeCode:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
@@ -17,5 +17,9 @@ class ANSI_escode:
     DARKGREEN = '\033[32m'
 
 
+def test_ansi_code():
+    print(AnsiEscapeCode.RED + "This is to test" + AnsiEscapeCode.ENDC)
+
+
 if __name__ == "__main__":
-    print(ANSI_escode.RED + "This is to test" + ANSI_escode.ENDC)
+    test_ansi_code()

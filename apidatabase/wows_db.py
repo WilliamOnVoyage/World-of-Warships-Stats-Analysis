@@ -2,164 +2,118 @@ import json
 
 import pymysql as sql
 
-from util import read_config
-from util.ansi_code import ANSI_escode as ansi
+from util.ansi_code import AnsiEscapeCode as ansi
+from util.read_config import ConfigFileReader
 
 SQL_TRY_NUMBER = 3
 
 
-class wows_database(object):
+class DatabaseConnector(object):
     def __init__(self):
         try:
             self.connect_db()
-            # print("Database connected!")
+            print("Database connected!")
         except:
-            print("Connection failed!")
+            print("%sConnection failed!!!%s" % (ansi.RED, ansi.ENDC))
             raise sql.MySQLError
 
     def connect_db(self, database='mysql'):
         # Read database config file
-        cg = read_config.config()
+        cg = ConfigFileReader()
         config_data = json.loads(cg.read_config())
-        hostname = config_data[database]["hostname"]
-        port = config_data[database]['port']
-        usr = config_data[database]['usr']
-        pw = config_data[database]['pw']
-        dbname = config_data[database]['dbname']
-        self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
+        param_dict = config_data[database]
+        self.db = sql.connect(host=param_dict["hostname"], port=param_dict['port'], user=param_dict['usr'],
+                              password=param_dict['pw'], database=param_dict['dbname'])
         print(
             "Database %s%s%s connected at host %s%s%s port %s%d%s!" % (
-                ansi.BLUE, dbname, ansi.ENDC, ansi.BLUE, hostname, ansi.ENDC, ansi.BLUE, port, ansi.ENDC))
+                ansi.BLUE, param_dict['dbname'], ansi.ENDC, ansi.BLUE, param_dict["hostname"], ansi.ENDC,
+                ansi.BLUE, param_dict['port'], ansi.ENDC))
 
-    def get_idlist(self, overwrite=True):
-        cursor = self.db.cursor()
-        # Get all ids from ID_table whether id has valid stats
-        if overwrite:
-            getid_sql = """SELECT `accountID` FROM wowstats.`wows_idlist`"""
-        # Get the ids only have valid stats in the day
-        else:
-            getid_sql = """SELECT DISTINCT `accountID` FROM wowstats.`wows_stats` WHERE `total` IS NULL"""
-        try:
-            # execute sql in database
-            cursor.execute(query=getid_sql)
-            return cursor.fetchall()
-        except sql.MySQLError:
-            # roll back if error
-            self.db.rollback()
-            print("Fetch failed!!!")
-
-    def write_idlist(self, data_list):
-        cursor = self.db.cursor()
-        insert_sql = """
+    def write_accountid(self, id_list):
+        sql_query = """
         INSERT INTO `wowstats`.`wows_idlist` (`accountID`, `nickname`) VALUES %s
         ON DUPLICATE KEY UPDATE `nickname` = %s
         """
         fail_count = 0
-        for record in data_list:
-            try:
-                # execute sql in database
-                cursor.execute(query=insert_sql, args=[record, record[1]])
-                self.db.commit()
-                # print("%s written." % (record,))
-            except sql.MySQLError:
-                # roll back if error
-                self.db.rollback()
+        for id_nicknames in id_list:
+            if not self.write_by_query(query=sql_query, args=[id_nicknames, id_nicknames[1]]):
                 fail_count += 1
-                # print("%s write failed!" % (record,))
         print("********************ID list write finished, %s%d%s cases failed********************" % (
             ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
-    # def write_detail(self, data_list):
-    #     cursor = self.db.cursor()
-    #     update_sql = """
-    #     INSERT IGNORE INTO `wowstats`.`wows_stats` (`Date`,`accountID`,`nickname`,`public`,`total`,`win`,`defeat`,`draw`)
-    #     VALUES %s
-    #     """
-    #     fail_count = 0
-    #     for record in data_list:
-    #         ntry = SQL_TRY_NUMBER
-    #         while ntry > 0:
-    #             try:
-    #                 # execute sql in database
-    #                 cursor.execute(query=update_sql,
-    #                                args=[record])
-    #                 self.db.commit()
-    #                 # print("%s written." % (record,))
-    #                 break
-    #             except sql.MySQLError:
-    #                 # roll back if error
-    #                 ntry -= 1
-    #                 self.db.rollback()
-    #                 print("%s%s%s write failed!%s" % (ansi.RED, record, ansi.RED, ansi.ENDC))
-    #         if ntry == 0:
-    #             fail_count += 1
-    #     print("********************Detail write finished, %s%d%s cases failed********************" % (
-    #         ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
-
-    def write_detailbydict(self, dict_list):
-        cursor = self.db.cursor()
+    def write_detail(self, detail_dict_list):
         sql_query = """
         INSERT IGNORE INTO `wowstats`.`wows_stats` (%s) VALUES (%s)
         """
-        spliter = ", "
+        query_spliter = ", "
         fail_count = 0
-        for dict in dict_list:
-            ntry = SQL_TRY_NUMBER
-            while ntry > 0:
-                try:
-                    placeholders = spliter.join(['%s'] * len(dict))
-                    columns = spliter.join(dict.keys())
-                    query = sql_query % (columns, placeholders)
-                    # execute sql in database
-                    cursor.execute(query=query, args=list(dict.values()))
-                    self.db.commit()
-                    # print("%s written." % (record,))
-                    break
-                except sql.MySQLError:
-                    # roll back if error
-                    ntry -= 1
-                    self.db.rollback()
-                    print("%s%s%s write failed!%s" % (ansi.RED, dict, ansi.RED, ansi.ENDC))
-            if ntry == 0:
+        for detail_dict in detail_dict_list:
+            value_placeholders = query_spliter.join(['%s'] * len(detail_dict))
+            key_names = query_spliter.join(detail_dict.keys())
+            query = sql_query % (key_names, value_placeholders)
+            if not self.write_by_query(query=query, args=list(detail_dict.values())):
                 fail_count += 1
         print("********************Detail write finished, %s%d%s cases failed********************" % (
             ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
-    def execute_single(self, query, arg=None):
-        cursor = self.db.cursor()
-        try:
-            # execute sql in database
-            cursor.execute(query=query, args=arg)
-            self.db.commit()
-            return cursor.fetchall()
-            # print("%s written." % (record,))
-        except sql.MySQLError:
-            # roll back if error
-            self.db.rollback()
-            print(ansi.RED + query + " Execution failed!!!")
-            raise sql.MySQLError
+    def update_winrate(self, start='2017-01-01', end='2017-01-01'):
+        sql_query = """
+            update wowstats.wows_stats set `winRate` = round(`wins`/`battles`,4) where `date`>=%s and `date`<=%s and `account_id`<>0 and `battles` is not null;
+            """
+        success = self.write_by_query(query=sql_query, args=[str(start), str(end)])
+        print("%s%s to %s winRate update %s%s" % (
+            ansi.GREEN if success else ansi.RED, str(start), str(end), "finished!" if success else "failed!!!",
+            ansi.ENDC))
 
-    def get_statsbyDate(self, para):
+    def write_by_query(self, query, args=None):
         cursor = self.db.cursor()
-        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `Date` = %s AND `total`>%s"""
+        ntry = SQL_TRY_NUMBER
+        while ntry > 0:
+            try:
+                cursor.execute(query=query, args=args)
+                self.db.commit()
+                return True
+            except sql.MySQLError:
+                ntry -= 1
+                self.db.rollback()
+        print("%s%s %% %swrite failed!%s" % (ansi.RED, query, args, ansi.ENDC))
+        return False
+
+    def get_idlist(self, get_entire_idlist=True):
+        if get_entire_idlist:
+            getid_sql = """SELECT `account_id` FROM wowstats.`wows_idlist`"""
+        else:
+            getid_sql = """SELECT DISTINCT `account_id` FROM wowstats.`wows_stats` WHERE `battles` is not null"""
+        return self.fetch_by_query(query=getid_sql)
+
+    def get_stats_by_date(self, args='2017-01-01'):
+        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s"""
+        return self.fetch_by_query(query=getid_sql, args=args)
+
+    def fetch_by_query(self, query, args=None):
+        cursor = self.db.cursor()
         try:
-            # execute sql in database
-            cursor.execute(query=getid_sql, args=para)
-            return cursor.fetchall()
+            cursor.execute(query=query, args=args)
+            self.db.commit()
         except sql.MySQLError:
-            # roll back if error
             self.db.rollback()
-            print("Fetch failed!!!")
+            print("%s%s Execution failed!!!%s" % (ansi.RED, query, ansi.ENDC))
+        return cursor.fetchall()
 
     def close_db(self):
-        # disconnect
         self.db.close()
 
 
-if __name__ == '__main__':
+def test_wows_db():
     try:
-        db = wows_database()
-        db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
+        db = DatabaseConnector()
+        db.write_detail(detail_dict_list=[
+            {'account_id': '1018170999', 'nickname': 'Luizclv', 'battles': '0', 'losses': '0', 'draws': '0',
+             'frags': '0'}])
         db.close_db()
     except sql.MySQLError:
-        print(ansi.RED + "Database connection failed!")
+        print("%sDatabase test failed!%s" % (ansi.RED, ansi.ENDC))
+
+
+if __name__ == '__main__':
+    test_wows_db()

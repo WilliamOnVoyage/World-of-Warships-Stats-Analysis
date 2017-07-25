@@ -6,10 +6,10 @@ from keras.models import Sequential
 from pandas import DataFrame, Panel
 
 import util.utility as ut
-from util.ansi_code import ANSI_escode as ansi
+from util.ansi_code import AnsiEscapeCode as ansi
 
 
-class winRate_model(object):
+class WinrateModel(object):
     def __init__(self, x_trn, y_trn, x_val, y_val, time_step=1):
         # Suppose x = (id,date,[total,win,lose,draw]), the shape of x will be (id number, date range, 4)
         # Predict y as the next day's [total,win,lose,draw], which is a vector of (id number,4)
@@ -32,15 +32,15 @@ class winRate_model(object):
         self.time_window = time_step
         self.loss = objectives.mse
         self.optimizer = keras.optimizers.adam(lr=self.lr)
-        # Initialize model
-        self.model = self.construct_model()
 
         # Files directory
-        self.model_dir = 'models/'
-        self.model_postfix = '_AP_tw_' + str(time_step) + '_batch_' + str(self.batch_size)
-        self.model_file = self.model_dir + 'activity model' + self.model_postfix + '.h5'
-        self.model_weights = self.model_dir + 'activity model_weights' + self.model_postfix + '.h5'
-        self.model_json = self.model_dir + 'activity model' + self.model_postfix + '.json'
+        self._model_dir = 'models/'
+        self._model_postfix = '_AP_tw_' + str(time_step) + '_batch_' + str(self.batch_size)
+        self._model_file = self._model_dir + 'activity model' + self._model_postfix + '.h5'
+        self._model_weights = self._model_dir + 'activity _model_weights' + self._model_postfix + '.h5'
+        self._model_json = self._model_dir + 'activity model' + self._model_postfix + '.json'
+
+        self.model = self.construct_model()
 
     def construct_model(self):
         model = Sequential()
@@ -59,7 +59,7 @@ class winRate_model(object):
 
     def train_case(self, contd=False):
         if contd:
-            self.model.load_weights(self.model_file)
+            self.model.load_weights(self._model_file)
         # split the train and validation set
         x_trn, y_trn, x_val, y_val = self.x_trn, self.y_trn, self.x_val, self.y_val
         for ep in range(self.epoch):
@@ -114,13 +114,13 @@ class winRate_model(object):
 
     def save_model(self):
         try:
-            self.model.save(self.model_file)
+            self.model.save(self._model_file)
             model_json = self.model.to_json()
-            with open(self.model_json, "w") as json_file:
+            with open(self._model_json, "w") as json_file:
                 json_file.write(model_json)
-            self.model.save_weights(self.model_weights)
+            self.model.save_weights(self._model_weights)
         except OSError:
-            print(ansi.RED + self.model_file + " save failed!!!" + ansi.ENDC)
+            print(ansi.RED + self._model_file + " save failed!!!" + ansi.ENDC)
             print(OSError)
 
 
@@ -146,7 +146,7 @@ def test():
     print(pd['d1'])
     print(pd['d2'])
 
-    # x_trn, y_trn, x_val, y_val = winRate_dataprocess.convert_train_vali(data=pd)
+    # x_trn, y_trn, x_val, y_val = data_preprocess.convert_train_vali(data=pd)
     # model = winRate_model(x_trn=x_trn.values, y_trn=y_trn.values, x_val=x_val.values, y_val=y_val.values,
     #                       time_step=1)
     # model.train_case()
@@ -155,4 +155,4 @@ def test():
 
 if __name__ == "__main__":
     test()
-    print("winRate prediction api_main")
+    print("winRate prediction main_request")

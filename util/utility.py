@@ -4,7 +4,7 @@ import socket
 import ipgetter
 import math
 
-from util.ansi_code import ANSI_escode as tf
+from util.ansi_code import AnsiEscapeCode as tf
 
 
 def check_ip():
