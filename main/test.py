@@ -3,7 +3,7 @@ import apidatabase.wows_api as wows_api
 import apidatabase.wows_db as wows_db
 from model import data_preprocess as data_preprocess
 from util import read_config as config
-from util import utility as ut
+from util import aux_functions as ut
 
 
 def test_wows_api():
@@ -61,8 +61,7 @@ def test_config():
 def test_util():
     print("Testing check date: %s" % ut.check_date())
     print("Testing check ip: %s" % ut.check_ip())
-    print("Testing check current date: %s" % ut.getcurrent_date())
-    print("Testing factor of %d and %d %d" % (36, 120, ut.common_factorbylimit(36, 120)))
+    print("Testing factor of %d and %d %d" % (36, 120, ut.least_common_factor_with_limit(36, 120)))
     print("Testing max hundered of %d: %d" % (12345679, ut.max_hundred(12345679)))
 
 

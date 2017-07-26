@@ -5,7 +5,7 @@ from keras.layers import Dense, LSTM
 from keras.models import Sequential
 from pandas import DataFrame, Panel
 
-import util.utility as ut
+import util.aux_functions as ut
 from util.ansi_code import AnsiEscapeCode as ansi
 
 
@@ -19,7 +19,7 @@ class WinrateModel(object):
         self.y_shape = y_trn.shape
         self.y_trn = np.squeeze(y_trn.values, axis=1)
         self.y_val = np.squeeze(y_val.values, axis=1)
-        self.batch_size = ut.common_factorbylimit(x_trn.shape[0], x_val.shape[0], limit=1000)
+        self.batch_size = ut.least_common_factor_with_limit(x_trn.shape[0], x_val.shape[0], limit=1000)
         self.epoch = 1000
         self.lr = 0.01
         self.lr_decay = 0.9

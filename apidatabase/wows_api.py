@@ -8,7 +8,7 @@ import numpy as np
 from pymysql import MySQLError
 
 from apidatabase.wows_db import DatabaseConnector
-from util import utility
+from util import aux_functions
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.read_config import ConfigFileReader
 
@@ -133,6 +133,7 @@ class WowsAPIRequest(object):
         if data is not None and data["status"] == "ok":
             for acc_id in data["data"]:
                 case = data["data"][acc_id]
+                stats_dict = []
                 if case is not None and history:
                     stats_dict = self.generate_dict_from_json_history(acc_id=acc_id, case=case)
                 elif case is not None and not case["hidden_profile"]:
@@ -147,14 +148,6 @@ class WowsAPIRequest(object):
         return result_list
 
     def generate_dict_from_json_history(self, acc_id, case):
-        nickname = case["nickname"]
-        pvp = case["statistics"]["pvp"]
-        stats_dict = {"date": str(self._date), "account_id": str(acc_id), "nickname": str(nickname)}
-        for item in self._stats_dictionary:
-            stats_dict[item] = str(pvp[item])
-        return stats_dict
-
-    def generate_dict_from_json_now(self, acc_id, case):
         stats_dict = []
         if case["pvp"] is not None:
             pvp = case["pvp"]
@@ -163,6 +156,14 @@ class WowsAPIRequest(object):
                 stats_dict = {'account_id': acc_id, 'date': date, "date": str(date)}
                 for item in self._stats_dictionary:
                     stats_dict[item] = str(stats[item])
+        return stats_dict
+
+    def generate_dict_from_json_now(self, acc_id, case):
+        nickname = case["nickname"]
+        pvp = case["statistics"]["pvp"]
+        stats_dict = {"date": str(self._date), "account_id": str(acc_id), "nickname": str(nickname)}
+        for item in self._stats_dictionary:
+            stats_dict[item] = str(pvp[item])
         return stats_dict
 
     def append_id_list(self, data, id_list):
@@ -225,11 +226,11 @@ class WowsAPIRequest(object):
 
     def single_day_request(self, date):
         timer_start = datetime.datetime.now()
-        utility.check_ip()
+        aux_functions.check_ip()
         self._date = date
 
         self.request_stats_by_id(date=date)
-        self.request_stats_by_date(date_list=list('2017-07-24'))
+        # self.request_stats_by_date(date_list=list('2017-07-24'))
         self.update_winrate(start=date, end=date)
 
         time_usage = datetime.datetime.now() - timer_start
