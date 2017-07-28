@@ -19,9 +19,9 @@ class MongoDB(AbstractDB):
             print("%sMongoDB initialization failed!!!%s" % (ansi.RED, ansi.ENDC))
 
     def connect_db(self):
-        self._connection = mg.MongoClient(host=self._db_params['hostname'], port=self._db_params['port'])
-        self._db = self._connection[self._db_params['dbname']]
-        self._collection = self._db['collection']
+        self._connect = mg.MongoClient(host=self._db_params['hostname'], port=self._db_params['port'])
+        self._db = self._connect[self._db_params['dbname']]
+        self._collection = self._db[self._db_params['collection']]
         print(
             "MongoDB %s%s%s connected at host %s%s%s port %s%d%s!" % (
                 ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params["hostname"], ansi.ENDC,
@@ -49,7 +49,7 @@ class MongoDB(AbstractDB):
         pass
 
     def insert_list(self, data_list):
-        self._connection.insert_many(data_list)
+        self._collection.insert_many(data_list)
 
     def close_db(self):
-        self._connection.close()
+        self._connect.close()
