@@ -7,7 +7,7 @@ from urllib import request, parse, error
 import numpy as np
 from pymysql import MySQLError
 
-from apidatabase.wows_db import DatabaseConnector
+from apidatabase.db_connector import DatabaseConnector
 from util import aux_functions
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.read_config import ConfigFileReader
@@ -19,6 +19,7 @@ from util.read_config import ConfigFileReader
 # elseif ($id < 3000000000) return 'ASIA';
 # elseif ($id >= 3000000000) return 'KR';
 
+DB_TYPE = 'mysql'
 NA_ACCOUNT_LIMIT_LO = 1000000000
 NA_ACCOUNT_LIMIT_HI = 2000000000
 IDLIST_LIMIT = 100
@@ -44,6 +45,8 @@ class WowsAPIRequest(object):
         self._date = '2017-01-01'
         self._application_id, self._account_url, self._stats_by_date_url = ConfigFileReader().read_api_config()
         self._url_req_trynumber = URL_REQ_TRYNUM
+        self._db_type = DB_TYPE
+        self._db = DatabaseConnector(database_type=self._db_type)
 
         print("API initialized!")
 
@@ -180,12 +183,10 @@ class WowsAPIRequest(object):
         if len(data_list) >= self._size_per_write:
             try:
                 print(msg)
-                db = DatabaseConnector()
                 if type_detail:
-                    db.write_detail(data_list)
+                    self._db.write_detail(data_list)
                 else:
-                    db.write_accountid(data_list)
-                db.close_db()
+                    self._db.write_accountid(data_list)
                 success = True
             except MySQLError:
                 self.print_database_error()
@@ -194,9 +195,7 @@ class WowsAPIRequest(object):
 
     def update_winrate(self, start=datetime.date.today(), end=datetime.date.today()):
         try:
-            db = DatabaseConnector()
-            db.update_winrate(start=start, end=end)
-            db.close_db()
+            self._db.update_winrate(start=start, end=end)
         except MySQLError:
             self.print_database_error()
 
@@ -204,9 +203,7 @@ class WowsAPIRequest(object):
         idlist = list()
         try:
             print("Reading ID list...")
-            db = DatabaseConnector()
-            idlist = db.get_idlist(get_entire_idlist=get_entire_list)
-            db.close_db()
+            idlist = self._db.get_idlist(get_entire_idlist=get_entire_list)
             print("%sID list read finished%s" % (ansi.GREEN, ansi.ENDC))
         except MySQLError:
             self.print_database_error()

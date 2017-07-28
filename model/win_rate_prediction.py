@@ -1,3 +1,5 @@
+import datetime
+
 import keras
 import numpy as np
 from keras import objectives
@@ -5,6 +7,7 @@ from keras.layers import Dense, LSTM
 from keras.models import Sequential
 from pandas import DataFrame, Panel
 
+import model.data_preprocess as data_pro
 import util.aux_functions as ut
 from util.ansi_code import AnsiEscapeCode as ansi
 
@@ -44,17 +47,11 @@ class WinrateModel(object):
 
     def construct_model(self):
         model = Sequential()
-        # LSTM layers
         model.add(
             LSTM(units=self.lstm1_node, batch_input_shape=(self.batch_size, self.time_window, self.y_shape[2]))
         )
-        # self.model.add(MaxPooling1D(2))
-        # model.add(LSTM(units=self.lstm2_node, stateful=False))
-        # Dense layers
         model.add(Dense(units=self.y_shape[2], activation='sigmoid'))
-
         model.compile(loss=self.loss, optimizer=self.optimizer, metrics=['accuracy'])
-
         return model
 
     def train_case(self, contd=False):
@@ -100,17 +97,17 @@ class WinrateModel(object):
                 break
 
     def predict_case(self, x):
-        winRate_prediction = []
+        prediction_all = []
         # Check shape, abandon predict if test & train shapes are different
         shape = np.asarray(x).shape
         assert shape[1] == self.x_shape[1] and shape[2] == self.x_shape[2]
         for index in range(len(x)):
             print("Testing trace: " + str(index))
-            prediction = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
+            prediction_case = self.model.predict(x=x[index], batch_size=self.batch_size, verbose=0)
             self.model.reset_states()
-            winRate_prediction.append(prediction)
+            prediction_all.append(prediction_case)
 
-        return winRate_prediction
+        return prediction_all
 
     def save_model(self):
         try:
@@ -154,5 +151,17 @@ def test():
 
 
 if __name__ == "__main__":
-    test()
-    print("winRate prediction main_request")
+    date = datetime.date.today()
+    start = datetime.datetime.now()
+    last_date = start.date()
+    timewindow = 8
+
+    data = data_pro.db_retrieve(last_day=date, timewindow=timewindow)
+    x_trn, y_trn, x_val, y_val = data_pro.convert_train_vali(data=data)
+    model = WinrateModel(x_trn=x_trn, y_trn=y_trn, x_val=x_val, y_val=y_val, time_step=timewindow - 1)
+    model.train_case(contd=False)
+
+    end = datetime.datetime.now()
+    model_time = end - start
+    print("\n%s%s%s model update finished, time usage: %s%s%s\n" % (
+        ansi.BLUE, date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, model_time, ansi.ENDC))

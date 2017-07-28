@@ -2,32 +2,33 @@ import json
 
 import pymysql as sql
 
+from apidatabase.abstract_db import AbstractDB
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.read_config import ConfigFileReader
 
 SQL_TRY_NUMBER = 3
 
 
-class DatabaseConnector(object):
+class MySQLDB(AbstractDB):
     def __init__(self):
+        super().__init__()
         try:
+            # Read database config file
+            _config_data = json.loads(ConfigFileReader().read_config())
+            self._db_params = _config_data['mysql']
             self.connect_db()
-            print("Database connected!")
+            self.close_db()
         except:
-            print("%sConnection failed!!!%s" % (ansi.RED, ansi.ENDC))
-            raise sql.MySQLError
+            print("%sMySQL initialization failed!!!%s" % (ansi.RED, ansi.ENDC))
 
-    def connect_db(self, database='mysql'):
-        # Read database config file
-        cg = ConfigFileReader()
-        config_data = json.loads(cg.read_config())
-        param_dict = config_data[database]
-        self.db = sql.connect(host=param_dict["hostname"], port=param_dict['port'], user=param_dict['usr'],
-                              password=param_dict['pw'], database=param_dict['dbname'])
+    def connect_db(self):
+        self.db = sql.connect(host=self._db_params["hostname"], port=self._db_params['port'],
+                              user=self._db_params['usr'],
+                              password=self._db_params['pw'], database=self._db_params['dbname'])
         print(
-            "Database %s%s%s connected at host %s%s%s port %s%d%s!" % (
-                ansi.BLUE, param_dict['dbname'], ansi.ENDC, ansi.BLUE, param_dict["hostname"], ansi.ENDC,
-                ansi.BLUE, param_dict['port'], ansi.ENDC))
+            "MySQL %s%s%s connected at host %s%s%s port %s%d%s!" % (
+                ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params["hostname"], ansi.ENDC,
+                ansi.BLUE, self._db_params['port'], ansi.ENDC))
 
     def write_accountid(self, id_list):
         sql_query = """
@@ -86,34 +87,21 @@ class DatabaseConnector(object):
             getid_sql = """SELECT DISTINCT `account_id` FROM wowstats.`wows_stats` WHERE `battles` is not null"""
         return self.fetch_by_query(query=getid_sql)
 
-    def get_stats_by_date(self, args='2017-01-01'):
-        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s"""
+    def get_stats_by_date(self, args=None):
+        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s AND `battles` > %s"""
         return self.fetch_by_query(query=getid_sql, args=args)
 
     def fetch_by_query(self, query, args=None):
         cursor = self.db.cursor()
+        result = []
         try:
             cursor.execute(query=query, args=args)
             self.db.commit()
+            result = cursor.fetchall()
         except sql.MySQLError:
             self.db.rollback()
             print("%s%s Execution failed!!!%s" % (ansi.RED, query, ansi.ENDC))
-        return cursor.fetchall()
+        return result
 
     def close_db(self):
         self.db.close()
-
-
-def test_wows_db():
-    try:
-        db = DatabaseConnector()
-        db.write_detail(detail_dict_list=[
-            {'account_id': '1018170999', 'nickname': 'Luizclv', 'battles': '0', 'losses': '0', 'draws': '0',
-             'frags': '0'}])
-        db.close_db()
-    except sql.MySQLError:
-        print("%sDatabase test failed!%s" % (ansi.RED, ansi.ENDC))
-
-
-if __name__ == '__main__':
-    test_wows_db()
