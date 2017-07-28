@@ -1,6 +1,6 @@
 class AbstractDB(object):
     def __init__(self):
-        pass
+        self._name = 'Database'
 
     def connect_db(self):
         pass
@@ -23,7 +23,7 @@ class AbstractDB(object):
     def get_stats_by_date(self, args=None):
         pass
 
-    def fetch_by_query(self, query, args=None):
+    def get_by_query(self, query, args=None):
         pass
 
     def close_db(self):

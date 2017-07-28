@@ -42,7 +42,7 @@ def test_winrateprediction():
         print("win Rate prediction test failed!")
 
 
-def test_winR_datapro():
+def test_dataprocess():
     try:
         data_preprocess.test()
     except OSError:
@@ -68,6 +68,6 @@ def test_util():
 test_wows_api()
 test_wows_rds()
 test_winrateprediction()
-test_winR_datapro()
+test_dataprocess()
 test_config()
 test_util()

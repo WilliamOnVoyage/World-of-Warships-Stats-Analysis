@@ -48,7 +48,7 @@ class DatabaseConnector(object):
 
     def fetch_by_query(self, query, args=None):
         self.db.connect_db()
-        result = self.db.fetch_by_query(query=query, args=args)
+        result = self.db.get_by_query(query=query, args=args)
         self.db.close_db()
         return result
 

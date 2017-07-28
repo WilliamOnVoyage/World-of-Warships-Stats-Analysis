@@ -45,7 +45,7 @@ class MongoDB(AbstractDB):
     def get_stats_by_date(self, args=None):
         pass
 
-    def fetch_by_query(self, query, args=None):
+    def get_by_query(self, query, args=None):
         pass
 
     def insert_list(self, data_list):

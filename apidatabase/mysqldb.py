@@ -85,13 +85,13 @@ class MySQLDB(AbstractDB):
             getid_sql = """SELECT `account_id` FROM wowstats.`wows_idlist`"""
         else:
             getid_sql = """SELECT DISTINCT `account_id` FROM wowstats.`wows_stats` WHERE `battles` is not null"""
-        return self.fetch_by_query(query=getid_sql)
+        return self.get_by_query(query=getid_sql)
 
     def get_stats_by_date(self, args=None):
         getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s AND `battles` > %s"""
-        return self.fetch_by_query(query=getid_sql, args=args)
+        return self.get_by_query(query=getid_sql, args=args)
 
-    def fetch_by_query(self, query, args=None):
+    def get_by_query(self, query, args=None):
         cursor = self.db.cursor()
         result = []
         try:
