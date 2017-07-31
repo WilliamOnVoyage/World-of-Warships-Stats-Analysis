@@ -1,7 +1,7 @@
 import datetime
 import time
 
-import apidatabase.wows_api as wows
+import api.wows_api as wows
 import model.data_preprocess as winR_data
 from model.win_rate_prediction import WinrateModel as winR_model
 from util.ansi_code import AnsiEscapeCode as ansi

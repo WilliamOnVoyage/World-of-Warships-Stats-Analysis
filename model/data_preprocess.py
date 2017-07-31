@@ -5,7 +5,7 @@ import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
-import apidatabase.db_connector as wows_db
+import database.db_connector as wows_db
 import util.aux_functions as ut
 
 

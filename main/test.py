@@ -1,13 +1,13 @@
 import pymysql as sql
 
-import apidatabase.db_connector as wows_db
-import apidatabase.wows_api as wows_api
+import api.wows_api as wows_api
+import database.db_connector as wows_db
 from model import data_preprocess as data_preprocess
 from util import aux_functions as ut
-from util import read_config as config
+from util import config as config
 
 
-def test_wows_api():
+def test_api():
     try:
         ut.check_ip()
         ut.check_date()
@@ -17,10 +17,10 @@ def test_wows_api():
         wows.update_winrate()
         wows.main_request(days=0)
     except:
-        print("apidatabase API test failed!")
+        print("api API test failed!")
 
 
-def test_wows_rds():
+def test_database():
     try:
         db = wows_db.DatabaseConnector(database_type='mysql')
         dict_list = [{'date': '2017-01-01', 'accound_id': '1000000000', 'nickname': 'xxxxxxx', 'battles': '1',
@@ -31,7 +31,7 @@ def test_wows_rds():
         print(id_list)
         db.write_accountid(id_list=['1000000000', 'xxxxxxx'])
     except sql.MySQLError:
-        print("apidatabase RDS test failed!")
+        print("api RDS test failed!")
 
 
 def test_winrateprediction():
@@ -65,8 +65,8 @@ def test_util():
     print("Testing max hundered of %d: %d" % (12345679, ut.max_hundred(12345679)))
 
 
-test_wows_api()
-test_wows_rds()
+test_api()
+test_database()
 test_winrateprediction()
 test_dataprocess()
 test_config()

@@ -2,9 +2,9 @@ import json
 
 import pymysql as sql
 
-from apidatabase.abstract_db import AbstractDB
+from database.abstract_db import AbstractDB
 from util.ansi_code import AnsiEscapeCode as ansi
-from util.read_config import ConfigFileReader
+from util.config import ConfigFileReader
 
 SQL_TRY_NUMBER = 3
 

@@ -7,10 +7,10 @@ from urllib import request, parse, error
 import numpy as np
 from pymysql import MySQLError
 
-from apidatabase.db_connector import DatabaseConnector
+from database.db_connector import DatabaseConnector
 from util import aux_functions
 from util.ansi_code import AnsiEscapeCode as ansi
-from util.read_config import ConfigFileReader
+from util.config import ConfigFileReader
 
 # account ID range
 # if ($id <  500000000) return 'RU';

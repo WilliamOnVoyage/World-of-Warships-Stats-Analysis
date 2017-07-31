@@ -1,5 +1,6 @@
-from apidatabase.mongo_db import MongoDB
-from apidatabase.mysqldb import MySQLDB
+from api.mysqldb import MySQLDB
+
+from database.mongo_db import MongoDB
 
 SQL_TRY_NUMBER = 3
 
@@ -46,7 +47,7 @@ class DatabaseConnector(object):
         self.db.close_db()
         return result
 
-    def fetch_by_query(self, query, args=None):
+    def get_by_query(self, query, args=None):
         self.db.connect_db()
         result = self.db.get_by_query(query=query, args=args)
         self.db.close_db()
