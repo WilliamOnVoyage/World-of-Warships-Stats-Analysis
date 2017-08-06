@@ -3,6 +3,7 @@ pytest
 ipgetter
 prompt_toolkit
 pymongo
+flask
 codeclimate-test-reporter
 coverage<=4.3.4
 pandas>=0.19.2
