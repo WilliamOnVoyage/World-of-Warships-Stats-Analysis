@@ -129,7 +129,7 @@ class wows_database(object):
         cursor = self.db.cursor()
         try:
             # execute sql in database
-            cursor.execute(query=query, args=[arg])
+            cursor.execute(query=query, args=arg)
             self.db.commit()
             return cursor.fetchall()
             # print("%s written." % (record,))
