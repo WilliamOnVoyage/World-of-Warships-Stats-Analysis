@@ -27,6 +27,7 @@ class MongoDB(AbstractDB):
                 ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params["hostname"], ansi.ENDC,
                 ansi.BLUE, self._db_params['port'], ansi.ENDC))
 
+
     def write_accountid(self, id_list):
         self.insert_list(data_list=id_list)
 
@@ -50,6 +51,9 @@ class MongoDB(AbstractDB):
 
     def insert_list(self, data_list):
         self._collection.insert_many(data_list)
+
+    def update_list(self, data_list):
+        self._collection.find_one_and_update()
 
     def close_db(self):
         self._connect.close()

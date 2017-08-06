@@ -1,6 +1,5 @@
-from api.mysqldb import MySQLDB
-
 from database.mongo_db import MongoDB
+from database.mysql_db import MySQLDB
 
 SQL_TRY_NUMBER = 3
 
@@ -55,7 +54,8 @@ class DatabaseConnector(object):
 
 
 if __name__ == '__main__':
-    DatabaseConnector(database_type='mongo').write_accountid(id_list=[{"account_id": "1", "nickname": "test"}])
+    DatabaseConnector(database_type='mongo').write_accountid(
+        id_list=[{"_id": "1", "account_id": "1", "nickname": "test"}])
     # DatabaseConnector().write_detail(detail_dict_list=[
     #     {'account_id': '1018170999', 'nickname': 'Luizclv', 'battles': '0', 'losses': '0', 'draws': '0',
     #      'frags': '0'}])
