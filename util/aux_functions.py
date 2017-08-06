@@ -4,7 +4,7 @@ import socket
 import ipgetter
 import math
 
-from util.ansi_code import ANSI_escode as tf
+from util.ansi_code import AnsiEscapeCode as tf
 
 
 def check_ip():
@@ -19,42 +19,31 @@ def check_date():
     return d
 
 
-def getcurrent_date():
-    time = datetime.datetime.now().date()
-    print(tf.DARKGREEN + str(time) + tf.ENDC)
-
-
 def max_hundred(x):
     return int(x / 100) * 100
 
 
-def lca(x, y):
-    negate = False
-    if (x > 0 and y < 0) or (x < 0 and y > 0):
-        negate = True
-    x = abs(x)
-    y = abs(y)
+def greatest_common_divisor(x, y):
     if x == 0 or y == 0:
         return 0
     if x == y:
         return x
+    negate = False
+    if (x > 0 > y) or (x < 0 < y):
+        negate = True
+    x = abs(x)
+    y = abs(y)
     if x > y:
-        if x % y == 0:
-            r = y
-        else:
-            r = lca(x - y, y)
+        r = greatest_common_divisor(x - y, y)
     else:
-        if y % x == 0:
-            r = x
-        else:
-            r = lca(y - x, x)
+        r = greatest_common_divisor(y - x, x)
     if negate:
         r = -r
     return r
 
 
-def common_factorbylimit(x, y, limit=1000):
-    f = lca(x, y)
+def least_common_factor_with_limit(x, y, limit=1000):
+    f = greatest_common_divisor(x, y)
     factor = 1
     for i in range(1, min(int(math.sqrt(f)), limit) + 1):
         if f % i == 0:
@@ -63,6 +52,5 @@ def common_factorbylimit(x, y, limit=1000):
 
 
 if __name__ == "__main__":
-    x = lca(288, 108)
+    x = greatest_common_divisor(288, 108)
     print(x)
-    getcurrent_date()

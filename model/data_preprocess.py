@@ -5,38 +5,37 @@ import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
-import apidatabase.wows_db as wows_db
-import util.utility as ut
+import database.db_connector as wows_db
+import util.aux_functions as ut
 
 
 def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, public=3,
                 stat_columns=np.array([4, 5, 6, 7])):
     try:
         day_dict = {}
-        day_str = "day "
-        day_columns = ['total', 'win', 'loss', 'draw']
+        day_str = "date "
+        day_columns = ['battles', 'wins', 'losses', 'draws']
 
         data_frames = []
-        db = wows_db.wows_database()
+        db = wows_db.DatabaseConnector(database_type='mysql')
         # Convert the cases from database into tuple like [case,[total,win,loss,draw]], erase date, nickname and public information
         i = 0
         count = timewindow
         while count > 0:
             data = np.asarray(
-                db.get_statsbyDate(para=[last_day - timedelta(i), 100]))  # filter total>100, ~300k per day
+                db.get_stats_by_date(args=[last_day - timedelta(i), '100']))  # filter total>100, ~300k per day
             if data.any():
                 ids = data[:, id_column]
                 stats = data[:, stat_columns]
                 single_frame = DataFrame(data=stats, index=ids, columns=day_columns)
                 for d in day_columns:
                     if d != day_columns[0]:
-                        single_frame[d] = single_frame[d] / (
-                            single_frame[day_columns[0]] + 0.001)  # plus 0.001 to avoid all 0s from database
+                        single_frame[d] /= single_frame[
+                                               day_columns[0]] + 0.001  # plus 0.001 to avoid all 0s from database
                 single_frame[day_columns[0]] = 1
                 day_dict[day_str + str(count + 1)] = single_frame
                 count -= 1
             i += 1
-        db.close_db()
         result = Panel(day_dict)
         return result
     except mysqlErr:

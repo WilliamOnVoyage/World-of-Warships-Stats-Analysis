@@ -1,15 +1,15 @@
 import datetime
 import time
 
-import apidatabase.wows_api as wows
-import model.winRate_dataprocess as winR_data
-from model.winRate_prediction import winRate_model as winR_model
-from util.ansi_code import ANSI_escode as ansi
+import api.wows_api as wows
+import model.data_preprocess as winR_data
+from model.win_rate_prediction import WinrateModel as winR_model
+from util.ansi_code import AnsiEscapeCode as ansi
 
 
 def database_update(date):
     # Request params from config file
-    timing = wows.wows_api_req().api_singleDay(date=date)
+    timing = wows.WowsAPIRequest().single_day_request(date=date)
     return timing
 
 
