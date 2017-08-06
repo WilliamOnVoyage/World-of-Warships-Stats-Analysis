@@ -1,7 +1,11 @@
-import pymysql as sql
 import json
+
+import pymysql as sql
+
 from util import read_config
-from util.ansi_code import ANSI_escode as tf
+from util.ansi_code import ANSI_escode as ansi
+
+SQL_TRY_NUMBER = 3
 
 
 class wows_database(object):
@@ -25,9 +29,9 @@ class wows_database(object):
         self.db = sql.connect(host=hostname, port=port, user=usr, password=pw, database=dbname)
         print(
             "Database %s%s%s connected at host %s%s%s port %s%d%s!" % (
-                tf.BLUE, dbname, tf.ENDC, tf.BLUE, hostname, tf.ENDC, tf.BLUE, port, tf.ENDC))
+                ansi.BLUE, dbname, ansi.ENDC, ansi.BLUE, hostname, ansi.ENDC, ansi.BLUE, port, ansi.ENDC))
 
-    def get_IDlist(self, overwrite=True):
+    def get_idlist(self, overwrite=True):
         cursor = self.db.cursor()
         # Get all ids from ID_table whether id has valid stats
         if overwrite:
@@ -44,7 +48,7 @@ class wows_database(object):
             self.db.rollback()
             print("Fetch failed!!!")
 
-    def write_ID(self, data_list):
+    def write_idlist(self, data_list):
         cursor = self.db.cursor()
         insert_sql = """
         INSERT INTO `wowstats`.`wows_idlist` (`accountID`, `nickname`) VALUES %s
@@ -63,29 +67,63 @@ class wows_database(object):
                 fail_count += 1
                 # print("%s write failed!" % (record,))
         print("********************ID list write finished, %s%d%s cases failed********************" % (
-            tf.GREEN if fail_count == 0 else tf.RED, fail_count, tf.ENDC))
+            ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
-    def write_detail(self, data_list):
+    # def write_detail(self, data_list):
+    #     cursor = self.db.cursor()
+    #     update_sql = """
+    #     INSERT IGNORE INTO `wowstats`.`wows_stats` (`Date`,`accountID`,`nickname`,`public`,`total`,`win`,`defeat`,`draw`)
+    #     VALUES %s
+    #     """
+    #     fail_count = 0
+    #     for record in data_list:
+    #         ntry = SQL_TRY_NUMBER
+    #         while ntry > 0:
+    #             try:
+    #                 # execute sql in database
+    #                 cursor.execute(query=update_sql,
+    #                                args=[record])
+    #                 self.db.commit()
+    #                 # print("%s written." % (record,))
+    #                 break
+    #             except sql.MySQLError:
+    #                 # roll back if error
+    #                 ntry -= 1
+    #                 self.db.rollback()
+    #                 print("%s%s%s write failed!%s" % (ansi.RED, record, ansi.RED, ansi.ENDC))
+    #         if ntry == 0:
+    #             fail_count += 1
+    #     print("********************Detail write finished, %s%d%s cases failed********************" % (
+    #         ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
+
+    def write_detailbydict(self, dict_list):
         cursor = self.db.cursor()
-        update_sql = """
-        INSERT INTO `wowstats`.`wows_stats` (`Date`,`accountID`,`nickname`,`public`,`total`,`win`,`defeat`,`draw`)
-        VALUES %s ON DUPLICATE KEY UPDATE `total` = %s,`win` =%s,`defeat` = %s,`draw` = %s
+        sql_query = """
+        INSERT IGNORE INTO `wowstats`.`wows_stats` (%s) VALUES (%s)
         """
+        spliter = ", "
         fail_count = 0
-        for record in data_list:
-            try:
-                # execute sql in database
-                cursor.execute(query=update_sql,
-                               args=[record, record[4], record[5], record[6], record[7]])
-                self.db.commit()
-                # print("%s written." % (record,))
-            except sql.MySQLError:
-                # roll back if error
-                self.db.rollback()
+        for dict in dict_list:
+            ntry = SQL_TRY_NUMBER
+            while ntry > 0:
+                try:
+                    placeholders = spliter.join(['%s'] * len(dict))
+                    columns = spliter.join(dict.keys())
+                    query = sql_query % (columns, placeholders)
+                    # execute sql in database
+                    cursor.execute(query=query, args=list(dict.values()))
+                    self.db.commit()
+                    # print("%s written." % (record,))
+                    break
+                except sql.MySQLError:
+                    # roll back if error
+                    ntry -= 1
+                    self.db.rollback()
+                    print("%s%s%s write failed!%s" % (ansi.RED, dict, ansi.RED, ansi.ENDC))
+            if ntry == 0:
                 fail_count += 1
-                print("%s%s%s write failed!" % (tf.RED, record, tf.RED))
         print("********************Detail write finished, %s%d%s cases failed********************" % (
-            tf.GREEN if fail_count == 0 else tf.RED, fail_count, tf.ENDC))
+            ansi.GREEN if fail_count == 0 else ansi.RED, fail_count, ansi.ENDC))
 
     def execute_single(self, query, arg=None):
         cursor = self.db.cursor()
@@ -98,8 +136,20 @@ class wows_database(object):
         except sql.MySQLError:
             # roll back if error
             self.db.rollback()
-            print(tf.RED + query + " Execution failed!!!")
+            print(ansi.RED + query + " Execution failed!!!")
             raise sql.MySQLError
+
+    def get_statsbyDate(self, para):
+        cursor = self.db.cursor()
+        getid_sql = """SELECT * FROM wowstats.`wows_stats` WHERE `Date` = %s AND `total`>%s"""
+        try:
+            # execute sql in database
+            cursor.execute(query=getid_sql, args=para)
+            return cursor.fetchall()
+        except sql.MySQLError:
+            # roll back if error
+            self.db.rollback()
+            print("Fetch failed!!!")
 
     def close_db(self):
         # disconnect
@@ -112,4 +162,4 @@ if __name__ == '__main__':
         db.write_detail(data_list=[('1018170999', 'Luizclv', '0', '0', '0', '0')])
         db.close_db()
     except sql.MySQLError:
-        print(tf.RED + "Database connection failed!")
+        print(ansi.RED + "Database connection failed!")
