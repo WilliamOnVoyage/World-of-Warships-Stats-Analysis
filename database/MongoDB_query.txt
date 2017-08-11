@@ -1,1 +1,7 @@
 db.wows_stats.find().pretty()
+
+#upsert a new account:
+db.wows_stats.update({'_id':1000000000},{$set:{'nickname':'zmlzeze'}},{upsert:true})
+
+#add daily stats id to existing account_id
+db.wows_stats.update({'_id':1000000000},{$push:{'daily_stats':ObjectID('xxxxxxxx')}},{upsert:true})

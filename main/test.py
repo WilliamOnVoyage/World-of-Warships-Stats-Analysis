@@ -27,7 +27,7 @@ def test_database():
                       'wins': '0', 'losses': '0', 'draws': '0', 'dmg': '0'}]
         db.write_detail(
             detail_list=dict_list)
-        id_list = db.get_idlist()
+        id_list = db.get_id_list()
         print(id_list)
         db.write_accountid(id_list=['1000000000', 'xxxxxxx'])
     except sql.MySQLError:

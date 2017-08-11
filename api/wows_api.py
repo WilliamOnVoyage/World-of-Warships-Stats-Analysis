@@ -57,12 +57,14 @@ class WowsAPIRequest(object):
     def request_all_ids(self):
         account_id = self._account_id_lowerbound
         requested_id_list = list()
+        print('Task: Requesting all IDs...')
         while account_id < self._account_id_upperbound:
             id_list = self.list_to_url_params(self.generate_id_list_by_range(account_id))
             params = parse.urlencode({'application_id': self._application_id, 'account_id': id_list})
             url = self._account_url + '?' + params
-            requested_id_list.append(self.get_json_from_url(url=url))
+            requested_id_list = requested_id_list + self.get_json_from_url(url=url)
             requested_id_list = self.write_database(data_list=requested_id_list, type_detail=False)
+            time.sleep(self._request_delay)
 
     def request_stats_by_id(self):
         self._failed_urls = list()
@@ -74,7 +76,7 @@ class WowsAPIRequest(object):
         print('Task: Total request number to be executed: %s%d%s' % (
             ansi.BLUE, int(np.ceil(total_count / self._account_id_step)), ansi.ENDC))
         for account_id in id_list:
-            sub_id_list.append(account_id[0])
+            sub_id_list.append(account_id)
             if len(sub_id_list) == self._account_id_step or total_count - count < self._account_id_step:
                 result_list = self.get_stats_from_api(result_list=result_list, id_list=sub_id_list)
                 sub_id_list = list()
@@ -109,6 +111,7 @@ class WowsAPIRequest(object):
 
         url = main_url + '?' + parameter
         result_list = result_list + self.get_json_from_url(url=url)
+        time.sleep(self._request_delay)
         return self.write_database(data_list=result_list)
 
     def get_stats_from_failed_api(self, result_list=list()):
@@ -156,7 +159,7 @@ class WowsAPIRequest(object):
 
     def get_id_list(self, get_entire_list=True):
         print('Reading ID list...')
-        idlist = self._db.get_idlist(get_entire_idlist=get_entire_list)
+        idlist = self._db.get_id_list(get_entire_idlist=get_entire_list)
         print('%sID list read finished%s' % (ansi.GREEN, ansi.ENDC))
         return idlist
 
@@ -173,6 +176,7 @@ class WowsAPIRequest(object):
         timer_start = datetime.datetime.now()
         aux_functions.check_ip()
         self._date = date
+        self.request_all_ids()
         self.request_stats_by_id()
         self.update_database_winrate(start=date, end=date)
 

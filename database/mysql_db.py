@@ -16,20 +16,20 @@ class MySQLDB(AbstractDB):
         self._db_params = ConfigFileReader().read_mysql_config()
         self._stats_dictionary = stats_filter
         self._date = date
-        try:
-            self.connect_db()
-            self.close_db()
-        except:
-            print('%sMySQL initialization failed!!!%s' % (ansi.RED, ansi.ENDC))
+        self.connect_db()
+        self.close_db()
 
     def connect_db(self):
-        self.db = sql.connect(host=self._db_params['hostname'], port=self._db_params['port'],
-                              user=self._db_params['usr'],
-                              password=self._db_params['pw'], database=self._db_params['dbname'])
-        print(
-            'MySQL %s%s%s connected at host %s%s%s port %s%d%s!' % (
-                ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params['hostname'], ansi.ENDC,
-                ansi.BLUE, self._db_params['port'], ansi.ENDC))
+        try:
+            self.db = sql.connect(host=self._db_params['hostname'], port=self._db_params['port'],
+                                  user=self._db_params['usr'],
+                                  password=self._db_params['pw'], database=self._db_params['dbname'])
+            print(
+                'MySQL %s%s%s connected at host %s%s%s port %s%d%s!' % (
+                    ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params['hostname'], ansi.ENDC,
+                    ansi.BLUE, self._db_params['port'], ansi.ENDC))
+        except:
+            print('%sMySQL initialization failed!!!%s' % (ansi.RED, ansi.ENDC))
 
     def write_account_id(self, id_list_json):
         sql_query = '''
@@ -69,12 +69,16 @@ class MySQLDB(AbstractDB):
             ansi.GREEN if success else ansi.RED, str(start), str(end), 'finished!' if success else 'failed!!!',
             ansi.ENDC))
 
-    def get_id_list(self, get_entire_idlist=True):
-        if get_entire_idlist:
+    def get_id_list(self, get_all_ids=True):
+        if get_all_ids:
             getid_sql = '''SELECT `account_id` FROM wowstats.`wows_idlist`'''
         else:
             getid_sql = '''SELECT DISTINCT `account_id` FROM wowstats.`wows_stats` WHERE `battles` is not null'''
-        return self._get_by_query(query=getid_sql)
+        raw_list = self._get_by_query(query=getid_sql)
+        id_list = list()
+        for item in raw_list:
+            id_list.append(item[0])
+        return id_list
 
     def get_stats_by_date(self, args=None):
         getid_sql = '''SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s AND `battles` > %s'''
