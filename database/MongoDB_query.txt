@@ -1,0 +1,1 @@
+db.wows_stats.find().pretty()

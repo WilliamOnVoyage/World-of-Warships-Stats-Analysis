@@ -1,4 +1,4 @@
-import json
+import datetime
 
 import pymongo as mg
 
@@ -8,16 +8,18 @@ from util.config import ConfigFileReader
 
 
 class MongoDB(AbstractDB):
-    def __init__(self):
+    def __init__(self, stats_filter, date=datetime.date.today()):
         super().__init__()
+        self._stats_dictionary = stats_filter
+        self._date = date
         self._connect = None
         self._db = None
         self._collection = None
         self._index = 'account_id'
+        self._db_params = ConfigFileReader().read_mongo_config()
         try:
-            _config_data = json.loads(ConfigFileReader().read_config())
-            self._db_params = _config_data['mongo']
-            # self._ensure_index()
+            self.connect_db()
+            self.close_db()
         except:
             print("%sMongoDB initialization failed!!!%s" % (ansi.RED, ansi.ENDC))
 
@@ -36,25 +38,19 @@ class MongoDB(AbstractDB):
         self._collection.create_index([(self._index, mg.ASCENDING)], unique=True)
         self.close_db()
 
-    def write_accountid(self, id_list):
+    def write_account_id(self, id_list):
         self.insert_list(data_list=id_list)
 
-    def write_detail(self, detail_dict_list):
+    def write_detail(self, detail_list_json):
         pass
 
     def update_winrate(self, start='2017-01-01', end='2017-01-01'):
         pass
 
-    def write_by_query(self, query, args=None):
-        pass
-
-    def get_idlist(self, get_entire_idlist=True):
+    def get_id_list(self, get_entire_idlist=True):
         pass
 
     def get_stats_by_date(self, args=None):
-        pass
-
-    def get_by_query(self, query, args=None):
         pass
 
     def insert_list(self, data_list):

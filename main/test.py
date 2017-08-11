@@ -14,7 +14,7 @@ def test_api():
         wows = wows_api.WowsAPIRequest()
         idlist = wows.generate_id_list_by_range(account_ID=1000000000)
         wows.list_to_url_params(idlist)
-        wows.update_winrate()
+        wows.update_database_winrate()
         wows.main_request(days=0)
     except:
         print("api API test failed!")
@@ -26,7 +26,7 @@ def test_database():
         dict_list = [{'date': '2017-01-01', 'accound_id': '1000000000', 'nickname': 'xxxxxxx', 'battles': '1',
                       'wins': '0', 'losses': '0', 'draws': '0', 'dmg': '0'}]
         db.write_detail(
-            detail_dict_list=dict_list)
+            detail_list=dict_list)
         id_list = db.get_idlist()
         print(id_list)
         db.write_accountid(id_list=['1000000000', 'xxxxxxx'])
@@ -52,7 +52,7 @@ def test_dataprocess():
 def test_config():
     try:
         cg = config.ConfigFileReader()
-        json_data = cg.read_config(file_name="sample_config.json")
+        json_data = cg._read_all_config(file_name="sample_config.json")
         print(json_data)
     except:
         print("read config test failed!")
