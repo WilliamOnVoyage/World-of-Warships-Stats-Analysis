@@ -66,7 +66,7 @@ def test_util():
 
 
 test_api()
-test_database()
+# test_database()
 test_winrateprediction()
 test_dataprocess()
 test_config()
