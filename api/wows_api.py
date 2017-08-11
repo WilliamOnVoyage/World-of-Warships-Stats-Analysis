@@ -51,6 +51,7 @@ class WowsAPIRequest(object):
         self._db_type = _api_params[DB_TYPE]
         self._date = '2017-01-01'
         self._db = DatabaseConnector(database_type=self._db_type)
+        self._failed_urls = list()
         print('API initialized!')
 
     def request_all_ids(self):
@@ -64,6 +65,7 @@ class WowsAPIRequest(object):
             requested_id_list = self.write_database(data_list=requested_id_list, type_detail=False)
 
     def request_stats_by_id(self):
+        self._failed_urls = list()
         id_list = self.get_id_list(get_entire_list=True)
         total_count = len(id_list)
         count = 0
@@ -77,9 +79,12 @@ class WowsAPIRequest(object):
                 result_list = self.get_stats_from_api(result_list=result_list, id_list=sub_id_list)
                 sub_id_list = list()
                 count += self._account_id_step
+        while self._failed_urls:
+            self.get_stats_from_failed_api()
         print('Stats by id request finished!')
 
     def request_stats_by_date(self, date_list):
+        self._failed_urls = list()
         id_list = self.get_id_list(get_entire_list=False)
         print('Task: Total request number to be executed: %s%d%s' % (
             ansi.BLUE, len(id_list), ansi.ENDC))
@@ -87,6 +92,8 @@ class WowsAPIRequest(object):
         for account_id in id_list:
             result_list = self.get_stats_from_api(result_list=result_list, id_list=list(account_id),
                                                   date_list=date_list)
+        while self._failed_urls:
+            self.get_stats_from_failed_api()
         print('Stats by date request finished!')
 
     def get_stats_from_api(self, result_list=list(), id_list=list(), date_list=list()):
@@ -104,7 +111,13 @@ class WowsAPIRequest(object):
         result_list = result_list + self.get_json_from_url(url=url)
         return self.write_database(data_list=result_list)
 
-    # TODO: add function to store failed url after numberOfTry and redo this after completing the major requests
+    def get_stats_from_failed_api(self, result_list=list()):
+        failed_url_list = self._failed_urls
+        self._failed_urls = list()
+        for url in failed_url_list:
+            result_list = result_list + self.get_json_from_url(url=url)
+        self.write_database(data_list=result_list, force_write=True)
+
     def get_json_from_url(self, url):
         numberOfTry = self._url_req_trynumber
         json_returned = {'status': 'ini', 'data': {}}
@@ -118,6 +131,7 @@ class WowsAPIRequest(object):
                 break
             except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
                 print('%sAPI request failed!%s %s' % (ansi.RED, e, ansi.ENDC))
+                self._failed_urls.append(url)
                 if e is timeoutError:
                     time.sleep(self._request_delay)
                 numberOfTry -= 1
@@ -126,9 +140,9 @@ class WowsAPIRequest(object):
             json_list.append(json.dumps(account_id_item))
         return json_list
 
-    def write_database(self, data_list, type_detail=True):
+    def write_database(self, data_list, type_detail=True, force_write=False):
         msg = 'Start recording details...' if type_detail else 'Start recording ids...'
-        if len(data_list) >= self._size_per_write:
+        if len(data_list) >= self._size_per_write or force_write:
             print(msg)
             if type_detail:
                 self._db.write_detail(data_list)
