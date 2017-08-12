@@ -58,7 +58,7 @@ class WowsAPIRequest(object):
         account_id = self._account_id_lowerbound
         requested_id_list = list()
         print('Task: Requesting all IDs...')
-        while account_id < self._account_id_upperbound:
+        for account_id in range(self._account_id_lowerbound, self._account_id_upperbound, self._account_id_step):
             id_list = self.list_to_url_params(self.generate_id_list_by_range(account_id))
             params = parse.urlencode({'application_id': self._application_id, 'account_id': id_list})
             url = self._account_url + '?' + params
