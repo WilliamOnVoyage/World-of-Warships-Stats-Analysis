@@ -1,7 +1,4 @@
-import pymysql as sql
-
 import api.wows_api as wows_api
-import database.db_connector as wows_db
 from model import data_preprocess as data_preprocess
 from util import aux_functions as ut
 from util import config as config
@@ -20,18 +17,18 @@ def test_api():
         print("api API test failed!")
 
 
-def test_database():
-    try:
-        db = wows_db.DatabaseConnector(database_type='mysql')
-        dict_list = [{'date': '2017-01-01', 'accound_id': '1000000000', 'nickname': 'xxxxxxx', 'battles': '1',
-                      'wins': '0', 'losses': '0', 'draws': '0', 'dmg': '0'}]
-        db.write_detail(
-            detail_list=dict_list)
-        id_list = db.get_id_list()
-        print(id_list)
-        db.write_accountid(id_list=['1000000000', 'xxxxxxx'])
-    except sql.MySQLError:
-        print("api RDS test failed!")
+# def test_database():
+#     try:
+#         db = wows_db.DatabaseConnector(database_type='mysql')
+#         dict_list = [{'date': '2017-01-01', 'accound_id': '1000000000', 'nickname': 'xxxxxxx', 'battles': '1',
+#                       'wins': '0', 'losses': '0', 'draws': '0', 'dmg': '0'}]
+#         db.write_detail(
+#             detail_list=dict_list)
+#         id_list = db.get_id_list()
+#         print(id_list)
+#         db.write_accountid(id_list=['1000000000', 'xxxxxxx'])
+#     except sql.MySQLError:
+#         print("api RDS test failed!")
 
 
 def test_winrateprediction():
