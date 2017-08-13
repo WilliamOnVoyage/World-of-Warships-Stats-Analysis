@@ -50,6 +50,12 @@ class DatabaseConnector(object):
         self._db.close_db()
         return result
 
+    def get_database_info(self, threshold=10):
+        self._db.connect_db()
+        info = self._db.get_database_info(battles_threshold=threshold)
+        self._db.close_db()
+        return info
+
     def print_database_error(self):
         print('%sDatabase connection failed!!!%s' % (ansi.RED, ansi.ENDC))
 

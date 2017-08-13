@@ -84,6 +84,9 @@ class MySQLDB(AbstractDB):
         getid_sql = '''SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s AND `battles` > %s'''
         return self._get_by_query(query=getid_sql, args=args)
 
+    def get_database_info(self):
+        pass
+
     def close_db(self):
         self.db.close()
 

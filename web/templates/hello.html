@@ -1,31 +1,37 @@
 <!DOCTYPE html>
-<html>
-<title>World of Warships Stats</title>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<style>
-body,h1,h2,h3,h4,h5,h6 {font-family: "Raleway", sans-serif}
-body, html {
-    height: 100%;
-    line-height: 1.8;
-}
-/* Full height image header */
-.bgimg-1 {
-    background-position: center;
-    background-size: cover;
-    background-image: url("/pics/wows_bg.jpg");
-    background-color: black;
-    min-height: 100%;
-}
-.w3-bar .w3-button {
-    padding: 16px;
-}
+<html lang="en">
+<head>
+    <title>World of Warships Stats</title>
+    <meta charset="UTF-8">
+    <meta name="author" content="MoliangZhou">
+    <meta name="description" content="WOWS stats modeling platform">
+    <meta name="keywords" content="World of warships, stats, model">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+    body,h1,h2,h3,h4,h5,h6 {font-family: "Raleway", sans-serif}
+    body, html {
+        height: 100%;
+        line-height: 1.8;
+    }
+    /* Full height image header */
+    .bgimg-1 {
+        background-position: center;
+        background-size: cover;
+        background-image: url("pics/wows_bg.jpg");
+        background-color: black;
+        min-height: 100%;
+    }
+    .w3-bar .w3-button {
+        padding: 16px;
+    }
 
-</style>
-<body>
+
+    </style>
+</head>
+<body onload="initialize_display()">
 
 <!-- Navbar (sit on top) -->
 <div class="w3-top">
@@ -79,7 +85,35 @@ body, html {
 <!-- Overview Section -->
 <div class="w3-container" style="padding:128px 16px" id="overview">
     <h3 class="w3-center">OVERVIEW</h3>
-    <p class="w3-center w3-large">Stats of the week</p>
+    <p class="w3-center w3-large">
+        <a href="#ovallstats"
+           class="w3-button w3-white w3-padding-large w3-large w3-margin-top w3-opacity w3-hover-opacity-off"
+           onclick="OverallStats();">
+            Overall stats
+        </a>
+
+        <a href="#statsoftheweek"
+           class="w3-button w3-white w3-padding-large w3-large w3-margin-top w3-opacity w3-hover-opacity-off"
+           onclick="StatsOfTheWeek();">
+            Stats of the week
+        </a>
+
+        <a href="#statsofthemonth"
+           class="w3-button w3-white w3-padding-large w3-large w3-margin-top w3-opacity w3-hover-opacity-off"
+           onclick="StatsOfTheMonth();">
+            Stats of the month
+        </a>
+    <p class="w3-center" id="StatsOfTheWeekOutput" name="StatsOfTheWeekOutput"></p>
+
+    <table id="table_stats_of_the_week" class="w3-table w3-center">
+        <tr>
+            <td class="w3-center"><b>Player<b></td>
+            <td class="w3-center"><b>Battles<b></td>
+            <td class="w3-center"><b>Wins<b></td>
+            <td class="w3-center"><b>Losses<b></td>
+        </tr>
+    </table>
+    </p>
 </div>
 
 <!-- Players Section -->
@@ -113,7 +147,18 @@ body, html {
     </div>
 </footer>
 
+<script type="text/javascript"
+        src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+<script type="text/javascript">
+  var $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+
+</script>
+
 <script>
+
+function initialize_display(){
+    document.getElementById("table_stats_of_the_week").style.display="none";
+}
 
 // Modal Image Gallery
 function onClick(element) {
@@ -138,6 +183,24 @@ function w3_open() {
 // Close the sidebar with the close button
 function w3_close() {
     mySidebar.style.display = "none";
+}
+
+function StatsOfTheWeek(){
+    var $BATTLES_THRESHOLD = 100
+    $.getJSON($SCRIPT_ROOT + '/overallstats',{
+        battles:$BATTLES_THRESHOLD
+    },function(data){
+        $('#StatsOfTheWeekOutput').text("Active player number: " + data.active_player_number + " (play at least " + $BATTLES_THRESHOLD + " battles)");
+        document.getElementById("table_stats_of_the_week").style.display="table";
+    });
+}
+
+function StatsOfTheMonth(){
+    document.getElementById("table_stats_of_the_week").style.display="table";
+}
+
+function OverallStats(){
+    document.getElementById("table_stats_of_the_week").style.display="table";
 }
 
 </script>

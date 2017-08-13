@@ -92,7 +92,8 @@ class WowsAPIRequest(object):
             ansi.BLUE, len(id_list), ansi.ENDC))
         result_list = list()
         for account_id in id_list:
-            result_list = self.get_stats_from_api(result_list=result_list, id_list=list(account_id),
+            pseudo_id_list = [account_id]
+            result_list = self.get_stats_from_api(result_list=result_list, id_list=pseudo_id_list,
                                                   date_list=date_list)
         while self._failed_urls:
             self.get_stats_from_failed_api()
@@ -176,8 +177,9 @@ class WowsAPIRequest(object):
         timer_start = datetime.datetime.now()
         aux_functions.check_ip()
         self._date = date
-        self.request_all_ids()
-        self.request_stats_by_id()
+        # self.request_all_ids()
+        # self.request_stats_by_id()
+        self.request_stats_by_date(date_list=['2017-07-15', '2017-07-16', '2017-07-17', '2017-07-18'])
         self.update_database_winrate(start=date, end=date)
 
         time_usage = datetime.datetime.now() - timer_start

@@ -1,6 +1,7 @@
 import datetime
 
 import bson.json_util
+import numpy as np
 import pymongo as mg
 
 from database.abstract_db import AbstractDB
@@ -95,6 +96,15 @@ class MongoDB(AbstractDB):
 
     def get_stats_by_date(self, args=None):
         pass
+
+    def get_database_info(self, battles_threshold=10):
+        active_player_number = np.nan
+        try:
+            filter = {'statistics.battles': {'$gte': battles_threshold}}
+            active_player_number = len(self._collection.distinct(key='account_id', query=filter))
+        except mg.errors.OperationFailure as e:
+            print(e)
+        return active_player_number
 
     def update_list(self, data_list):
         self._collection.find_one_and_update()

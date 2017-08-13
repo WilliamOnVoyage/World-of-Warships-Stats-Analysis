@@ -20,5 +20,8 @@ class AbstractDB(object):
     def get_stats_by_date(self, args=None):
         pass
 
+    def get_database_info(self):
+        pass
+
     def close_db(self):
         pass
