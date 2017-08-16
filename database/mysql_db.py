@@ -8,10 +8,11 @@ from util.ansi_code import AnsiEscapeCode as ansi
 from util.config import ConfigFileReader
 
 SQL_TRY_NUMBER = 3
-
+STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
+              'capture_points', 'dropped_capture_points', 'survived_battles'}
 
 class MySQLDB(AbstractDB):
-    def __init__(self, stats_filter, date=datetime.date.today()):
+    def __init__(self, stats_filter=STATS_DICT, date=datetime.date.today()):
         super().__init__()
         self._db_params = ConfigFileReader().read_mysql_config()
         self._stats_dictionary = stats_filter
@@ -91,6 +92,7 @@ class MySQLDB(AbstractDB):
         self.db.close()
 
     def _write_by_query(self, query, args=None):
+        self.close_db()
         cursor = self.db.cursor()
         ntry = SQL_TRY_NUMBER
         while ntry > 0:
@@ -102,9 +104,11 @@ class MySQLDB(AbstractDB):
                 ntry -= 1
                 self.db.rollback()
         print('%s%s %% %swrite failed!%s' % (ansi.RED, query, args, ansi.ENDC))
+        self.close_db()
         return False
 
     def _get_by_query(self, query, args=None):
+        self.connect_db()
         cursor = self.db.cursor()
         result = []
         try:
@@ -114,6 +118,7 @@ class MySQLDB(AbstractDB):
         except sql.MySQLError:
             self.db.rollback()
             print('%s%s Execution failed!!!%s' % (ansi.RED, query, ansi.ENDC))
+        self.close_db()
         return result
 
     def _id_list_json_to_dict(self, id_list_json):

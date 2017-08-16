@@ -6,7 +6,8 @@ from urllib import request, parse, error
 
 import numpy as np
 
-from database.db_connector import DatabaseConnector
+import database.mongo_db
+import database.mysql_db
 from util import aux_functions
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.config import ConfigFileReader
@@ -32,6 +33,9 @@ APPLICATION_ID = 'application_id'
 ACCOUNT_URL = 'account_url'
 STATS_BY_DATE_URL = 'stats_by_date_url'
 
+STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
+              'capture_points', 'dropped_capture_points', 'survived_battles'}
+
 
 class WowsAPIRequest(object):
     def __init__(self):
@@ -50,7 +54,10 @@ class WowsAPIRequest(object):
         self._url_req_timeout = _api_params[URL_REQ_TIMEOUT]
         self._db_type = _api_params[DB_TYPE]
         self._date = '2017-01-01'
-        self._db = DatabaseConnector(database_type=self._db_type)
+        if self._db_type == 'mongo':
+            self._db = database.mongo_db.MongoDB(stats_filter=STATS_DICT)
+        else:
+            self._db = database.mysql_db.MySQLDB(stats_filter=STATS_DICT)
         self._failed_urls = list()
         print('API initialized!')
 

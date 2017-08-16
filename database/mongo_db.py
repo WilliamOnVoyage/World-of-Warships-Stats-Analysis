@@ -3,14 +3,18 @@ import datetime
 import bson.json_util
 import numpy as np
 import pymongo as mg
+from bson.json_util import dumps
 
 from database.abstract_db import AbstractDB
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.config import ConfigFileReader
 
+STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
+              'capture_points', 'dropped_capture_points', 'survived_battles'}
+
 
 class MongoDB(AbstractDB):
-    def __init__(self, stats_filter, date=datetime.date.today()):
+    def __init__(self, stats_filter=STATS_DICT, date=datetime.date.today()):
         super().__init__()
         self._stats_dictionary = stats_filter
         self._date = date
@@ -50,6 +54,7 @@ class MongoDB(AbstractDB):
 
     def write_account_id(self, id_list_json):
         try:
+            self.connect_db()
             # Set ordered  = False to ignore the duplicate key error and keeps adding all data
             for id_item in id_list_json:
                 id_dict = bson.json_util.loads(id_item)
@@ -58,11 +63,13 @@ class MongoDB(AbstractDB):
                 if account_info:
                     self._collection.update_many(filter={'_id': int(account_id)},
                                                  update={'$set': account_info}, upsert=True)
+            self.close_db()
         except mg.errors.BulkWriteError:
             print("%sDuplicate key error!!! Other documents have been inserted!%s" % (
                 ansi.RED, ansi.ENDC))
 
     def write_detail(self, detail_list_json):
+        self.connect_db()
         for detail_item in detail_list_json:
             detail_dict = bson.json_util.loads(detail_item)
             account_id = detail_dict[0]
@@ -87,37 +94,178 @@ class MongoDB(AbstractDB):
                 except mg.errors.BulkWriteError:
                     print("%sDuplicate key error!!! Other documents have been inserted!%s" % (
                         ansi.RED, ansi.ENDC))
+        self.close_db()
 
     def update_winrate(self, start='2017-01-01', end='2017-01-01'):
         pass
 
     def get_id_list(self, get_all_ids=True):
+        self.connect_db()
         if get_all_ids:
             id_list = self._collection.distinct(key='account_id')
         else:
             id_list = self._collection.distinct(key='account_id', query={'statistics.battles': {'$gte': 100}})
+        self.close_db()
         return id_list
 
     def get_stats_by_date(self, args=None):
         pass
 
     def get_database_info(self, battles_threshold=10):
+        self.connect_db()
         active_player_number = np.nan
         try:
             filter = {'statistics.battles': {'$gte': battles_threshold}}
             active_player_number = len(self._collection.distinct(key='account_id', filter=filter))
         except mg.errors.OperationFailure as e:
             print(e)
+        self.close_db()
         return active_player_number
 
     def get_top_players_by_battles(self, battles_threshold=1000):
+        self.connect_db()
         top_player_list = list()
         try:
             filter = {'_id': {'$type': 'int'}, 'statistics.battles': {'$gte': battles_threshold}}
             top_player_list = self._collection.find(filter).sort('statistics.battles', mg.DESCENDING)
         except mg.errors.OperationFailure as e:
             print(e)
+        self.close_db()
         return top_player_list
 
     def close_db(self):
         self._connect.close()
+
+    def _print_database_error(self):
+        print('%sDatabase connection failed!!!%s' % (ansi.RED, ansi.ENDC))
+
+
+if __name__ == '__main__':
+    prefix = '000000'
+    id = 1000000005
+    id1 = bson.objectid.ObjectId(prefix + '20170808' + str(id))
+    id2 = bson.objectid.ObjectId(prefix + '20170807' + str(id))
+    id3 = bson.objectid.ObjectId(prefix + '20170806' + str(id))
+
+    print(id1)
+    print(id2)
+    print(id3)
+
+    json_data = {"1008331251": {
+        "last_battle_time": 1500140223,
+        "account_id": 1008331251,
+        "leveling_tier": 15,
+        "created_at": 1435322987,
+        "leveling_points": 8612323,
+        "updated_at": 1500053592,
+        "private": None,
+        "hidden_profile": False,
+        "logout_at": 1500053581,
+        "karma": None,
+        "statistics": {
+            "distance": 117155,
+            "battles": 3143,
+            "pvp": {
+                "max_xp": 4913,
+                "damage_to_buildings": 509380,
+                "main_battery": {
+                    "max_frags_battle": 7,
+                    "frags": 2697,
+                    "hits": 163178,
+                    "max_frags_ship_id": 4292818736,
+                    "shots": 501631
+                },
+                "max_ships_spotted_ship_id": 4285511376,
+                "max_damage_scouting": 143913,
+                "art_agro": 1681724500,
+                "max_xp_ship_id": 4276041424,
+                "ships_spotted": 1670,
+                "second_battery": {
+                    "max_frags_battle": 2,
+                    "frags": 125,
+                    "hits": 28123,
+                    "max_frags_ship_id": 3763287856,
+                    "shots": 154801
+                },
+                "max_frags_ship_id": 3763287856,
+                "xp": 3925692,
+                "survived_battles": 1357,
+                "dropped_capture_points": 3629,
+                "max_damage_dealt_to_buildings": 128650,
+                "torpedo_agro": 224350304,
+                "draws": 23,
+                "control_captured_points": 24296,
+                "max_total_agro_ship_id": 4276041424,
+                "planes_killed": 5550,
+                "battles": 2884,
+                "max_ships_spotted": 11,
+                "max_suppressions_ship_id": 4292818736,
+                "survived_wins": 1160,
+                "frags": 3613,
+                "damage_scouting": 36181164,
+                "max_total_agro": 5084868,
+                "max_frags_battle": 7,
+                "capture_points": 399,
+                "ramming": {
+                    "max_frags_battle": 1,
+                    "frags": 15,
+                    "max_frags_ship_id": 4276041424
+                },
+                "suppressions_count": 1,
+                "max_suppressions_count": 1,
+                "torpedoes": {
+                    "max_frags_battle": 5,
+                    "frags": 403,
+                    "hits": 1763,
+                    "max_frags_ship_id": 4274927600,
+                    "shots": 25036
+                },
+                "max_planes_killed_ship_id": 4276041424,
+                "aircraft": {
+                    "max_frags_battle": 3,
+                    "frags": 54,
+                    "max_frags_ship_id": 4288657104
+                },
+                "team_capture_points": 211599,
+                "control_dropped_points": 17979,
+                "max_damage_dealt": 281538,
+                "max_damage_dealt_to_buildings_ship_id": 4292818736,
+                "max_damage_dealt_ship_id": 4276041424,
+                "wins": 1744,
+                "losses": 1117,
+                "damage_dealt": 213232024,
+                "max_planes_killed": 49,
+                "max_scouting_damage_ship_id": 4181669680,
+                "team_dropped_capture_points": 108490,
+                "battles_since_512": 1443
+            }
+        },
+        "nickname": "zmlzeze",
+        "stats_updated_at": 1500140964
+    }}
+    previous_json_data = {"1008331251": {
+        "pvp": {
+            "20170714": {
+                "capture_points": 399,
+                "account_id": 1008331251,
+                "max_xp": 4913,
+                "wins": 1742,
+                "planes_killed": 5550,
+                "battles": 2882,
+                "damage_dealt": 213130514,
+                "battle_type": "pvp",
+                "date": "20170714",
+                "xp": 3923528,
+                "frags": 3612,
+                "survived_battles": 1356,
+                "dropped_capture_points": 3629
+            }
+        }
+    }
+    }
+
+    MgDB = MongoDB(stats_filter=STATS_DICT)
+    MgDB.write_detail(detail_list_json=[dumps(json_data)])
+    MgDB.write_detail(detail_list_json=[dumps(previous_json_data)])
+    id_list = MgDB.get_id_list()
+    print(id_list)
