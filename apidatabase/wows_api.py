@@ -70,7 +70,7 @@ class WowsAPIRequest(object):
             if self.write_database(data_list=requested_id_list, type_detail=False):
                 requested_id_list = []
 
-    def request_stats_by_id(self, date):
+    def request_stats_by_id(self):
         total_id_list = self.get_idlist(get_entire_list=True)
         total_count = len(total_id_list)
         count = 0
@@ -226,7 +226,7 @@ class WowsAPIRequest(object):
         aux_functions.check_ip()
         self._date = date
 
-        self.request_stats_by_id(date=date)
+        self.request_stats_by_id()
         # self.request_stats_by_date(date_list=list('2017-07-24'))
         self.update_winrate(start=date, end=date)
 
