@@ -21,7 +21,10 @@ class AbstractDB(object):
         pass
 
     def get_database_info(self):
-        pass
+        print("Not implemented error!!!")
+
+    def get_top_players_by_battles(self):
+        print("Not implemented error!!!")
 
     def close_db(self):
         pass

@@ -3,25 +3,29 @@ import flask
 from database.db_connector import DatabaseConnector
 
 app = flask.Flask(__name__)
+# app.config['IMAGE_STORE_BASE_URL'] = 'http://127.0.0.1:5000/'
+# app.config['IMAGE_STORE_PATH'] = '/pics'
+image_store_config = app.config.get_namespace('IMAGE_STORE_')
+DB_TYPE = 'mongo'
 
 
 @app.route('/')
 def index():
-    return flask.render_template("hello.html")
+    return flask.render_template("WOWS_Stats.html")
+
+
+@app.route('/databaseinfo')
+def get_database_info():
+    battle_threshold = flask.request.args.get('battles', 0, type=int)
+    active_player_number = DatabaseConnector(database_type=DB_TYPE).get_database_info(threshold=battle_threshold)
+    return flask.jsonify(active_player_number=active_player_number)
 
 
 @app.route('/overallstats')
-# Access database, get the recent stats and return in JSON format?
 def get_overall_stats():
     battle_threshold = flask.request.args.get('battles', 0, type=int)
-    active_player_number = request_id_list_from_database(battle_threshold=battle_threshold)
-    return_value = flask.jsonify(active_player_number=active_player_number)
-    return return_value
-
-
-def request_id_list_from_database(battle_threshold=10):
-    _db = DatabaseConnector(database_type='mongo')
-    return _db.get_database_info(threshold=battle_threshold)
+    player_list = DatabaseConnector(database_type=DB_TYPE).get_top_players_by_battles(threshold=battle_threshold)
+    return flask.jsonify(player_list=player_list)
 
 
 if __name__ == '__main__':

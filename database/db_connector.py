@@ -56,6 +56,12 @@ class DatabaseConnector(object):
         self._db.close_db()
         return info
 
+    def get_top_players_by_battles(self, threshold=1000):
+        self._db.connect_db()
+        player_list = self._db.get_top_players_by_battles(battles_threshold=threshold)
+        self._db.close_db()
+        return player_list
+
     def print_database_error(self):
         print('%sDatabase connection failed!!!%s' % (ansi.RED, ansi.ENDC))
 
