@@ -1,13 +1,12 @@
 import flask
+import pandas.io.json as pd_json
 
 import database.mongo_db
 
-app = flask.Flask(__name__)
-# app.config['IMAGE_STORE_BASE_URL'] = 'http://127.0.0.1:5000/'
-# app.config['IMAGE_STORE_PATH'] = '/pics'
-image_store_config = app.config.get_namespace('IMAGE_STORE_')
 DB_TYPE = 'mongo'
 DB = database.mongo_db.MongoDB()
+
+app = flask.Flask(__name__)
 
 
 @app.route('/')
@@ -26,7 +25,10 @@ def get_database_info():
 def get_overall_stats():
     battle_threshold = flask.request.args.get('battles', 0, type=int)
     player_list = DB.get_top_players_by_battles(battles_threshold=battle_threshold)
-    return flask.jsonify(player_list=player_list)
+    flattened_player_list = list()
+    for player in player_list:
+        flattened_player_list.append(pd_json.json_normalize(player).to_json(orient='records'))
+    return flask.jsonify(player_list=flattened_player_list)
 
 
 if __name__ == '__main__':

@@ -83,14 +83,14 @@ class MongoDB(AbstractDB):
                                 date_key = '0' * (8 - len(date_key)) + date_key
                             object_id = bson.objectid.ObjectId(self._id_prefix + str(date_key) + str(account_id))
                             # add new doc with object id
-                            self._collection.update_many(filter={'_id': object_id},
-                                                         update={'$set': detail_info['pvp'][date]}, upsert=True)
+                            self._collection.update_one(filter={'_id': object_id},
+                                                        update={'$setOnInsert': detail_info['pvp'][date]}, upsert=True)
                             # add object id to account_id doc
-                            self._collection.update_many(filter={'_id': int(account_id)},
-                                                         update={'$addToSet': {'daily_stats': object_id}}, upsert=True)
+                            self._collection.update_one(filter={'_id': int(account_id)},
+                                                        update={'$addToSet': {'daily_stats': object_id}}, upsert=True)
                     elif 'nickname' in detail_info and not detail_info['hidden_profile']:
-                        self._collection.update_many(filter={'_id': int(account_id)},
-                                                     update={'$set': detail_info}, upsert=True)
+                        self._collection.update_one(filter={'_id': int(account_id)},
+                                                    update={'$set': detail_info}, upsert=True)
                 except mg.errors.BulkWriteError:
                     print("%sDuplicate key error!!! Other documents have been inserted!%s" % (
                         ansi.RED, ansi.ENDC))
@@ -116,7 +116,8 @@ class MongoDB(AbstractDB):
         active_player_number = np.nan
         try:
             filter = {'statistics.battles': {'$gte': battles_threshold}}
-            active_player_number = len(self._collection.distinct(key='account_id', filter=filter))
+            player_list = self._collection.distinct(key='account_id', filter=filter)
+            active_player_number = len(player_list)
         except mg.errors.OperationFailure as e:
             print(e)
         self.close_db()
@@ -125,9 +126,12 @@ class MongoDB(AbstractDB):
     def get_top_players_by_battles(self, battles_threshold=1000):
         self.connect_db()
         top_player_list = list()
+        projection = ['statistics.pvp.battles', 'statistics.pvp.wins', 'statistics.pvp.losses', 'nickname']
         try:
-            filter = {'_id': {'$type': 'int'}, 'statistics.battles': {'$gte': battles_threshold}}
-            top_player_list = self._collection.find(filter).sort('statistics.battles', mg.DESCENDING)
+            doc_filter = {'_id': {'$type': 'int'}, 'statistics.battles': {'$gte': battles_threshold}}
+            top_player_list = list(
+                self._collection.find(filter=doc_filter, projection=projection).sort('statistics.battles',
+                                                                                     mg.DESCENDING).limit(10))
         except mg.errors.OperationFailure as e:
             print(e)
         self.close_db()

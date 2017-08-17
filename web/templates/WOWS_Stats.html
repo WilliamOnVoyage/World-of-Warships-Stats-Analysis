@@ -110,13 +110,7 @@
 
     <p class="w3-center" id="StatsOfTheWeekOutput" name="StatsOfTheWeekOutput"></p>
 
-    <table id="table_stats_of_the_week" class="w3-table w3-center">
-        <tr>
-            <td class="w3-center"><b>Player<b></td>
-            <td class="w3-center"><b>Battles<b></td>
-            <td class="w3-center"><b>Wins<b></td>
-            <td class="w3-center"><b>Losses<b></td>
-        </tr>
+    <table id="table_overall_stats" class="w3-table w3-center">
     </table>
     </p>
 </div>
@@ -154,7 +148,7 @@
 <script>
 
 function initialize_display(){
-    document.getElementById("table_stats_of_the_week").style.display="none";
+    document.getElementById('#table_overall_stats').style.visibility="hidden";
 }
 
 // Modal Image Gallery
