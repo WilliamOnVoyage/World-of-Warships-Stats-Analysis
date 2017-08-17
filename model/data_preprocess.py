@@ -5,7 +5,8 @@ import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
-import apidatabase.db_connector as wows_db
+import database.mongo_db
+import database.mysql_db
 import util.aux_functions as ut
 
 
@@ -17,7 +18,7 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
         day_columns = ['battles', 'wins', 'losses', 'draws']
 
         data_frames = []
-        db = wows_db.DatabaseConnector(database_type='mysql')
+        db = database.mysql_db.MySQLDB()
         # Convert the cases from database into tuple like [case,[total,win,loss,draw]], erase date, nickname and public information
         i = 0
         count = timewindow
