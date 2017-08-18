@@ -24,7 +24,7 @@ The players' statistical data can then be retrieved through SQL and analyzed for
 
 ***We are currently replacing the ~~MySQL~~ by MongoDB due to the performance limitation. Below is the MongoDB structure***
 ### MongoDB
-Since the API request returns JSON format data, it is natural to use MongoDB (BSON) for data storing. The newest and historical stats of a player differ a little. To be consistent with data, we store the newest stats and historical stats differently.
+Since the API request returns JSON format data, it is natural to use MongoDB (BSON) for data storing. The newest and historical stats of a player differ a little. To be consistent with the data, we store the newest stats and historical stats differently.
 #### Newest stats:
 ```
 {
@@ -73,6 +73,8 @@ Since the API request returns JSON format data, it is natural to use MongoDB (BS
       "dropped_capture_points": 3629
 }
 ```
+The database provides stats for modeling and web application, thus the performance is crucial. For NA server, the player number is about 1.6 million, and about 30% play at least 100 battles (considered as **valid players**). Since each player has daily update, the total number of historical stats will keep increasing with time. Based on estimation, the newest stats for **1.6 million** players take up to **2 GB** memory, while the historical stats of valid players over **a year** take about **50 GB** memory on disk. 
+
 ## Analysis
 ### Data Preprocessing
 When retrieving players' data from database, we use `pandas` Panel to construct the 3D DataFrame as:
