@@ -1,6 +1,5 @@
 import datetime
 import socket
-
 import ipgetter
 import math
 
@@ -49,6 +48,19 @@ def least_common_factor_with_limit(x, y, limit=1000):
         if f % i == 0:
             factor = i
     return factor
+
+
+def list_to_url_params(list):
+    return ','.join(str(item) for item in list)
+
+
+def generate_date_list_of_month(date):
+    date_format = '%Y-%m-%d'
+    date_range = 30
+    date_list = list()
+    for day in range(date_range):
+        date_list.append((date - datetime.timedelta(days=day)).strftime(format=date_format))
+    return date_list
 
 
 if __name__ == "__main__":

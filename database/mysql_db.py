@@ -11,6 +11,7 @@ SQL_TRY_NUMBER = 3
 STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
               'capture_points', 'dropped_capture_points', 'survived_battles'}
 
+
 class MySQLDB(AbstractDB):
     def __init__(self, stats_filter=STATS_DICT, date=datetime.date.today()):
         super().__init__()
