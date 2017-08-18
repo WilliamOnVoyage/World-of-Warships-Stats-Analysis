@@ -22,8 +22,7 @@ There are several limitations, as well as specific JSON format regarding differe
 The script connects relational database (MySQL, AWS RDS, etc.) for storing extracted data. The players' id list is stored in an individual table `wows_idlist`, which is essential for efficient API request since the complete id list is not officially provided, and the account number is sparsely distributed in a large range ([WOWS account number range](#account-id-range)). Some statistics like the number of battles are stored in `wows_stats`, and you can customize your own database as well.
 The players' statistical data can then be retrieved through SQL and analyzed for your own purpose.
 
-##### We are currently replacing the MySQL by MongoDB due to the performance limitation. Below is the MongoDB structure
----
+***We are currently replacing the ~~MySQL~~ by MongoDB due to the performance limitation. Below is the MongoDB structure***
 ### MongoDB
 Since the API request returns JSON format data, it is natural to use MongoDB (BSON) for data storing. The newest and historical stats of a player differ a little. To be consistent with data, we store the newest stats and historical stats differently.
 #### Newest stats:
