@@ -3,7 +3,6 @@
 [![Build Status](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis.svg?branch=master)](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis) [![Test Coverage](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/badges/coverage.svg)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/coverage) [![Code Health](https://landscape.io/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/master/landscape.svg?style=flat)](https://landscape.io/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/master)
 [![Pythonversion](https://img.shields.io/badge/python-3.5-blue.svg)](https://sourceforge.net/projects/winpython/files/WinPython_3.5/3.5.2.3/) [![MySQL](https://img.shields.io/badge/mysql-5.5-blue.svg)](https://dev.mysql.com/downloads/windows/installer/5.5.html) [![MongoDB](https://img.shields.io/badge/mongo-3.4-blue.svg)](https://docs.mongodb.com/manual/release-notes/3.4/?_ga=2.148716407.1370168894.1503081314-630273995.1503081314) [![Tensorflow](https://img.shields.io/badge/tensorflow-1.0.1-blue.svg)](https://github.com/tensorflow/tensorflow/tree/r1.0) 
 ## System Design
----
 The system design graph for this project can be found in file **SystemDesign.mdj** (created in [StarUML](http://staruml.io/))
 ### Major classes
 |Class|Description|functions|attributes|
@@ -14,13 +13,11 @@ The system design graph for this project can be found in file **SystemDesign.mdj
 |**web_connector**||||
 
 ## API
----
 This python based script handles [World of Warships API request](https://developers.wargaming.net/) for statistical data and store them in local MySQL database. The World of Warships API needs an application_id for credential connection with the API server, the application_id should be registered on [Wargaming.net](https://developers.wargaming.net/applications/) and stored in a local configuration file named as "[config.json](#local-configuration-file-format)". Also the ip address of the terminal running this script (provided by package [ipgetter](https://pypi.python.org/pypi/ipgetter/0.6)) should be added in your application launched on [developer room of Wargaming.net](https://developers.wargaming.net/applications/).
 
 There are several limitations, as well as specific JSON format regarding different types of the API request (refer to [Wargaming.net API reference](https://developers.wargaming.net/reference/all/wot/account/list/?application_id=bc7a1942582313fd553a85240bd491c8&r_realm=ru)), please check based on your need.
 
 ## Database
----
 ### MySQL
 The script connects relational database (MySQL, AWS RDS, etc.) for storing extracted data. The players' id list is stored in an individual table `wows_idlist`, which is essential for efficient API request since the complete id list is not officially provided, and the account number is sparsely distributed in a large range ([WOWS account number range](#account-id-range)). Some statistics like the number of battles are stored in `wows_stats`, and you can customize your own database as well.
 The players' statistical data can then be retrieved through SQL and analyzed for your own purpose.
@@ -78,7 +75,6 @@ Since the API request returns JSON format data, it is natural to use MongoDB (BS
 }
 ```
 ## Analysis
----
 ### Data Preprocessing
 When retrieving players' data from database, we use `pandas` Panel to construct the 3D DataFrame as:
 
@@ -127,10 +123,9 @@ We use the LSTM without attention model to predict the players' performance base
 
 
 ## Web Application
----
 We use the [Flask](http://flask.pocoo.org/) framework to develop the front-end web application with Python back-end.
 ### HTML/JavaScript front-end
 
 ### Python back-end
-
+---
 More projects on [my private repository summary](https://williamonvoyage.github.io/Private-Repository-Summary/)
