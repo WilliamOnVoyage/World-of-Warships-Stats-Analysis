@@ -131,7 +131,7 @@ We use the LSTM without attention model to predict the players' performance base
   }
 }
 ```
-**Account id range:*
+#### Account id range:
 * [0, 500000000) : 'RU';
 * [500000000, 1000000000) : 'EU';
 * [1000000000, 2000000000) : 'NA';
