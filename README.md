@@ -95,31 +95,48 @@ We use the LSTM without attention model to predict the players' performance base
   "wows_api": {
     "application_id": "XXX",
     "player_url": "https://api.worldofwarships.com/wows/account/list/",
-    "account_url": "https://api.worldofwarships.com/wows/account/info/"
+    "account_url": "https://api.worldofwarships.com/wows/account/info/",
+    "stats_by_date_url": "https://api.worldofwarships.com/wows/account/statsbydate/",
+    "DB_TYPE": "mongo",
+    "DATE_FORMAT": "%Y-%m-%d",
+    "NA_ACCOUNT_LIMIT_LO": 1000000000,
+    "NA_ACCOUNT_LIMIT_HI": 2000000000,
+    "ID_STEP": 100,
+    "SIZE_PER_WRITE": 10000,
+    "URL_REQ_DELAY": 0,
+    "URL_REQ_TIMEOUT": 45,
+    "URL_REQ_TRYNUM": 3
   },
   "mysql": {
     "dbname": "XXX",
     "usr": "XXX",
     "pw": "XXX",
-    "hostname": "XXX",
-    "port": 0000
+    "hostname": "XX.XX.XX.XX",
+    "port": 123
+  },
+  "mongo": {
+    "dbname": "XXX",
+    "collection": "XXX",
+    "usr": "XXX",
+    "pw": "XXX",
+    "hostname": "XX.XX.XX.XX",
+    "port": 123
   },
   "AWS_RDS": {
     "dbname": "XXX",
     "usr": "XXX",
     "pw": "XXX",
-    "hostname": "XXX",
-    "port": 0000
+    "hostname": "XX.XX.XX.XX",
+    "port": 123
   }
 }
 ```
-### Account id range
+**Account id range:*
 * [0, 500000000) : 'RU';
 * [500000000, 1000000000) : 'EU';
 * [1000000000, 2000000000) : 'NA';
 * [2000000000, 3000000000) : 'ASIA';
 * [3000000000, ) : 'KR';
-
 
 ## Web Application
 We use the [Flask](http://flask.pocoo.org/) framework to develop the front-end web application with Python back-end.
