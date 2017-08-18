@@ -113,6 +113,8 @@ class WowsAPIRequest(object):
                 print('\n%s%s%s/%s ids requested, time usage: %s%s%s, ETA: %s%s%s\n' % (
                     ansi.BLUE, count, ansi.ENDC, len(id_list), ansi.BLUE, time_usage,
                     ansi.ENDC, ansi.BLUE, time_usage_total * len(id_list) / count, ansi.ENDC))
+
+        self.write_database(data_list=result_list, force_write=True)
         while self._failed_urls:
             self.get_stats_from_failed_api()
         print('Stats by date request finished!')
