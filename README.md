@@ -8,10 +8,10 @@ The system design graph for this project can be found in file **SystemDesign.mdj
 
 |Class|Description|functions|attributes|
 |:----|:----|:----|:----|
-|**wows_api**||||
-|**abstract_db**||||
-|**prediction_model**||||
-|**web_connector**||||
+|**wows_api**|...|...|...|
+|**abstract_db**|...|...|...|
+|**prediction_model**|...|...|...|
+|**web_connector**|...|...|...|
 
 ## API
 This python based script handles [World of Warships API request](https://developers.wargaming.net/) for statistical data and store them in local MySQL database. The World of Warships API needs an application_id for credential connection with the API server, the application_id should be registered on [Wargaming.net](https://developers.wargaming.net/applications/) and stored in a local configuration file named as "[config.json](#local-configuration-file-format)". Also the ip address of the terminal running this script (provided by package [ipgetter](https://pypi.python.org/pypi/ipgetter/0.6)) should be added in your application launched on [developer room of Wargaming.net](https://developers.wargaming.net/applications/).
