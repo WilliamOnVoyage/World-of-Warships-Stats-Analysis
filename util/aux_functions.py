@@ -54,9 +54,9 @@ def list_to_url_params(list):
     return ','.join(str(item) for item in list)
 
 
-def generate_date_list_of_month(date):
+def generate_date_list_of_ten_days(date):
     date_format = '%Y-%m-%d'
-    date_range = 30
+    date_range = 10
     date_list = list()
     for day in range(date_range):
         date_list.append((date - datetime.timedelta(days=day)).strftime(format=date_format))

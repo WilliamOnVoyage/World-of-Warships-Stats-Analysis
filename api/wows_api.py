@@ -62,7 +62,6 @@ class WowsAPIRequest(object):
         print('API initialized!')
 
     def request_all_ids(self):
-        account_id = self._account_id_lowerbound
         requested_id_list = list()
         print('Task: Requesting all IDs...')
         for account_id in range(self._account_id_lowerbound, self._account_id_upperbound, self._account_id_step):
@@ -112,7 +111,7 @@ class WowsAPIRequest(object):
             if count % self._size_per_write == 1:
                 print('\n%s%s%s/%s ids requested, time usage: %s%s%s, ETA: %s%s%s\n' % (
                     ansi.BLUE, count, ansi.ENDC, len(id_list), ansi.BLUE, time_usage,
-                    ansi.ENDC, ansi.BLUE, time_usage_total * len(id_list) / count, ansi.ENDC))
+                    ansi.ENDC, ansi.BLUE, time_usage_total * (len(id_list) - count) / count, ansi.ENDC))
 
         self.write_database(data_list=result_list, force_write=True)
         while self._failed_urls:
@@ -156,10 +155,11 @@ class WowsAPIRequest(object):
                 break
             except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
                 print('%sAPI request failed!%s %s' % (ansi.RED, e, ansi.ENDC))
-                self._failed_urls.append(url)
                 if e is timeoutError:
                     time.sleep(self._request_delay)
                 number_of_try -= 1
+                if number_of_try == 0:
+                    self._failed_urls.append(url)
         json_list = list()
         for account_id_item in json_returned['data'].items():
             json_list.append(json.dumps(account_id_item))
@@ -195,7 +195,7 @@ class WowsAPIRequest(object):
         timer_start = datetime.datetime.now()
         aux_functions.check_ip()
         self._date = date
-        date_list = aux_functions.generate_date_list_of_month(date=date)
+        date_list = aux_functions.generate_date_list_of_ten_days(date=date)
         # self.request_all_ids()
         # self.request_stats_by_id()
         self.request_stats_by_date(date_list=date_list)
