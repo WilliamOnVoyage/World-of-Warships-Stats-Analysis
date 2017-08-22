@@ -281,7 +281,7 @@
 									"_parent": {
 										"$ref": "AAAAAAFdium3L87BPrU="
 									},
-									"name": "main_request",
+									"name": "request_historical_stats_all_accounts_last_month",
 									"visibility": "public",
 									"isStatic": false,
 									"isLeaf": false,
@@ -295,7 +295,7 @@
 									"_parent": {
 										"$ref": "AAAAAAFdium3L87BPrU="
 									},
-									"name": "single_day_request",
+									"name": "request_historical_stats_all_accounts",
 									"visibility": "public",
 									"isStatic": false,
 									"isLeaf": false,
@@ -1833,7 +1833,7 @@
 											"height": 13,
 											"autoResize": false,
 											"underline": false,
-											"text": "+main_request()",
+											"text": "+request_historical_stats_all_accounts_last_month()",
 											"horizontalAlignment": 0,
 											"verticalAlignment": 5,
 											"wordWrap": false
@@ -1862,7 +1862,7 @@
 											"height": 13,
 											"autoResize": false,
 											"underline": false,
-											"text": "+single_day_request()",
+											"text": "+request_historical_stats_all_accounts()",
 											"horizontalAlignment": 0,
 											"verticalAlignment": 5,
 											"wordWrap": false

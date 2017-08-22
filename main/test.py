@@ -12,7 +12,7 @@ def test_api():
         idlist = wows.generate_id_list_by_range(account_ID=1000000000)
         wows.list_to_url_params(idlist)
         wows.update_database_winrate()
-        wows.main_request(days=0)
+        wows.request_historical_stats_all_accounts_last_month(days=0)
     except:
         print("api API test failed!")
 

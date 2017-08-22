@@ -191,7 +191,7 @@ class WowsAPIRequest(object):
             ids.append(int(account_ID + i))
         return ids
 
-    def single_day_request(self, date):
+    def request_historical_stats_all_accounts(self, date):
         timer_start = datetime.datetime.now()
         aux_functions.check_ip()
         self._date = date
@@ -207,26 +207,19 @@ class WowsAPIRequest(object):
             ansi.ENDC))
         return time_usage
 
-    def main_request(self, start_date=None, days=7):
-        # request all IDs, only need to execute once per (month, year) ?
-        # request_all_ids(account_url, application_id)
-        last_date = None
-        start = datetime.date.today()
+    def request_historical_stats_all_accounts_last_month(self, start_date=None, days=28):
         if start_date is not None:
-            d = datetime.datetime.strptime(start_date, self._date_format)
-            start.replace(year=d.year, month=d.month, day=d.day)
-
-        while days > 0:
-            if start != last_date:
-                last_date = start
-                self.single_day_request(date=last_date)
-                days -= 1
-            else:
-                time.sleep(1800)
+            start = datetime.datetime.strptime(start_date, self._date_format).date()
+        else:
             start = datetime.date.today()
-        return 'Main request finished!'
+        DAYS_LIMIT = 10
+        while days > 0:
+            self.request_historical_stats_all_accounts(date=start)
+            days -= DAYS_LIMIT
+            start -= datetime.timedelta(days=DAYS_LIMIT)
+        print('Main request finished!')
 
 
 if __name__ == '__main__':
-    result = WowsAPIRequest().main_request(start_date='2017-07-25')
-    print(result)
+    # WowsAPIRequest().request_all_ids()
+    WowsAPIRequest().request_historical_stats_all_accounts_last_month(start_date='2017-08-12')
