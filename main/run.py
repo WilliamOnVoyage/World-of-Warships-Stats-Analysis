@@ -9,7 +9,7 @@ from util.ansi_code import AnsiEscapeCode as ansi
 
 def database_update(date):
     # Request params from config file
-    timing = wows.WowsAPIRequest().single_day_request(date=date)
+    timing = wows.WowsAPIRequest().request_historical_stats_all_accounts(date=date)
     return timing
 
 

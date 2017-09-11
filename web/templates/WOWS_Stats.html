@@ -1,35 +1,45 @@
 <!DOCTYPE html>
-<html>
-<title>World of Warships Stats</title>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<style>
-body,h1,h2,h3,h4,h5,h6 {font-family: "Raleway", sans-serif}
-body, html {
-    height: 100%;
-    line-height: 1.8;
-}
-/* Full height image header */
-.bgimg-1 {
-    background-position: center;
-    background-size: cover;
-    background-image: url("/pics/wows_bg.jpg");
-    background-color: black;
-    min-height: 100%;
-}
-.w3-bar .w3-button {
-    padding: 16px;
-}
+<html lang="en">
+<head>
+    <title>World of Warships Stats</title>
+    <meta charset="UTF-8">
+    <meta name="author" content="MoliangZhou">
+    <meta name="description" content="WOWS stats modeling platform">
+    <meta name="keywords" content="World of warships, stats, model">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+    body,h1,h2,h3,h4,h5,h6 {font-family: "Raleway", sans-serif}
+    body, html {
+        height: 100%;
+        line-height: 1.8;
+    }
+    /* Full height image header */
+    .bgimg-1 {
+        background-position: center;
+        background-size: cover;
+        background-image: url("static/pics/wows_bg.gif");
+        background-color: black;
+        min-height: 130%;
+        /*background: linear-gradient(to bottom, rgba(255,0,0,0) 0%,rgba(255,0,0,0.65) 100%);*/
+    }
+    .w3-bar .w3-button {
+        padding: 16px;
+    }
 
-</style>
-<body>
+
+    </style>
+    <script type="text/javascript" src="static/js/overview.js"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script type="text/javascript">var $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};</script>
+</head>
+<body onload="initialize_display()">
 
 <!-- Navbar (sit on top) -->
 <div class="w3-top">
-    <div class="w3-bar w3-white w3-card-2" id="myNavbar">
+    <div class="w3-bar w3-black w3-card-2" id="myNavbar">
         <a href="#home" class="w3-bar-item w3-button w3-wide">LOGO</a>
         <!-- Right-sided navbar links -->
         <div class="w3-right w3-hide-small">
@@ -57,14 +67,14 @@ body, html {
 </nav>
 
 <!-- Header with full-height image -->
-<header class="bgimg-1 w3-display-container w3-grayscale-min" id="home">
+<header class="bgimg-1 w3-display-container w3-grayscale-min w3-opacity-min" id="home">
     <div class="w3-display-left w3-text-white" style="padding:48px">
         <span class="w3-jumbo w3-hide-small">World of Warships Statistics</span><br>
         <span class="w3-xxlarge w3-hide-large w3-hide-medium">World of Warships Statistics</span><br>
         <span class="w3-large">Track and model your performance.</span>
         <p><a href="#overview"
-              class="w3-button w3-white w3-padding-large w3-large w3-margin-top w3-opacity w3-hover-opacity-off">Overview
-            of the stats</a></p>
+              class="w3-button w3-white w3-padding-large w3-large w3-margin-top">Start
+            the explore</a></p>
     </div>
     <div class="w3-display-bottomleft w3-text-grey w3-large" style="padding:24px 48px">
         <i class="fa fa-facebook-official w3-hover-opacity"></i>
@@ -77,39 +87,55 @@ body, html {
 </header>
 
 <!-- Overview Section -->
-<div class="w3-container" style="padding:128px 16px" id="overview">
+<div class="w3-container w3-black" style="padding:128px 16px" id="overview">
     <h3 class="w3-center">OVERVIEW</h3>
-    <p class="w3-center w3-large">Stats of the week</p>
-    <div class="w3-row-padding w3-center" style="margin-top:64px">
+    <div class="w3-bar w3-center">
+        <a href="#ovallstats"
+           class="w3-button w3-black w3-padding-large w3-large w3-opacity w3-hover-opacity-off"
+           onclick="overallStats()">
+            Overall stats
+        </a>
+
+        <a href="#statsoftheweek"
+           class="w3-button w3-black w3-padding-large w3-large w3-opacity w3-hover-opacity-off"
+           onclick="statsOfTheWeek()">
+            Stats of the week
+        </a>
+
+        <a href="#statsofthemonth"
+           class="w3-button w3-black w3-padding-large w3-large w3-opacity w3-hover-opacity-off"
+           onclick="statsOfTheMonth()">
+            Stats of the month
+        </a>
     </div>
+
+    <p class="w3-center" id="StatsOfTheWeekOutput" name="StatsOfTheWeekOutput"></p>
+
+    <table id="table_overall_stats" class="w3-table w3-center">
+    </table>
+    </p>
 </div>
 
 <!-- Players Section -->
 <div class="w3-container w3-dark-grey" style="padding:128px 16px" id="players" color=black>
     <h3 class="w3-center">PLAYERS</h3>
     <p class="w3-center w3-large">Stats of the players</p>
-    <div class="w3-row-padding w3-center" style="margin-top:64px">
-    </div>
 </div>
 
 <!-- Ships Section -->
-<div class="w3-container" style="padding:128px 16px" id="ships">
+<div class="w3-container w3-black" style="padding:128px 16px" id="ships">
     <h3 class="w3-center">SHIPS</h3>
     <p class="w3-center w3-large">Stats of the ships</p>
-    <div class="w3-row-padding w3-center" style="margin-top:64px">
-    </div>
 </div>
 
 <!-- Contact Section -->
 <div class="w3-container w3-dark-grey" style="padding:128px 16px" id="contact">
     <h3 class="w3-center">CONTACT</h3>
     <p class="w3-center w3-large">Contact info</p>
-    <div class="w3-row-padding w3-center" style="margin-top:64px">
-    </div>
 </div>
 
 <!-- Footer -->
-<footer class="w3-center w3-black w3-padding-64">
+<footer class="w3-center w3-white w3-padding-64">
     <a href="#home" class="w3-button w3-light-grey"><i class="fa fa-arrow-up w3-margin-right"></i>To the top</a>
     <div class="w3-xlarge w3-section">
         <i class="fa fa-facebook-official w3-hover-opacity"></i>
@@ -120,14 +146,18 @@ body, html {
         <i class="fa fa-linkedin w3-hover-opacity"></i>
     </div>
 </footer>
-
 <script>
+
+function initialize_display(){
+    document.getElementById('#table_overall_stats').style.visibility="hidden";
+}
+
 // Modal Image Gallery
 function onClick(element) {
-  document.getElementById("img01").src = element.src;
-  document.getElementById("modal01").style.display = "block";
-  var captionText = document.getElementById("caption");
-  captionText.innerHTML = element.alt;
+    document.getElementById("img01").src = element.src;
+    document.getElementById("modal01").style.display = "block";
+    var captionText = document.getElementById("caption");
+    captionText.innerHTML = element.alt;
 }
 
 
@@ -147,7 +177,7 @@ function w3_close() {
     mySidebar.style.display = "none";
 }
 
+
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBu-916DdpKAjTmJNIgngS6HL_kDIKU0aU&callback=myMap"></script>
 </body>
 </html>
