@@ -123,7 +123,7 @@ class MongoDB(AbstractDB):
         self.close_db()
         return active_player_number
 
-    def get_top_players_by_battles(self, battles_threshold=1000):
+    def get_top_players(self, battles_threshold=1000):
         self.connect_db()
         top_player_list = list()
         projection = ['statistics.pvp.battles', 'statistics.pvp.wins', 'statistics.pvp.losses', 'nickname']
@@ -136,6 +136,14 @@ class MongoDB(AbstractDB):
             print(e)
         self.close_db()
         return top_player_list
+
+    def get_top_players_in_week(self, battles_threshold=1000):
+        self.connect_db()
+        self.close_db()
+
+    def get_top_players_in_month(self, battles_threshold=1000):
+        self.connect_db()
+        self.close_db()
 
     def close_db(self):
         self._connect.close()

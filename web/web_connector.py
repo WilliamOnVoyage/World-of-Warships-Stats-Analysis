@@ -1,12 +1,17 @@
 import flask
 import pandas.io.json as pd_json
-
 import database.mongo_db
+from enum import Enum
 
 DB_TYPE = 'mongo'
 DB = database.mongo_db.MongoDB()
-
 app = flask.Flask(__name__)
+
+
+class StatsType(Enum):
+    Overall = 0
+    Weekly = 1
+    Monthly = 2
 
 
 @app.route('/')
@@ -22,13 +27,23 @@ def get_database_info():
 
 
 @app.route('/overallstats')
-def get_overall_stats():
+@app.route('/weeklystats')
+@app.route('/monthlystats')
+def get_stats():
     battle_threshold = flask.request.args.get('battles', 0, type=int)
-    player_list = DB.get_top_players_by_battles(battles_threshold=battle_threshold)
-    flattened_player_list = list()
-    for player in player_list:
-        flattened_player_list.append(pd_json.json_normalize(player).to_json(orient='records'))
-    return flask.jsonify(player_list=flattened_player_list)
+    stats_type = flask.request.args.get('statsType', 0, type=int)
+    stats_functions = {StatsType.Overall: DB.get_top_players(battles_threshold=battle_threshold),
+                       StatsType.Weekly: DB.get_top_players_in_week(battles_threshold=battle_threshold),
+                       StatsType.Monthly: DB.get_top_players_in_month(battles_threshold=battle_threshold)}
+    player_list = stats_functions[stats_type]
+    return flatten_json(json_list=player_list)
+
+
+def flatten_json(json_list):
+    flattened_list = list()
+    for json_item in json_list:
+        flattened_list.append(pd_json.json_normalize(json_item).to_json(orient='records'))
+    return flask.jsonify(player_list=flattened_list)
 
 
 if __name__ == '__main__':

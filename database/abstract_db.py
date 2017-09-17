@@ -23,7 +23,13 @@ class AbstractDB(object):
     def get_database_info(self):
         print("Not implemented error!!!")
 
-    def get_top_players_by_battles(self):
+    def get_top_players(self):
+        print("Not implemented error!!!")
+
+    def get_top_players_in_week(self):
+        print("Not implemented error!!!")
+
+    def get_top_players_in_month(self):
         print("Not implemented error!!!")
 
     def close_db(self):

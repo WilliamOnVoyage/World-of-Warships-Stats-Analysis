@@ -14,7 +14,8 @@ function overallStats(){
 	showDatabaseInfo();
 	var $BATTLES_THRESHOLD = 1000
 	$.getJSON($SCRIPT_ROOT + '/overallstats',{
-		battles:$BATTLES_THRESHOLD
+		battles:$BATTLES_THRESHOLD,
+		statsType:0
 	},function(data){
 		buildOverallStatsTable(data);
 	});
@@ -30,7 +31,7 @@ function showDatabaseInfo(){
 }
 
 function buildOverallStatsTable(data){
-	var $TABLE_NAME = "#table_overall_stats"
+	var $TABLE_NAME = "#table_stats"
 	// deleteAllTableRows($TABLE_NAME);
 
 	data_list = data.player_list
