@@ -1,7 +1,7 @@
 import datetime
 import json
 import time
-from socket import timeout as timeoutError
+from socket import timeout as timeouterror
 from urllib import request, parse, error
 
 import numpy as np
@@ -68,7 +68,7 @@ class WowsAPIRequest(object):
             id_list = aux_functions.list_to_url_params(self.generate_id_list_by_range(account_id))
             params = parse.urlencode({'application_id': self._application_id, 'account_id': id_list})
             url = self._account_url + '?' + params
-            requested_id_list = requested_id_list + self.get_json_from_url(url=url)
+            requested_id_list += self.get_json_from_url(url=url)
             requested_id_list = self.write_database(data_list=requested_id_list, type_detail=False)
             time.sleep(self._request_delay)
 
@@ -139,7 +139,7 @@ class WowsAPIRequest(object):
         failed_url_list = self._failed_urls
         self._failed_urls = list()
         for url in failed_url_list:
-            result_list = result_list + self.get_json_from_url(url=url)
+            result_list += self.get_json_from_url(url=url)
         self.write_database(data_list=result_list, force_write=True)
 
     def get_json_from_url(self, url):
@@ -153,9 +153,9 @@ class WowsAPIRequest(object):
                     json_returned = json.loads(
                         request.urlopen(url, timeout=self._url_req_timeout).read().decode('utf-8'))
                 break
-            except (error.URLError, timeoutError, ConnectionResetError) as e:  # API url request failed
+            except (error.URLError, timeouterror, ConnectionResetError) as e:  # API url request failed
                 print('%sAPI request failed!%s %s' % (ansi.RED, e, ansi.ENDC))
-                if e is timeoutError:
+                if e is timeouterror:
                     time.sleep(self._request_delay)
                 number_of_try -= 1
                 if number_of_try == 0:
@@ -212,11 +212,11 @@ class WowsAPIRequest(object):
             start = datetime.datetime.strptime(start_date, self._date_format).date()
         else:
             start = datetime.date.today()
-        DAYS_LIMIT = 10
+        days_limit = 10
         while days > 0:
             self.request_historical_stats_all_accounts(date=start)
-            days -= DAYS_LIMIT
-            start -= datetime.timedelta(days=DAYS_LIMIT)
+            days -= days_limit
+            start -= datetime.timedelta(days=days_limit)
         print('Main request finished!')
 
 

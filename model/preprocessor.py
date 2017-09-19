@@ -10,8 +10,7 @@ import database.mysql_db
 import util.aux_functions as ut
 
 
-def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, public=3,
-                stat_columns=np.array([4, 5, 6, 7])):
+def get_from_db(last_day, timewindow=8, id_column=1, stat_columns=np.array([4, 5, 6, 7])):
     try:
         day_dict = {}
         day_str = "date "
@@ -45,7 +44,7 @@ def db_retrieve(last_day, timewindow=8, id_column=1, date_column=0, nickname=2, 
 
 
 # This function requires the items in data be consistent (same major index values)
-def convert_train_vali(data, y_column=1, r=0.8, shuffle=False):
+def split_train_validation(data, y_column=1, train_ratio=0.8, shuffle=False):
     last_day = data.shape[0] - y_column
 
     max_subsize = ut.max_hundred(data.shape[1])
@@ -57,7 +56,7 @@ def convert_train_vali(data, y_column=1, r=0.8, shuffle=False):
     data = Panel(filter_dict)
 
     # Sample by major index (ids)
-    rd_index = np.asarray(random.sample(range(data.shape[1]), int(r * data.shape[1])))
+    rd_index = np.asarray(random.sample(range(data.shape[1]), int(train_ratio * data.shape[1])))
     trn_dict = {}
     val_dict = {}
 

@@ -1,5 +1,5 @@
 import api.wows_api as wows_api
-from model import data_preprocess as data_preprocess
+from model import preprocessor as data_preprocess
 from util import aux_functions as ut
 from util import config as config
 
