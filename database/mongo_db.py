@@ -1,22 +1,17 @@
 import datetime
-
 import bson.json_util
 import numpy as np
 import pymongo as mg
-from bson.json_util import dumps
 
+from bson.json_util import dumps
 from database.abstract_db import AbstractDB
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.config import ConfigFileReader
 
-STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
-              'capture_points', 'dropped_capture_points', 'survived_battles'}
-
 
 class MongoDB(AbstractDB):
-    def __init__(self, stats_filter=STATS_DICT, date=datetime.date.today()):
+    def __init__(self, date=datetime.date.today()):
         super().__init__()
-        self._stats_dictionary = stats_filter
         self._date = date
         self._connect = None
         self._db = None
@@ -108,7 +103,8 @@ class MongoDB(AbstractDB):
         self.close_db()
         return id_list
 
-    def get_stats_by_date(self, args=None):
+    def get_stats_by_date_as_array(self, args=None):
+
         pass
 
     def get_database_info(self, battles_threshold=10):

@@ -140,32 +140,5 @@ def build_winrate_model():
         ansi.BLUE, date.strftime("%Y-%m-%d"), ansi.ENDC, ansi.DARKGREEN, duration, ansi.ENDC))
 
 
-def test():
-    df1 = DataFrame(columns=['t', 'w', 'l', 'd'])
-    df2 = DataFrame(columns=['t', 'w', 'l', 'd'])
-    df1.loc[1000, ['t', 'w', 'l', 'd']] = [1, 0, 1, 0]
-    df1.loc[1001, ['t', 'w', 'l', 'd']] = [1, 1, 0, 0]
-    df1.loc[1002, ['t', 'w', 'l', 'd']] = [2, 1, 1, 0]
-    for i in range(1, len(df1.columns)):
-        df1.iloc[:, i] = df1.iloc[:, i] / df1.iloc[:, 0]
-    df1.iloc[:, 0] += 0.001
-
-    df2.loc[1000, ['t', 'w', 'l', 'd']] = [13, 4, 5, 4]
-    df2.loc[1001, ['t', 'w', 'l', 'd']] = [4, 1, 1, 2]
-    df2.loc[1002, ['t', 'w', 'l', 'd']] = [5, 3, 2, 0]
-    for i in range(1, len(df2.columns)):
-        df2.iloc[:, i] = df2.iloc[:, i] / df2.iloc[:, 0]
-    df2.iloc[:, 0] += 0.001
-    df = {'d1': df1, 'd2': df2}
-    pd = Panel(df)
-
-    print(pd['d1'])
-    print(pd['d2'])
-
-    model = WinrateModel(data=pd, time_window=1)
-    model.training()
-    model.save_model()
-
-
 if __name__ == "__main__":
     build_winrate_model()

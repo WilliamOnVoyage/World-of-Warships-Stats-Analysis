@@ -5,9 +5,7 @@ from socket import timeout as timeouterror
 from urllib import request, parse, error
 
 import numpy as np
-
-import database.mongo_db
-import database.mysql_db
+from database.database_factory import database_factory
 from util import aux_functions
 from util.ansi_code import AnsiEscapeCode as ansi
 from util.config import ConfigFileReader
@@ -33,33 +31,30 @@ APPLICATION_ID = 'application_id'
 ACCOUNT_URL = 'account_url'
 STATS_BY_DATE_URL = 'stats_by_date_url'
 
-STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
-              'capture_points', 'dropped_capture_points', 'survived_battles'}
-
 
 class WowsAPIRequest(object):
     def __init__(self):
         # *************CRUCIAL PARAMETERS**************
-        _api_params = ConfigFileReader().read_api_config()
-        self._size_per_write = _api_params[SIZE_PER_WRITE]
-        self._request_delay = _api_params[URL_REQ_DELAY]
-        self._account_id_upperbound = _api_params[NA_ACCOUNT_LIMIT_HI]
-        self._account_id_lowerbound = _api_params[NA_ACCOUNT_LIMIT_LO]
-        self._account_id_step = _api_params[ID_STEP]
-        self._date_format = _api_params[DATE_FORMAT]
-        self._application_id = _api_params[APPLICATION_ID]
-        self._account_url = _api_params[ACCOUNT_URL]
-        self._stats_by_date_url = _api_params[STATS_BY_DATE_URL]
-        self._url_req_trynumber = _api_params[URL_REQ_TRYNUM]
-        self._url_req_timeout = _api_params[URL_REQ_TIMEOUT]
-        self._db_type = _api_params[DB_TYPE]
-        self._date = '2017-01-01'
-        if self._db_type == 'mongo':
-            self._db = database.mongo_db.MongoDB(stats_filter=STATS_DICT)
-        else:
-            self._db = database.mysql_db.MySQLDB(stats_filter=STATS_DICT)
-        self._failed_urls = list()
+        api_params = ConfigFileReader().read_api_config()
+        self._init_params(params=api_params)
         print('API initialized!')
+
+    def _init_params(self, params):
+        self._size_per_write = params[SIZE_PER_WRITE]
+        self._request_delay = params[URL_REQ_DELAY]
+        self._account_id_upperbound = params[NA_ACCOUNT_LIMIT_HI]
+        self._account_id_lowerbound = params[NA_ACCOUNT_LIMIT_LO]
+        self._account_id_step = params[ID_STEP]
+        self._date_format = params[DATE_FORMAT]
+        self._application_id = params[APPLICATION_ID]
+        self._account_url = params[ACCOUNT_URL]
+        self._stats_by_date_url = params[STATS_BY_DATE_URL]
+        self._url_req_trynumber = params[URL_REQ_TRYNUM]
+        self._url_req_timeout = params[URL_REQ_TIMEOUT]
+        self._db = database_factory(db_type=params[DB_TYPE])
+
+        self._failed_urls = list()
+        self._date = '2017-01-01'
 
     def request_all_ids(self):
         requested_id_list = list()

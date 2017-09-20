@@ -1,6 +1,5 @@
 import datetime
 import json
-
 import pymysql as sql
 
 from database.abstract_db import AbstractDB
@@ -8,24 +7,21 @@ from util.ansi_code import AnsiEscapeCode as ansi
 from util.config import ConfigFileReader
 
 SQL_TRY_NUMBER = 3
-STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'planes_killed', 'xp',
-              'capture_points', 'dropped_capture_points', 'survived_battles'}
 
 
 class MySQLDB(AbstractDB):
-    def __init__(self, stats_filter=STATS_DICT, date=datetime.date.today()):
+    def __init__(self, date=datetime.date.today()):
         super().__init__()
         self._db_params = ConfigFileReader().read_mysql_config()
-        self._stats_dictionary = stats_filter
         self._date = date
         self.connect_db()
         self.close_db()
 
     def connect_db(self):
         try:
-            self.db = sql.connect(host=self._db_params['hostname'], port=self._db_params['port'],
-                                  user=self._db_params['usr'],
-                                  password=self._db_params['pw'], database=self._db_params['dbname'])
+            self._db = sql.connect(host=self._db_params['hostname'], port=self._db_params['port'],
+                                   user=self._db_params['usr'],
+                                   password=self._db_params['pw'], database=self._db_params['dbname'])
             print(
                 'MySQL %s%s%s connected at host %s%s%s port %s%d%s!' % (
                     ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params['hostname'], ansi.ENDC,
@@ -82,7 +78,7 @@ class MySQLDB(AbstractDB):
             id_list.append(item[0])
         return id_list
 
-    def get_stats_by_date(self, args=None):
+    def get_stats_by_date_as_array(self, args=None):
         getid_sql = '''SELECT * FROM wowstats.`wows_stats` WHERE `date` = %s AND `battles` > %s'''
         return self._get_by_query(query=getid_sql, args=args)
 
@@ -90,34 +86,34 @@ class MySQLDB(AbstractDB):
         pass
 
     def close_db(self):
-        self.db.close()
+        self._db.close()
 
     def _write_by_query(self, query, args=None):
         self.close_db()
-        cursor = self.db.cursor()
+        cursor = self._db.cursor()
         ntry = SQL_TRY_NUMBER
         while ntry > 0:
             try:
                 cursor.execute(query=query, args=args)
-                self.db.commit()
+                self._db.commit()
                 return True
             except sql.MySQLError:
                 ntry -= 1
-                self.db.rollback()
+                self._db.rollback()
         print('%s%s %% %swrite failed!%s' % (ansi.RED, query, args, ansi.ENDC))
         self.close_db()
         return False
 
     def _get_by_query(self, query, args=None):
         self.connect_db()
-        cursor = self.db.cursor()
+        cursor = self._db.cursor()
         result = []
         try:
             cursor.execute(query=query, args=args)
-            self.db.commit()
+            self._db.commit()
             result = cursor.fetchall()
         except sql.MySQLError:
-            self.db.rollback()
+            self._db.rollback()
             print('%s%s Execution failed!!!%s' % (ansi.RED, query, ansi.ENDC))
         self.close_db()
         return result
