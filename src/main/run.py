@@ -1,6 +1,6 @@
-import api.wows_api as wows
 import model.winrate_model as winR_model
-from util.ansi_code import AnsiEscapeCode as ansi
+
+from src import api as wows
 
 
 def database_update():

@@ -1,11 +1,12 @@
 import random
-import util.aux_functions as ut
-import numpy as np
+from datetime import timedelta
 
-from database.database_factory import database_factory
+import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
-from datetime import timedelta
+
+from src import util as ut
+from src.database import database_factory
 
 
 def get_from_db(last_day, timewindow=8, id_column=1, stat_columns=np.array([4, 5, 6, 7])):

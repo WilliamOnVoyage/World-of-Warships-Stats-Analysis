@@ -1,10 +1,10 @@
-import flask
-import pandas.io.json as pd_json
-import database.mongo_db
 from enum import Enum
 
+import flask
+import pandas.io.json as pd_json
+
 DB_TYPE = 'mongo'
-DB = database.mongo_db.MongoDB()
+DB = src.database.mongo_db.MongoDB()
 app = flask.Flask(__name__)
 
 

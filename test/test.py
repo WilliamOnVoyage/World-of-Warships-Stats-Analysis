@@ -1,9 +1,10 @@
-import api.wows_api as wows_api
+from model import preprocessor as data_preprocess
 from model.winrate_model import WinrateModel
 from pandas import DataFrame, Panel
-from model import preprocessor as data_preprocess
-from util import aux_functions as ut
-from util import config as config
+
+from src import api as wows_api
+from src.util import aux_functions as ut
+from src.util import config as config
 
 
 def test_api():

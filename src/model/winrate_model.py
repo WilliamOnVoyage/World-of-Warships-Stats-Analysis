@@ -1,15 +1,13 @@
 import datetime
+
 import keras
-
 import numpy as np
-import model.preprocessor as data_prep
-import util.aux_functions as ut
-
 from keras import objectives
 from keras.layers import Dense, LSTM
 from keras.models import Sequential
-from pandas import DataFrame, Panel
-from util.ansi_code import AnsiEscapeCode as ansi
+
+from src import model as data_prep, util as ut
+from src.util import AnsiEscapeCode as ansi
 
 
 class WinrateModel(object):

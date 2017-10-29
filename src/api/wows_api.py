@@ -5,10 +5,11 @@ from socket import timeout as timeouterror
 from urllib import request, parse, error
 
 import numpy as np
-from database.database_factory import database_factory
-from util import aux_functions
-from util.ansi_code import AnsiEscapeCode as ansi
-from util.config import ConfigFileReader
+
+from src.database.database_factory import database_factory
+from src.util.ansi_code import AnsiEscapeCode as ansi
+from src.util.config import ConfigFileReader
+from src.util import aux_functions
 
 # account ID range
 # if ($id <  500000000) return 'RU';
@@ -49,7 +50,7 @@ class WowsAPIRequest(object):
         self._application_id = params[APPLICATION_ID]
         self._account_url = params[ACCOUNT_URL]
         self._stats_by_date_url = params[STATS_BY_DATE_URL]
-        self._url_req_trynumber = params[URL_REQ_TRYNUM]
+        self._url_req_try_number = params[URL_REQ_TRYNUM]
         self._url_req_timeout = params[URL_REQ_TIMEOUT]
         self._db = database_factory(db_type=params[DB_TYPE])
 
@@ -138,7 +139,7 @@ class WowsAPIRequest(object):
         self.write_database(data_list=result_list, force_write=True)
 
     def get_json_from_url(self, url):
-        number_of_try = self._url_req_trynumber
+        number_of_try = self._url_req_try_number
         json_returned = {'status': 'ini', 'data': {}}
         while number_of_try > 0:
             try:
@@ -217,4 +218,4 @@ class WowsAPIRequest(object):
 
 if __name__ == '__main__':
     # WowsAPIRequest().request_all_ids()
-    WowsAPIRequest().request_historical_stats_all_accounts_last_month(start_date='2017-08-12')
+    WowsAPIRequest().request_historical_stats_all_accounts_last_month(start_date='2017-10-18')

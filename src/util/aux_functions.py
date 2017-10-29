@@ -1,9 +1,8 @@
 import datetime
-import socket
-import ipgetter
 import math
+import socket
 
-from util.ansi_code import AnsiEscapeCode as tf
+import ipgetter
 
 
 def check_ip():
