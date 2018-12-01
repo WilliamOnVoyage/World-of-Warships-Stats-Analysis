@@ -75,7 +75,7 @@ def test_dataprocess():
 def test_config():
     try:
         cg = config.ConfigFileReader()
-        json_data = cg._read_all_config(file_name="sample_config.json")
+        json_data = cg.read_all_config(file_name="sample_config.json")
         print(json_data)
     except:
         print("read config test failed!")

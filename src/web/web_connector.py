@@ -1,10 +1,11 @@
-from enum import Enum
-
 import flask
 import pandas.io.json as pd_json
 
+from enum import Enum
+from src.database.mongo_db import MongoDB
+
 DB_TYPE = 'mongo'
-DB = src.database.mongo_db.MongoDB()
+DB = MongoDB()
 app = flask.Flask(__name__)
 
 
