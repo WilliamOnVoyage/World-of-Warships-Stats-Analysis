@@ -1,3 +1,4 @@
+requests
 pymysql >= 0.7.11
 pytest
 ipgetter

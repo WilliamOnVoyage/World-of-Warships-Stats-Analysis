@@ -1,15 +1,15 @@
 import datetime
 import math
-import socket
-
-import ipgetter
+from requests import get
 
 
 def check_ip():
-    external_ip = ipgetter.myip()
-    print("External ip:%s " % external_ip)
-    local_ip = socket.gethostbyname(socket.gethostname())
-    print("Local ip:%s " % local_ip)
+    try:
+        ip = get('https://api.ipify.org').text
+        print("External ip:%s " % ip)
+        return ip
+    except Exception:
+        raise
 
 
 def check_date():

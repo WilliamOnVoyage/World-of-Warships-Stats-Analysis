@@ -11,12 +11,6 @@ from src.util.ansi_code import AnsiEscapeCode as ansi
 from src.util.config import ConfigFileReader
 from src.util import aux_functions
 
-# account ID range
-# if ($id <  500000000) return 'RU';
-# elseif ($id < 1000000000) return 'EU';
-# elseif ($id < 2000000000) return 'NA';
-# elseif ($id < 3000000000) return 'ASIA';
-# elseif ($id >= 3000000000) return 'KR';
 
 DB_TYPE = 'DB_TYPE'
 DATE_FORMAT = 'DATE_FORMAT'
@@ -55,15 +49,25 @@ class WowsAPIRequest(object):
         self._db = database_factory(db_type=params[DB_TYPE])
 
         self._failed_urls = list()
-        self._date = '2017-01-01'
+        self._date = '2019-01-01'
 
     def request_all_ids(self):
+        """
+        Request all ids by enumerating (WOWS currently does not provide API to list all ids)
+
+        Account ID range
+            if ($id <  500000000) return 'RU';
+            elseif ($id < 1000000000) return 'EU';
+            elseif ($id < 2000000000) return 'NA';
+            elseif ($id < 3000000000) return 'ASIA';
+            elseif ($id >= 3000000000) return 'KR';
+        """
         requested_id_list = list()
         print('Task: Requesting all IDs...')
         for account_id in range(self._account_id_lowerbound, self._account_id_upperbound, self._account_id_step):
             id_list = aux_functions.list_to_url_params(self.generate_id_list_by_range(account_id))
             params = parse.urlencode({'application_id': self._application_id, 'account_id': id_list})
-            url = self._account_url + '?' + params
+            url = "{}?{}".format(self._account_url, params)
             requested_id_list += self.get_json_from_url(url=url)
             requested_id_list = self.write_database(data_list=requested_id_list, type_detail=False)
             time.sleep(self._request_delay)
@@ -148,7 +152,6 @@ class WowsAPIRequest(object):
                         print('%s API error message: %s%s' % (ansi.RED, json_returned['error'], ansi.ENDC))
                     json_returned = json.loads(
                         request.urlopen(url, timeout=self._url_req_timeout).read().decode('utf-8'))
-                break
             except (error.URLError, timeouterror, ConnectionResetError) as e:  # API url request failed
                 print('%sAPI request failed!%s %s' % (ansi.RED, e, ansi.ENDC))
                 if e is timeouterror:
@@ -217,5 +220,5 @@ class WowsAPIRequest(object):
 
 
 if __name__ == '__main__':
-    # WowsAPIRequest().request_all_ids()
-    WowsAPIRequest().request_historical_stats_all_accounts_last_month(start_date='2017-10-18')
+    WowsAPIRequest().request_all_ids()
+    WowsAPIRequest().request_historical_stats_all_accounts_last_month(start_date='2019-03-01')
