@@ -6,7 +6,7 @@ from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
 from src import util as ut
-from src.database import database_factory
+from wows_stats.database import database_factory
 
 
 def get_from_db(last_day, timewindow=8, id_column=1, stat_columns=np.array([4, 5, 6, 7])):

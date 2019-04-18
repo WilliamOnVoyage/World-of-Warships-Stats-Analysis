@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 
-from src.util.config import ConfigFileReader
+from wows_stats.util.config import ConfigFileReader
 
 
 class TestUtilsCase(unittest.TestCase):

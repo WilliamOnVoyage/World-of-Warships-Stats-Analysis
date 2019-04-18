@@ -7,7 +7,7 @@ from keras.layers import Dense, LSTM
 from keras.models import Sequential
 
 from src import model as data_prep, util as ut
-from src.util.ansi_code import AnsiEscapeCode as ansi
+from wows_stats.util.ansi_code import AnsiEscapeCode as ansi
 
 
 class WinrateModel(object):

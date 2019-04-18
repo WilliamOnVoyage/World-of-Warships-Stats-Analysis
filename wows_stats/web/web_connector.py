@@ -2,7 +2,7 @@ import flask
 import pandas.io.json as pd_json
 
 from enum import Enum
-from src.database.mongo_db import MongoDB
+from wows_stats.database.mongo_db import MongoDB
 
 DB_TYPE = 'mongo'
 DB = MongoDB()

@@ -1,4 +1,4 @@
-import src.model.winrate_model as winR_model
+import wows_stats.model.winrate_model as winR_model
 
 from src import api as wows
 

@@ -3,9 +3,9 @@ import json
 
 import pymysql as sql
 
-from src.database.abstract_db import AbstractDB
-from src.util.ansi_code import AnsiEscapeCode as ansi
-from src.util.config import ConfigFileReader
+from wows_stats.database.abstract_db import AbstractDB
+from wows_stats.util.ansi_code import AnsiEscapeCode as ansi
+from wows_stats.util.config import ConfigFileReader
 
 SQL_TRY_NUMBER = 3
 

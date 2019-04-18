@@ -3,8 +3,8 @@ from model.winrate_model import WinrateModel
 from pandas import DataFrame, Panel
 
 from src import api as wows_api
-from src.util import aux_functions as ut
-from src.util import config as config
+from wows_stats.util import aux_functions as ut
+from wows_stats.util import config as config
 
 
 def test_api():

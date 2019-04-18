@@ -5,9 +5,9 @@ import numpy as np
 import pymongo as mg
 from bson.json_util import dumps
 
-from src.database.abstract_db import AbstractDB
-from src.util.ansi_code import AnsiEscapeCode as ansi
-from src.util.config import ConfigFileReader
+from wows_stats.database.abstract_db import AbstractDB
+from wows_stats.util.ansi_code import AnsiEscapeCode as ansi
+from wows_stats.util.config import ConfigFileReader
 
 
 class MongoDB(AbstractDB):
