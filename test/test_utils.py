@@ -1,7 +1,7 @@
-import json
 import os
 import unittest
 
+from pandas import DataFrame, Panel
 from wows_stats.util.config import ConfigFileReader
 
 
@@ -13,8 +13,33 @@ class TestUtilsCase(unittest.TestCase):
 
     def test_config_file_reader(self):
         cg = ConfigFileReader()
-        json_data = cg.read_all_config(file_name="sample_config.json")
-        json_str = json.loads(json_data)
-        self.assertIsNotNone(json_str['mysql'])
-        self.assertIsNotNone(json_str['mongo'])
-        self.assertIsNotNone(json_str['AWS_RDS'])
+        json_data = cg.read_all_config(file_path=self.config_path, file_name="sample_config.json")
+        self.assertIsNotNone(json_data)
+        self.assertIsNotNone(json_data['mongo'])
+
+    def test_win_rate_prediction(self):
+        try:
+            from wows_stats.model.winrate_model import WinrateModel
+            df1 = DataFrame(columns=['t', 'w', 'l', 'd'])
+            df2 = DataFrame(columns=['t', 'w', 'l', 'd'])
+            df1.loc[1000, ['t', 'w', 'l', 'd']] = [1, 0, 1, 0]
+            df1.loc[1001, ['t', 'w', 'l', 'd']] = [1, 1, 0, 0]
+            df1.loc[1002, ['t', 'w', 'l', 'd']] = [2, 1, 1, 0]
+            for i in range(1, len(df1.columns)):
+                df1.iloc[:, i] = df1.iloc[:, i] / df1.iloc[:, 0]
+            df1.iloc[:, 0] += 0.001
+
+            df2.loc[1000, ['t', 'w', 'l', 'd']] = [13, 4, 5, 4]
+            df2.loc[1001, ['t', 'w', 'l', 'd']] = [4, 1, 1, 2]
+            df2.loc[1002, ['t', 'w', 'l', 'd']] = [5, 3, 2, 0]
+            for i in range(1, len(df2.columns)):
+                df2.iloc[:, i] = df2.iloc[:, i] / df2.iloc[:, 0]
+            df2.iloc[:, 0] += 0.001
+            df = {'d1': df1, 'd2': df2}
+            pd = Panel(df)
+            model = WinrateModel(data=pd, time_window=1)
+            model.training()
+            model.save_model()
+            self.assertIsNotNone(model)
+        except ModuleNotFoundError as me:
+            print("tensorflow test unavailable due to: {}".format(me))

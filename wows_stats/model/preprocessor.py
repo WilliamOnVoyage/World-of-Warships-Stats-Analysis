@@ -5,8 +5,8 @@ import numpy as np
 from pandas import DataFrame, Panel
 from pymysql import MySQLError as mysqlErr
 
-from src import util as ut
-from wows_stats.database import database_factory
+from wows_stats import util as ut
+from wows_stats.database.database_factory import database_factory
 
 
 def get_from_db(last_day, timewindow=8, id_column=1, stat_columns=np.array([4, 5, 6, 7])):
@@ -15,7 +15,8 @@ def get_from_db(last_day, timewindow=8, id_column=1, stat_columns=np.array([4, 5
         day_str = "date "
         day_columns = ['battles', 'wins', 'losses', 'draws']
         db = database_factory(db_type='mongodb')
-        # Convert the cases from database into tuple like [case,[total,win,loss,draw]], erase date, nickname and public information
+        # Convert the cases from database into tuple like [case,[total,win,loss,draw]],
+        # erase date, nickname and public information
         i = 0
         count = timewindow
         while count > 0:
@@ -70,26 +71,3 @@ def split_train_validation(data, y_column=1, train_ratio=0.8, shuffle=False):
     y_trn = data_trn[last_day:data.shape[0]].swapaxes(0, 1)
     y_val = data_val[last_day:data.shape[0]].swapaxes(0, 1)
     return x_trn, y_trn, x_val, y_val
-
-
-def test():
-    data = DataFrame(columns=['t', 'w', 'l', 'd'])
-    print(data)
-
-    columns = {'d1': data, 'd2': data, 'd3': data, 'd4': data}
-    pd = Panel(columns)
-    pd['d2'].loc[1000, ['t', 'w', 'l', 'd']] = [3, 3, 3, 3]
-    pd['d2'].loc[1001, 't'] = 3.5
-    pd['d2'].loc[1002, 't'] = 4
-
-    print(pd)
-    droped = pd['d2'].drop(1001)
-    print(droped)
-
-
-if __name__ == "__main__":
-    test()
-    # date = date.today()
-    # data = db_retrieve(last_day=date)
-    # # x, y = convert_train_vali(data)
-    # print(data)

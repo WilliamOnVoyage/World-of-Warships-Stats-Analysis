@@ -14,23 +14,9 @@
     "URL_REQ_TIMEOUT": 45,
     "URL_REQ_TRYNUM": 3
   },
-  "mysql": {
-    "dbname": "XXX",
-    "usr": "XXX",
-    "pw": "XXX",
-    "hostname": "XX.XX.XX.XX",
-    "port": 123
-  },
   "mongo": {
     "dbname": "XXX",
     "collection": "XXX",
-    "usr": "XXX",
-    "pw": "XXX",
-    "hostname": "XX.XX.XX.XX",
-    "port": 123
-  },
-  "AWS_RDS": {
-    "dbname": "XXX",
     "usr": "XXX",
     "pw": "XXX",
     "hostname": "XX.XX.XX.XX",
