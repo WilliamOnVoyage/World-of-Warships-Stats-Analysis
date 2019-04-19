@@ -13,7 +13,7 @@ class TestUtilsCase(unittest.TestCase):
 
     def test_config_file_reader(self):
         cg = ConfigFileReader()
-        json_data = cg.read_all_config(file_path=self.config_path, file_name="sample_config.json")
+        json_data = cg.read_all_config(file_dir=self.config_path, file_name="sample_config.json")
         self.assertIsNotNone(json_data)
         self.assertIsNotNone(json_data['mongo'])
 
