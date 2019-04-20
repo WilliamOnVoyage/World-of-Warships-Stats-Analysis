@@ -12,9 +12,11 @@ class TestUtilsCase(unittest.TestCase):
         self.config_path = os.path.join(project_root_path, 'config')
 
     def test_config_file_reader(self):
-        json_data = ConfigFileReader().read_all_config(file_dir=self.config_path, file_name="sample_config.json")
+        json_data = ConfigFileReader().read_config(file_dir=self.config_path, file_name="sample_config.json")
         self.assertIsNotNone(json_data)
         self.assertIsNotNone(json_data['mongo'])
+        self.assertIsNotNone(ConfigFileReader().read_api_config())
+        self.assertIsNotNone(ConfigFileReader().read_mongo_config())
 
     def test_win_rate_prediction(self):
         try:
