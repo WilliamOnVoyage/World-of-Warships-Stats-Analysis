@@ -221,4 +221,4 @@ class WowsAPIRequest(object):
 
 if __name__ == '__main__':
     # WowsAPIRequest().request_all_ids()
-    WowsAPIRequest().request_historical_stats_all_accounts_last_month(start_date='2019-03-01')
+    WowsAPIRequest("config.json").request_historical_stats_all_accounts_last_month(start_date='2019-04-01')
