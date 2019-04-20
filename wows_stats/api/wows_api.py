@@ -11,7 +11,6 @@ from wows_stats.util.ansi_code import AnsiEscapeCode as ansi
 from wows_stats.util.config import ConfigFileReader
 from wows_stats.util import aux_functions
 
-
 DB_TYPE = 'DB_TYPE'
 DATE_FORMAT = 'DATE_FORMAT'
 NA_ACCOUNT_LIMIT_LO = 'NA_ACCOUNT_LIMIT_LO'
@@ -28,11 +27,11 @@ STATS_BY_DATE_URL = 'stats_by_date_url'
 
 
 class WowsAPIRequest(object):
-    def __init__(self):
+    def __init__(self, config_file="config.json"):
         # *************CRUCIAL PARAMETERS**************
-        api_params = ConfigFileReader().read_api_config()
+        api_params = ConfigFileReader().read_api_config(config_file=config_file)
         self._init_params(params=api_params)
-        print('API initialized!')
+        print("API initialized from {}!".format(config_file))
 
     def _init_params(self, params):
         self._size_per_write = params[SIZE_PER_WRITE]
@@ -49,7 +48,7 @@ class WowsAPIRequest(object):
         self._db = database_factory(db_type=params[DB_TYPE])
 
         self._failed_urls = list()
-        self._date = '2019-01-01'
+        self._date = datetime.datetime.now().strftime("%Y-%m-%d")
 
     def request_all_ids(self):
         """

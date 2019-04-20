@@ -1,20 +1,28 @@
 import datetime
 import math
 from requests import get
+from wows_stats.util.ansi_code import AnsiEscapeCode
 
 
 def check_ip():
+    """
+    Get external API from REST call
+    :return: external ip address of current host
+    """
     try:
         ip = get('https://api.ipify.org').text
-        print("External ip:%s " % ip)
+        print("External ip: {}{}{}".format(AnsiEscapeCode.BLUE, ip, AnsiEscapeCode.ENDC))
         return ip
     except Exception:
         raise
 
 
 def check_date():
-    d = datetime.datetime.now().date()
-    return d
+    """
+    Get current date
+    :return: current date in "%Y-%m-%d" format
+    """
+    return datetime.datetime.now().date().strftime("%Y-%m-%d")
 
 
 def max_hundred(x):

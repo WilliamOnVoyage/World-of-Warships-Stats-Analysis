@@ -12,4 +12,3 @@ class APITestCase(unittest.TestCase):
         id_list = wows.generate_id_list_by_range(account_ID=1000000000)
         self.assertIsNotNone(id_list)
         wows.update_database_winrate()
-        wows.request_historical_stats_all_accounts_last_month(days=0)
