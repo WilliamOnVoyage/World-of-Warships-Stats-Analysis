@@ -9,15 +9,15 @@ from wows_stats.util.config import ConfigFileReader
 
 
 class MongoDB(AbstractDB):
-    def __init__(self, date=datetime.date.today()):
-        super().__init__()
+    def __init__(self, config_file, date=datetime.date.today()):
+        super(MongoDB, self).__init__()
         self._date = date
         self._connect = None
         self._db = None
         self._collection = None
         self._index = 'account_id'
         self._id_prefix = '000000'
-        self._db_params = ConfigFileReader().read_mongo_config()
+        self._db_params = ConfigFileReader().read_mongo_config(config_file)
         # comment the following when running/debuging
         self._connect = mg.MongoClient(host=self._db_params['hostname'], port=self._db_params['port'])
         self._db = self._connect.get_database(name=self._db_params['dbname'])

@@ -27,13 +27,14 @@ STATS_BY_DATE_URL = 'stats_by_date_url'
 
 
 class WowsAPIRequest(object):
-    def __init__(self, config_file="config.json"):
+    def __init__(self, config_file):
         # *************CRUCIAL PARAMETERS**************
-        api_params = ConfigFileReader().read_api_config(config_file=config_file)
-        self._init_params(params=api_params)
+        self._init_params(config_file)
+        self._db = database_factory(db_type=self._db_type, config_file=config_file)
         print("API initialized from {}!".format(config_file))
 
-    def _init_params(self, params):
+    def _init_params(self, config_file):
+        params = ConfigFileReader().read_api_config(config_file=config_file)
         self._size_per_write = params[SIZE_PER_WRITE]
         self._request_delay = params[URL_REQ_DELAY]
         self._account_id_upperbound = params[NA_ACCOUNT_LIMIT_HI]
@@ -45,8 +46,7 @@ class WowsAPIRequest(object):
         self._stats_by_date_url = params[STATS_BY_DATE_URL]
         self._url_req_try_number = params[URL_REQ_TRYNUM]
         self._url_req_timeout = params[URL_REQ_TIMEOUT]
-        self._db = database_factory(db_type=params[DB_TYPE])
-
+        self._db_type = params[DB_TYPE]
         self._failed_urls = list()
         self._date = datetime.datetime.now().strftime("%Y-%m-%d")
 
