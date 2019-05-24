@@ -13,15 +13,15 @@ phases:
     commands:
       - echo "[+] Build started on `date`"
       - echo "[+] Building the Docker image..."
-      - docker build -t wows/service:latest .
+      - docker build -t wows:latest .
       - docker tag mythicalmysfits/service:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows
   post_build:
     commands:
       - echo "[+] Build completed on `date`"
       - echo "[+] Pushing the Docker image.."
       # Push the image to ECR.
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows/service:latest
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows:latest
       - echo "[+] Completed pushing Docker image. Deploying Docker image to AWS Fargate on `date`"
-      - printf '[{"name":"WOWS-Service","imageUri":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows/service:latest > imagedefinitions.json
+      - printf '[{"name":"WOWS-Service","imageUri":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows:latest > imagedefinitions.json
 artifacts:
   files: imagedefinitions.json
