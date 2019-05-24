@@ -42,5 +42,5 @@ class TestUtilsCase(unittest.TestCase):
             model.training()
             model.save_model()
             self.assertIsNotNone(model)
-        except ModuleNotFoundError, ImportError as me:
+        except ModuleNotFoundError or ImportError as me:
             print("tensorflow test unavailable due to: {}".format(me))
