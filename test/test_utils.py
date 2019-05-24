@@ -18,6 +18,7 @@ class TestUtilsCase(unittest.TestCase):
         self.assertIsNotNone(ConfigFileReader().read_api_config(config_file="sample_config.json"))
         self.assertIsNotNone(ConfigFileReader().read_mongo_config(config_file="sample_config.json"))
 
+    @unittest.skip("Skip modeling test until we find a stable TensorFlow version")
     def test_win_rate_prediction(self):
         try:
             from wows_stats.model.winrate_model import WinrateModel
