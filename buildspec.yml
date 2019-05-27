@@ -1,10 +1,14 @@
 version: 0.2
 
 phases:
-  pre_build:
+  install:
     commands:
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2&
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
       - echo "[+] Installing dependencies...."
       - pip install -r requirements.txt
+  pre_build:
+    commands:
       - echo "[+] Running tests..."
       - python -m pytest test/ -v
       - echo "[+] Logging in to Amazon ECR..."
@@ -14,12 +18,11 @@ phases:
       - echo "[+] Build started on `date`"
       - echo "[+] Building the Docker image..."
       - docker build -t wows:latest .
-      - docker tag mythicalmysfits/service:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows
+      - docker tag wows:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows
   post_build:
     commands:
       - echo "[+] Build completed on `date`"
       - echo "[+] Pushing the Docker image.."
-      # Push the image to ECR.
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows:latest
       - echo "[+] Completed pushing Docker image. Deploying Docker image to AWS Fargate on `date`"
       - printf '[{"name":"WOWS-Service","imageUri":"%s"}]' $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/wows:latest > imagedefinitions.json
