@@ -1,9 +1,11 @@
 # World of Warships Stats Analysis and Web Application
 
-[![Build Status](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis.svg?branch=master)](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis) ![AWS CodeBuild](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiVSthN0QzYzd5RnFqN1lpNkdGVjBXMncvRlREandzYVRWWng4anh1dlFOSGlhWnh6VmhCSXpzUXE3MU5wMWttNlpzMXl6THFkR1pKbFJZeThwTjIxQ2RNPSIsIml2UGFyYW1ldGVyU3BlYyI6Ii8wN20zYTVqbWthaHJOTlgiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) [![Test Coverage](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/badges/coverage.svg)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/coverage) [![Maintainability](https://api.codeclimate.com/v1/badges/60dd12c25dd6fa7e97b4/maintainability)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/maintainability)
+[![Build Status](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis.svg?branch=master)](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis) [AWS CodeBuild](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiVSthN0QzYzd5RnFqN1lpNkdGVjBXMncvRlREandzYVRWWng4anh1dlFOSGlhWnh6VmhCSXpzUXE3MU5wMWttNlpzMXl6THFkR1pKbFJZeThwTjIxQ2RNPSIsIml2UGFyYW1ldGVyU3BlYyI6Ii8wN20zYTVqbWthaHJOTlgiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) [![Test Coverage](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/badges/coverage.svg)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/coverage) [![Maintainability](https://api.codeclimate.com/v1/badges/60dd12c25dd6fa7e97b4/maintainability)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/maintainability)
 [![Pythonversion](https://img.shields.io/badge/python-3.5-blue.svg)](https://sourceforge.net/projects/winpython/files/WinPython_3.5/3.5.2.3/) [![MongoDB](https://img.shields.io/badge/mongo-3.4-blue.svg)](https://docs.mongodb.com/manual/release-notes/3.4/?_ga=2.148716407.1370168894.1503081314-630273995.1503081314) [![Tensorflow](https://img.shields.io/badge/tensorflow-1.0.1-blue.svg)](https://github.com/tensorflow/tensorflow/tree/r1.0) 
 ## System Design
-The system design graph for this project can be found in file **SystemDesign.mdj** (created in [StarUML](http://staruml.io/))
+![Architecture diagram](.WOWS_Architecture.png)
+
+_Created using [Gliffy](www.gliffy.com)_
 ### Major classes
 
 |Class|Description|functions|attributes|
@@ -19,13 +21,15 @@ This python based script handles [World of Warships API request](https://develop
 There are several limitations, as well as specific JSON format regarding different types of the API request (refer to [Wargaming.net API reference](https://developers.wargaming.net/reference/all/wot/account/list/?application_id=bc7a1942582313fd553a85240bd491c8&r_realm=ru)), please check based on your need.
 
 ## Database
-### MySQL
+### MongoDB
+Since the API request returns JSON format data, it is natural to use MongoDB (BSON) for data storing. The newest and historical stats of a player differ a little. To be consistent with the data, we store the newest stats and historical stats differently.
+
+### ~~MySQL [Deprecated]~~
 The script connects relational database (MySQL, AWS RDS, etc.) for storing extracted data. The players' id list is stored in an individual table `wows_idlist`, which is essential for efficient API request since the complete id list is not officially provided, and the account number is sparsely distributed in a large range ([WOWS account number range](#account-id-range)). Some statistics like the number of battles are stored in `wows_stats`, and you can customize your own database as well.
 The players' statistical data can then be retrieved through SQL and analyzed for your own purpose.
 
-***We are currently replacing the ~~MySQL~~ by MongoDB due to the performance limitation. Below is the MongoDB structure***
-### MongoDB
-Since the API request returns JSON format data, it is natural to use MongoDB (BSON) for data storing. The newest and historical stats of a player differ a little. To be consistent with the data, we store the newest stats and historical stats differently.
+***We replaced the ~~MySQL~~ with MongoDB due to the performance limitation.***
+
 #### Newest stats:
 ```
 {
