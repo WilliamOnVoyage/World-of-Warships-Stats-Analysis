@@ -1,11 +1,12 @@
 requests
 pymysql >= 0.7.11
 pytest
+pytest-cov
 prompt_toolkit
 pymongo
 flask
 codeclimate-test-reporter
-coverage<=4.3.4
+coverage>=4.3.4
 pandas>=0.20.3
 keras>=2.0.4
 tensorflow>=1.0.1
