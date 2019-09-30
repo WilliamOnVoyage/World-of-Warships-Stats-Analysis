@@ -21,7 +21,7 @@ def find_data_files():
 args = dict(
     name="World-of-Warships-Stats-Analysis",
     version="0.1",
-    author="William on Voyage",
+    author="Moliang",
     description="Python core for WOWS data collection and analysis",
     license="MIT",
     packages=["wows_stats"],
