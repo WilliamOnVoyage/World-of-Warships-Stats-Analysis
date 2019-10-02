@@ -67,9 +67,9 @@ class WowsAPIRequest(object):
             id_list = aux_functions.list_to_url_params(self.generate_id_list_by_range(account_id))
             params = parse.urlencode({'application_id': self._application_id, 'account_id': id_list})
             url = "{}?{}".format(self._account_url, params)
-            requested_id_list += self.get_json_from_url(url=url)
+            requested_id_list += self.return_from_url_request(url=url)
             requested_id_list = self.write_database_and_clear(data_list=requested_id_list, type_detail=False)
-            print("")
+            print("Requested id length in buffer: {}".format(len(requested_id_list)))
             time.sleep(self._request_delay)
 
     def request_stats_by_id(self):
@@ -131,7 +131,7 @@ class WowsAPIRequest(object):
             main_url = self._stats_by_date_url
 
         url = main_url + '?' + parameter
-        result_list += self.get_json_from_url(url=url)
+        result_list += self.return_from_url_request(url=url)
         time.sleep(self._request_delay)
         return self.write_database_and_clear(data_list=result_list)
 
@@ -140,10 +140,10 @@ class WowsAPIRequest(object):
         failed_url_list = self._failed_urls
         self._failed_urls = list()
         for url in failed_url_list:
-            result_list += self.get_json_from_url(url=url)
+            result_list += self.return_from_url_request(url=url)
         self.write_database_and_clear(data_list=result_list, force_write=True)
 
-    def get_json_from_url(self, url):
+    def return_from_url_request(self, url):
         number_of_try = self._url_req_try_number
         json_returned = {'status': 'ini', 'data': {}}
         while number_of_try > 0:

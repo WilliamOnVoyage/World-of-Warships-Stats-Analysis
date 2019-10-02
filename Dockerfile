@@ -10,4 +10,3 @@ ENV PYTHONPATH=$PYTHONPATH:.
 CMD [ "python setup.py install" ]
 CMD [ "pytest test" ]
 CMD [ "coverage erase" ]
-CMD [ "python bin/collect-wows-data.py -c config.json" ]
