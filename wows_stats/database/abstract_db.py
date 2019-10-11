@@ -22,7 +22,7 @@ class AbstractDB(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def update_winrate(self, start='2017-01-01', end='2017-01-01'):
+    def update_win_rate(self, start='2017-01-01', end='2017-01-01'):
         pass
 
     @abstractmethod

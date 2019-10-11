@@ -7,6 +7,7 @@ COPY . .
 
 ENV PYTHONPATH=$PYTHONPATH:.
 
-CMD [ "python setup.py install" ]
-CMD [ "pytest test" ]
-CMD [ "coverage erase" ]
+RUN python setup.py install
+RUN pytest test
+RUN coverage erase
+CMD ["python bin/collect-wows-ids.py -c config.json"]

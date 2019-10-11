@@ -178,7 +178,7 @@ class WowsAPIRequest(object):
         return data_list
 
     def update_database_winrate(self, start=datetime.date.today(), end=datetime.date.today()):
-        self._db.update_winrate(start=start, end=end)
+        self._db.update_win_rate(start=start, end=end)
 
     def get_id_list(self, get_entire_list=True):
         print('Reading ID list...')
