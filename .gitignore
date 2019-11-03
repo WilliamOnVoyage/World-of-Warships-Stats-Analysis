@@ -89,7 +89,7 @@ ENV/
 .ropeproject
 
 # config file
-config.json
+config/config.json
 
 # Pycharm
 .idea/*

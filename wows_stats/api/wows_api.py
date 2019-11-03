@@ -1,7 +1,7 @@
 import datetime
 import json
 import time
-from socket import timeout as timeouterror
+from socket import timeout
 from urllib import request, parse, error
 
 import numpy as np
@@ -35,7 +35,7 @@ class WowsAPIRequest(object):
 
     def _init_params(self, config_file):
         params = ConfigFileReader().read_api_config(config_file=config_file)
-        self._size_per_write = params[SIZE_PER_WRITE]
+        self.size_per_write = params[SIZE_PER_WRITE]
         self._request_delay = params[URL_REQ_DELAY]
         self._account_id_upperbound = params[NA_ACCOUNT_LIMIT_HI]
         self._account_id_lowerbound = params[NA_ACCOUNT_LIMIT_LO]
@@ -47,7 +47,7 @@ class WowsAPIRequest(object):
         self._url_req_try_number = params[URL_REQ_TRYNUM]
         self._url_req_timeout = params[URL_REQ_TIMEOUT]
         self._db_type = params[DB_TYPE]
-        self._failed_urls = list()
+        self.failed_urls = list()
         self._date = datetime.datetime.now().strftime("%Y-%m-%d")
 
     def request_all_ids(self):
@@ -73,7 +73,7 @@ class WowsAPIRequest(object):
             time.sleep(self._request_delay)
 
     def request_stats_by_id(self):
-        self._failed_urls = list()
+        self.failed_urls = list()
         id_list = self.get_id_list(get_entire_list=True)
         total_count = len(id_list)
         count = 0
@@ -87,12 +87,12 @@ class WowsAPIRequest(object):
                 result_list = self.get_stats_from_api(result_list=result_list, id_list=sub_id_list)
                 sub_id_list = list()
                 count += self._account_id_step
-        while self._failed_urls:
+        while self.failed_urls:
             self.get_stats_from_failed_api()
         print('Stats by id request finished!')
 
     def request_stats_by_date(self, date_list):
-        self._failed_urls = list()
+        self.failed_urls = list()
         id_list = self.get_id_list(get_entire_list=False)
         print('Task: Total request number to be executed: %s%d%s. Covering dates: %s%s%s to %s%s%s' % (
             ansi.BLUE, len(id_list), ansi.ENDC, ansi.BLUE, date_list[0], ansi.ENDC, ansi.BLUE,
@@ -108,13 +108,13 @@ class WowsAPIRequest(object):
             count += 1
             time_usage = datetime.datetime.now() - timer_start
             time_usage_total += time_usage
-            if count % self._size_per_write == 0:
+            if count % self.size_per_write == 0:
                 print('\n%s%s%s/%s ids requested, time usage: %s%s%s, ETA: %s%s%s\n' % (
                     ansi.BLUE, count, ansi.ENDC, len(id_list), ansi.BLUE, time_usage,
                     ansi.ENDC, ansi.BLUE, time_usage_total * (len(id_list) - count) / count, ansi.ENDC))
                 result_list = self.write_database_and_clear(data_list=result_list, force_write=True)
 
-        while self._failed_urls:
+        while self.failed_urls:
             self.get_stats_from_failed_api()
         print('Stats by date request finished!')
 
@@ -137,8 +137,8 @@ class WowsAPIRequest(object):
 
     def get_stats_from_failed_api(self, result_list=list()):
         print('Start requesting failed APIs...')
-        failed_url_list = self._failed_urls
-        self._failed_urls = list()
+        failed_url_list = self.failed_urls
+        self.failed_urls = list()
         for url in failed_url_list:
             result_list += self.return_from_url_request(url=url)
         self.write_database_and_clear(data_list=result_list, force_write=True)
@@ -154,13 +154,13 @@ class WowsAPIRequest(object):
                     json_returned = json.loads(
                         request.urlopen(url, timeout=self._url_req_timeout).read().decode('utf-8'))
                 break
-            except (error.URLError, timeouterror, ConnectionResetError) as e:  # API url request failed
+            except (error.URLError, timeout, ConnectionResetError) as e:  # API url request failed
                 print('%sAPI request failed!%s %s' % (ansi.RED, e, ansi.ENDC))
-                if e is timeouterror:
+                if e is timeout:
                     time.sleep(self._request_delay)
                 number_of_try -= 1
                 if number_of_try == 0:
-                    self._failed_urls.append(url)
+                    self.failed_urls.append(url)
         json_list = list()
         for account_id_item in json_returned['data'].items():
             json_list.append(json.dumps(account_id_item))
@@ -168,7 +168,7 @@ class WowsAPIRequest(object):
 
     def write_database_and_clear(self, data_list, type_detail=True, force_write=False):
         msg = 'Start recording details...' if type_detail else 'Start recording ids...'
-        if len(data_list) >= self._size_per_write or force_write:
+        if len(data_list) >= self.size_per_write or force_write:
             print(msg)
             if type_detail:
                 self._db.write_detail(data_list)

@@ -18,15 +18,23 @@ def find_data_files():
     return files
 
 
+def find_requirements():
+    with open('requirements.txt') as f:
+        requirements = f.read().splitlines()
+    return requirements
+
+
 args = dict(
     name="World-of-Warships-Stats-Analysis",
     version="0.1",
     author="Moliang",
     description="Python core for WOWS data collection and analysis",
     license="MIT",
-    packages=["wows_stats"],
+    packages=find_packages(),
+    install_requires=find_requirements(),
     data_files=[("config", find_data_files())],
     scripts=find_scripts(),
+    python_requires=">=3.6"
 )
 
 setup(**args)
