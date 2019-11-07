@@ -1,20 +1,19 @@
-import re
-
+import os
 from setuptools import setup, find_packages
 from glob import glob
 
 
 def find_scripts():
     scripts = []
-    for file in glob("bin/*"):
-        with open(file, "r") as f:
-            if re.search(r'^#!.*', f.readline()):
-                scripts.append(file)
+    for file in glob(os.path.join("bin", "*")):
+        scripts.append(file)
+    print("Adding scripts: {}".format(scripts))
     return scripts
 
 
 def find_data_files():
-    files = glob("config/*.json")
+    files = glob(os.path.join("config", "*"))
+    print("Adding data files: {}".format(files))
     return files
 
 
