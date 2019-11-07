@@ -6,8 +6,8 @@ STATS_DICT = {'battles', 'wins', 'losses', 'draws', 'damage_dealt', 'frags', 'pl
 
 class AbstractDB(object, metaclass=ABCMeta):
     def __init__(self):
-        self._name = 'Database'
-        self._stats_dictionary = STATS_DICT
+        self.name = 'Database'
+        self.stats_dictionary = STATS_DICT
 
     @abstractmethod
     def connect_db(self):

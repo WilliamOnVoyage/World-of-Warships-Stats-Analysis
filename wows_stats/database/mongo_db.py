@@ -11,27 +11,29 @@ from wows_stats.util.config import ConfigFileReader
 class MongoDB(AbstractDB):
     def __init__(self, config_file, date=datetime.date.today()):
         super(MongoDB, self).__init__()
-        self._date = date
-        self._index = 'account_id'
-        self._id_prefix = '000000'
-        self._db_params = ConfigFileReader().read_mongo_config(config_file)
+        self.date = date
+        self.index = 'account_id'
+        self.id_prefix = '000000'
+        self.db_params = ConfigFileReader().read_mongo_config(config_file)
         # comment the following when running/debuging
-        self._connect = mg.MongoClient(host=self._db_params['hostname'], port=self._db_params['port'])
-        self._db = self._connect.get_database(name=self._db_params['dbname'])
-        self._collection = self._db.get_collection(name=self._db_params['collection'])
-        self._connect.close()
+        self.connect = mg.MongoClient(host=self.db_params['hostname'], port=self.db_params['port'])
+        self.db = self.connect.get_database(name=self.db_params['dbname'])
+        self.collection = self.db.get_collection(name=self.db_params['collection'])
+        if not self.collection:
+            self.collection = self.db.create_collection(name=self.db_params['collection'])
+        self.connect.close()
 
     def connect_db(self, verbose=True):
         try:
-            connection = mg.MongoClient(host=self._db_params['hostname'], port=self._db_params['port'])
-            db = connection.get_database(name=self._db_params['dbname'])
-            collection = db.get_collection(name=self._db_params['collection'])
+            connection = mg.MongoClient(host=self.db_params['hostname'], port=self.db_params['port'])
+            db = connection.get_database(name=self.db_params['dbname'])
+            collection = db.get_collection(name=self.db_params['collection'])
             if verbose:
                 print(
                     "MongoDB %s%s%s connected at host %s%s%s port %s%d%s!" % (
-                        ansi.BLUE, self._db_params['dbname'], ansi.ENDC, ansi.BLUE, self._db_params["hostname"],
+                        ansi.BLUE, self.db_params['dbname'], ansi.ENDC, ansi.BLUE, self.db_params["hostname"],
                         ansi.ENDC,
-                        ansi.BLUE, self._db_params['port'], ansi.ENDC))
+                        ansi.BLUE, self.db_params['port'], ansi.ENDC))
             return collection
         except Exception as e:
             print("%sMongoDB initialization failed!!! %s%s" % (ansi.RED, e, ansi.ENDC))
@@ -39,7 +41,7 @@ class MongoDB(AbstractDB):
     def _ensure_index(self):
         try:
             collection = self.connect_db(verbose=False)
-            collection.create_index([(self._index, mg.ASCENDING)], unique=True)
+            collection.create_index([(self.index, mg.ASCENDING)], unique=True)
             self.close_db()
         except Exception as ex:
             print("{} Ensuring MongoDB index failed due to {}!!!{}".format(ansi.RED, ex, ansi.ENDC))
@@ -73,7 +75,7 @@ class MongoDB(AbstractDB):
                             date_key = date
                             if len(date_key) < 8:
                                 date_key = '0' * (8 - len(date_key)) + date_key
-                            object_id = bson.objectid.ObjectId(self._id_prefix + str(date_key) + str(account_id))
+                            object_id = bson.objectid.ObjectId(self.id_prefix + str(date_key) + str(account_id))
                             # add new doc with object id
                             collection.update_one(filter={'_id': object_id},
                                                   update={'$setOnInsert': detail_info['pvp'][date]}, upsert=True)
@@ -138,7 +140,7 @@ class MongoDB(AbstractDB):
         self.close_db()
 
     def close_db(self):
-        self._connect.close()
+        self.connect.close()
 
     @staticmethod
     def print_database_error():
