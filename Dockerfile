@@ -1,10 +1,9 @@
 FROM python:3
 
-WORKDIR wows
+ENV PYTHONPATH=$PYTHONPATH:/wows
+WORKDIR /wows
 COPY . .
+
 RUN python setup.py install
-
-ENV PYTHONPATH=$PYTHONPATH:.
-
 RUN pytest test
 RUN coverage erase
