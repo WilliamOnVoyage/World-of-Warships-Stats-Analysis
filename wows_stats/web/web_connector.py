@@ -1,11 +1,12 @@
 import flask
 import pandas.io.json as pd_json
-
+import os
 from enum import Enum
 from wows_stats.database.mongo_db import MongoDB
 
 DB_TYPE = 'mongo'
-DB = MongoDB()
+CONFIG_FILE = os.path.join("config", "config.json")
+DB = MongoDB(CONFIG_FILE)
 app = flask.Flask(__name__)
 
 

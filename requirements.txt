@@ -1,12 +1,8 @@
 numpy
-requests
+pandas
 pytest-cov
 prompt_toolkit
-pymongo
 flask
 codeclimate-test-reporter
-coverage>=4.3.4
-pandas>=0.20.3
-keras>=2.0.4
-tensorflow>=1.0.1
-dask>=0.15.0
+aegis-data @ git+https://github.com/WilliamOnVoyage/GameAegis.git@master
+coverage
