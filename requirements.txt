@@ -4,5 +4,5 @@ pytest-cov
 prompt_toolkit
 flask
 codeclimate-test-reporter
-aegis-data @ git+https://github.com/WilliamOnVoyage/GameAegis.git@master
+aegis-data @ git+ssh://git@github.com/WilliamOnVoyage/GameAegis.git@master
 coverage
