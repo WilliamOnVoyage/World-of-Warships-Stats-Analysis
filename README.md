@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis.svg?branch=master)](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis) ![AWS CodeBuild](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiVSthN0QzYzd5RnFqN1lpNkdGVjBXMncvRlREandzYVRWWng4anh1dlFOSGlhWnh6VmhCSXpzUXE3MU5wMWttNlpzMXl6THFkR1pKbFJZeThwTjIxQ2RNPSIsIml2UGFyYW1ldGVyU3BlYyI6Ii8wN20zYTVqbWthaHJOTlgiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) [![Test Coverage](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/badges/coverage.svg)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/coverage) [![Maintainability](https://api.codeclimate.com/v1/badges/60dd12c25dd6fa7e97b4/maintainability)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/maintainability)
 [![CodeFactor](https://www.codefactor.io/repository/github/williamonvoyage/world-of-warships-stats-analysis/badge)](https://www.codefactor.io/repository/github/williamonvoyage/world-of-warships-stats-analysis)
-[![Pythonversion](https://img.shields.io/badge/python-3.5-blue.svg)](https://sourceforge.net/projects/winpython/files/WinPython_3.5/3.5.2.3/)
+[![Pythonversion](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 ## System Design
 ![Architecture diagram](WOWS_Architecture.png)
 
