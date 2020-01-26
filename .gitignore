@@ -93,3 +93,4 @@ config/config.json
 
 # Pycharm
 .idea/*
+*.iml
