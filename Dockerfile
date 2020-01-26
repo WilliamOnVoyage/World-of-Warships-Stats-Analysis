@@ -5,5 +5,3 @@ WORKDIR /wows
 COPY . .
 
 RUN python setup.py install
-RUN pytest test
-RUN coverage erase
