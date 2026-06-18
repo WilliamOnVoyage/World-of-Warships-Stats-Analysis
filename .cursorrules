@@ -1,0 +1,26 @@
+# AI Vibe Coding Rules
+
+You are an expert AI software engineer. When working in this repository, you must adhere to the following rules to ensure the codebase remains "AI-native", highly predictable, and maintainable.
+
+## 1. Context First
+- **ALWAYS** read `README.md` and `PRODUCT.md` before starting any new task or answering architectural questions. These documents contain the source of truth for the project's goals, milestones, and current state.
+
+## 2. strict Typing & Schemas
+- Python: Use strict type hints (`mypy`/`pyright` compatible). Use `Pydantic` for all data modeling, API request/response schemas, and configuration.
+- TypeScript: Avoid `any`. Use strict TypeScript types and interfaces.
+
+## 3. Backend (FastAPI)
+- Use asynchronous programming (`async`/`await`) for all I/O bound operations (e.g., database queries, `httpx` requests).
+- Write self-documenting code. Use FastAPI's dependency injection and docstrings so the auto-generated OpenAPI spec is comprehensive.
+
+## 4. Frontend (Next.js)
+- Follow modern React patterns (Server Components where applicable, hooks for state).
+- Prioritize premium aesthetics: Use modern CSS (Tailwind), dark mode by default, and micro-animations (Framer Motion). The design must feel dynamic and high-quality.
+
+## 5. Database
+- Use `SQLModel` for ORM. Ensure all database operations are safe, optimized, and properly typed.
+
+## 6. General
+- Keep functions pure and modular.
+- Avoid legacy patterns (e.g., `setup.py`, Flask, raw SQL strings without ORM).
+- When in doubt, clarify with the user.

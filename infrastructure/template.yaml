@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'WoWS Stats Tracker Infrastructure (RDS PostgreSQL & IAM)'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment name (dev or prod)
+  
+  DBUser:
+    Type: String
+    Default: wows_admin
+    Description: Database master username
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database master password
+    MinLength: 8
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Description: List of subnet IDs for the RDS DBSubnetGroup
+    
+Conditions:
+  IsProd: !Equals [!Ref EnvironmentName, "prod"]
+  IsDev: !Equals [!Ref EnvironmentName, "dev"]
+
+Resources:
+  # IAM Role for the Application backend
+  ApplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub wows-stats-${EnvironmentName}-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - ec2.amazonaws.com
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+
+  # Security Group for RDS (uses Default VPC automatically)
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Security group for ${EnvironmentName} RDS'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !If [IsDev, "0.0.0.0/0", "10.0.0.0/16"] # Open for local dev, restricted for prod
+      Tags:
+        - Key: Name
+          Value: !Sub wows-stats-${EnvironmentName}-db-sg
+
+  # RDS Subnet Group
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub 'Subnets for ${EnvironmentName} DB'
+      SubnetIds: !Ref SubnetIds
+      Tags:
+        - Key: Name
+          Value: !Sub wows-stats-${EnvironmentName}-subnet-group
+
+  # RDS PostgreSQL Instance (uses Default Subnet Group automatically)
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Sub wows_stats_${EnvironmentName}
+      Engine: postgres
+      EngineVersion: '16.1'
+      DBInstanceClass: db.m5.large
+      AllocatedStorage: !If [IsProd, 300, 20]
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      PubliclyAccessible: !If [IsDev, true, false]
+      MultiAZ: !If [IsProd, true, false]
+      StorageEncrypted: true
+      BackupRetentionPeriod: !If [IsProd, 7, 1]
+      DeletionProtection: !If [IsProd, true, false]
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Project
+          Value: WoWS-Stats
+
+Outputs:
+  DatabaseEndpoint:
+    Description: RDS Endpoint Address
+    Value: !GetAtt DatabaseInstance.Endpoint.Address
+  
+  ApplicationRoleArn:
+    Description: IAM Role ARN for the application
+    Value: !GetAtt ApplicationRole.Arn

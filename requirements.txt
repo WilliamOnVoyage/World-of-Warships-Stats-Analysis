@@ -1,8 +1,0 @@
-numpy
-pandas
-pytest-cov
-prompt_toolkit
-flask
-codeclimate-test-reporter
-aegis-data
-coverage

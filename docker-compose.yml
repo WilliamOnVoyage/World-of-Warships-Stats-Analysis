@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16.1
+    container_name: wows-stats-db
+    environment:
+      POSTGRES_USER: wows_admin
+      POSTGRES_PASSWORD: DevAdminPass2026
+      POSTGRES_DB: wows_stats_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
