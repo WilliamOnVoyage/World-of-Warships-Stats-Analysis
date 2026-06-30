@@ -113,7 +113,7 @@ Resources:
       DBInstanceIdentifier: wows-stats-db
       DBName: wows_stats
       Engine: postgres
-      EngineVersion: '16.4'
+      EngineVersion: '16.14'
       DBInstanceClass: db.t4g.micro
       AllocatedStorage: 20
       StorageType: gp3
