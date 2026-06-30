@@ -1,18 +1,43 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:16.1
-    container_name: wows-stats-db
-    environment:
-      POSTGRES_USER: wows_admin
-      POSTGRES_PASSWORD: DevAdminPass2026
-      POSTGRES_DB: wows_stats_dev
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wows-frontend
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wows-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
     restart: unless-stopped
 
+  scraper:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wows-scraper
+    command: python worker/updater.py
+    env_file:
+      - ./backend/.env
+    volumes:
+      - scraper_data:/app
+    restart: unless-stopped
+    depends_on:
+      - backend
+
 volumes:
-  postgres_data:
+  scraper_data:

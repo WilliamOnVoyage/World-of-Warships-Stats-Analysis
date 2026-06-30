@@ -1,107 +1,225 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'WoWS Stats Tracker Infrastructure (RDS PostgreSQL & IAM)'
+Description: 'WoWS Stats Tracker - Full Stack (EC2 + RDS PostgreSQL + Elastic IP)'
 
 Parameters:
-  EnvironmentName:
-    Type: String
-    Default: dev
-    AllowedValues:
-      - dev
-      - prod
-    Description: Environment name (dev or prod)
-  
-  DBUser:
-    Type: String
-    Default: wows_admin
-    Description: Database master username
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 SSH Key Pair name
 
   DBPassword:
     Type: String
     NoEcho: true
-    Description: Database master password
+    Description: RDS master password (min 8 chars)
     MinLength: 8
 
+  WargamingAppId:
+    Type: String
+    NoEcho: true
+    Description: Wargaming API Application ID
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to deploy into
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public subnet for the EC2 instance
+
   SubnetIds:
-    Type: CommaDelimitedList
-    Description: List of subnet IDs for the RDS DBSubnetGroup
-    
-Conditions:
-  IsProd: !Equals [!Ref EnvironmentName, "prod"]
-  IsDev: !Equals [!Ref EnvironmentName, "dev"]
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least 2 subnets in different AZs for the RDS subnet group
 
 Resources:
-  # IAM Role for the Application backend
-  ApplicationRole:
+  # ─── IAM Role for EC2 (CloudWatch Logs + SSM) ───
+  EC2Role:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub wows-stats-${EnvironmentName}-role
+      RoleName: wows-stats-ec2-role
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              Service: 
-                - ec2.amazonaws.com
-                - ecs-tasks.amazonaws.com
+              Service: ec2.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
 
-  # Security Group for RDS (uses Default VPC automatically)
-  DatabaseSecurityGroup:
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # ─── Security Groups ───
+  EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub 'Security group for ${EnvironmentName} RDS'
+      GroupDescription: WoWS Stats EC2 - Allow SSH, HTTP, HTTPS
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: wows-stats-ec2-sg
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: WoWS Stats RDS - Allow Postgres from EC2 only
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          CidrIp: !If [IsDev, "0.0.0.0/0", "10.0.0.0/16"] # Open for local dev, restricted for prod
+          SourceSecurityGroupId: !GetAtt EC2SecurityGroup.GroupId
       Tags:
         - Key: Name
-          Value: !Sub wows-stats-${EnvironmentName}-db-sg
+          Value: wows-stats-rds-sg
 
-  # RDS Subnet Group
-  DatabaseSubnetGroup:
+  # ─── RDS PostgreSQL ───
+  DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: !Sub 'Subnets for ${EnvironmentName} DB'
+      DBSubnetGroupDescription: Subnets for WoWS Stats RDS
       SubnetIds: !Ref SubnetIds
       Tags:
         - Key: Name
-          Value: !Sub wows-stats-${EnvironmentName}-subnet-group
+          Value: wows-stats-db-subnet-group
 
-  # RDS PostgreSQL Instance (uses Default Subnet Group automatically)
-  DatabaseInstance:
+  RDSInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBName: !Sub wows_stats_${EnvironmentName}
+      DBInstanceIdentifier: wows-stats-db
+      DBName: wows_stats
       Engine: postgres
-      EngineVersion: '16.1'
-      DBInstanceClass: db.m5.large
-      AllocatedStorage: !If [IsProd, 300, 20]
-      MasterUsername: !Ref DBUser
+      EngineVersion: '16.4'
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: 20
+      StorageType: gp3
+      MasterUsername: wows_admin
       MasterUserPassword: !Ref DBPassword
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
-        - !GetAtt DatabaseSecurityGroup.GroupId
-      PubliclyAccessible: !If [IsDev, true, false]
-      MultiAZ: !If [IsProd, true, false]
+        - !GetAtt RDSSecurityGroup.GroupId
+      PubliclyAccessible: false
       StorageEncrypted: true
-      BackupRetentionPeriod: !If [IsProd, 7, 1]
-      DeletionProtection: !If [IsProd, true, false]
+      BackupRetentionPeriod: 7
+      DeletionProtection: false
       Tags:
-        - Key: Environment
-          Value: !Ref EnvironmentName
         - Key: Project
           Value: WoWS-Stats
 
+  # ─── Elastic IP (fixed IP for Wargaming API whitelist) ───
+  EC2ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: wows-stats-eip
+
+  EC2EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance
+      AllocationId: !GetAtt EC2ElasticIP.AllocationId
+
+  # ─── EC2 Instance ───
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    DependsOn: RDSInstance
+    Properties:
+      InstanceType: t3.medium
+      ImageId: ami-075686beab831bb7f  # Ubuntu 22.04 LTS us-west-2
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !GetAtt EC2SecurityGroup.GroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: wows-stats-server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          exec > /var/log/wows-bootstrap.log 2>&1
+
+          echo "=== WoWS Stats Tracker Bootstrap ==="
+
+          # 1. Install Docker
+          apt-get update -y
+          apt-get install -y docker.io docker-compose-v2 git
+          systemctl enable docker
+          systemctl start docker
+          usermod -aG docker ubuntu
+
+          # 2. Clone the repository
+          cd /home/ubuntu
+          git clone https://github.com/WilliamOnVoyage/World-of-Warships-Stats-Analysis.git app
+          cd app
+
+          # 3. Create the backend .env file
+          cat > backend/.env << 'ENVEOF'
+          DATABASE_URL=postgresql://wows_admin:${DBPassword}@${RDSInstance.Endpoint.Address}:5432/wows_stats
+          WARGAMING_APP_ID=${WargamingAppId}
+          ENVEOF
+
+          # Remove leading whitespace from heredoc
+          sed -i 's/^[[:space:]]*//' backend/.env
+
+          # 4. Start the Docker stack
+          docker compose up -d --build
+
+          echo "=== Bootstrap Complete ==="
+
 Outputs:
-  DatabaseEndpoint:
-    Description: RDS Endpoint Address
-    Value: !GetAtt DatabaseInstance.Endpoint.Address
-  
-  ApplicationRoleArn:
-    Description: IAM Role ARN for the application
-    Value: !GetAtt ApplicationRole.Arn
+  ElasticIP:
+    Description: "Elastic IP (use this for Wargaming API whitelist)"
+    Value: !Ref EC2ElasticIP
+
+  EC2PublicDNS:
+    Description: EC2 Public DNS
+    Value: !GetAtt EC2Instance.PublicDnsName
+
+  RDSEndpoint:
+    Description: RDS PostgreSQL Endpoint
+    Value: !GetAtt RDSInstance.Endpoint.Address
+
+  SSHCommand:
+    Description: SSH command to connect
+    Value: !Sub "ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@${EC2ElasticIP}"
+
+  FrontendURL:
+    Description: Frontend URL
+    Value: !Sub "http://${EC2ElasticIP}:3000"
+
+  BackendURL:
+    Description: Backend API URL
+    Value: !Sub "http://${EC2ElasticIP}:8000"

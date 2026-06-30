@@ -1,51 +1,63 @@
 import asyncio
 import os
-from datetime import datetime, timezone
-from sqlmodel import create_engine, Session, select
+import json
+import traceback
+from datetime import datetime
+from sqlmodel import create_engine, Session
 from database.models import Player, PlayerSnapshot, create_partition_if_not_exists
 from api.wargaming import WargamingAPIClient
 
-# Database connection
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./wows_dev.db")
 engine = create_engine(DATABASE_URL)
 
-async def run_daily_update():
-    """
-    Nightly cron job to update all players in the active roster.
-    """
-    print(f"[{datetime.utcnow().isoformat()}] Starting daily stats update...")
+STATE_FILE = "scraper_state.json"
+
+# ID ranges for different regions
+REGIONS = {
+    "ru": (1, 500_000_000),
+    "eu": (500_000_000, 1_000_000_000),
+    "na": (1_000_000_000, 2_000_000_000),
+    "asia": (2_000_000_000, 3_000_000_000)
+}
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            return json.load(f)
+    return {"current_region": "na", "current_id": 1_000_000_000}
+
+def save_state(region: str, current_id: int):
+    with open(STATE_FILE, "w") as f:
+        json.dump({"current_region": region, "current_id": current_id}, f)
+
+async def scrape_region(region: str, start_id: int, end_id: int):
+    print(f"[{datetime.utcnow().isoformat()}] Starting scraping for region {region.upper()} from ID {start_id}")
     
     app_id = os.getenv("WARGAMING_APP_ID")
     if not app_id:
-        print("Error: WARGAMING_APP_ID environment variable not set.")
-        return
-
-    client = WargamingAPIClient(application_id=app_id)
-    
-    # Ensure this month's partition exists
-    now = datetime.utcnow()
-    create_partition_if_not_exists(engine, now)
-    
-    with Session(engine) as session:
-        # Get all players
-        players = session.exec(select(Player)).all()
-        account_ids = [p.account_id for p in players]
+        raise ValueError("WARGAMING_APP_ID environment variable not set.")
         
-        if not account_ids:
-            print("No players in active roster. Exiting.")
-            await client.close()
-            return
-            
-        print(f"Found {len(account_ids)} players in roster. Fetching updates...")
+    client = WargamingAPIClient(application_id=app_id, realm=region)
+    chunk_size = 100
+    
+    # Iterate through the ID range
+    for current_id in range(start_id, end_id, chunk_size):
+        batch = list(range(current_id, current_id + chunk_size))
         
-        # Batch into chunks of 100
-        chunk_size = 100
-        for i in range(0, len(account_ids), chunk_size):
-            batch = account_ids[i:i + chunk_size]
+        try:
+            # The client handles rate limiting internally (10 req/s)
+            data = await client.get_player_info(batch)
             
-            try:
-                data = await client.get_player_info(batch)
+            if not data:
+                # Save state and move on
+                save_state(region, current_id + chunk_size)
+                continue
                 
+            now = datetime.utcnow()
+            create_partition_if_not_exists(engine, now)
+            
+            with Session(engine) as session:
+                valid_count = 0
                 for acc_id_str, info in data.items():
                     if not info or info.get("hidden_profile"):
                         continue
@@ -53,12 +65,25 @@ async def run_daily_update():
                     stats = info.get("statistics", {}).get("pvp", {})
                     overall = info.get("statistics", {})
                     
-                    if not stats:
+                    if not stats or overall.get("battles", 0) == 0:
                         continue
                         
                     acc_id = int(acc_id_str)
+                    valid_count += 1
                     
-                    # Create today's snapshot
+                    # 1. Upsert Player
+                    player = session.get(Player, acc_id)
+                    if not player:
+                        player = Player(
+                            account_id=acc_id,
+                            username=info.get("nickname", "Unknown"),
+                            region=region,
+                            created_at=datetime.fromtimestamp(info.get("created_at", now.timestamp()))
+                        )
+                    player.last_updated = now
+                    session.add(player)
+                    
+                    # 2. Insert Snapshot
                     snapshot = PlayerSnapshot(
                         account_id=acc_id,
                         timestamp=now,
@@ -69,25 +94,53 @@ async def run_daily_update():
                         frags=stats.get("frags", 0),
                         xp=stats.get("xp", 0)
                     )
-                    
-                    # Update Player last_updated
-                    player = session.get(Player, acc_id)
-                    if player:
-                        player.last_updated = now
-                        session.add(player)
-                        
                     session.add(snapshot)
                 
-                # Commit batch
                 session.commit()
-                print(f"Successfully processed batch {i//chunk_size + 1}")
+                if valid_count > 0:
+                    print(f"[{region.upper()}] Processed {current_id} - {current_id+chunk_size} | Found {valid_count} active players")
                 
-            except Exception as e:
-                print(f"Error processing batch: {e}")
-                session.rollback()
-                
+            # Update state checkpoint
+            save_state(region, current_id + chunk_size)
+            
+        except Exception as e:
+            print(f"Error at {current_id}: {e}")
+            traceback.print_exc()
+            await asyncio.sleep(5)  # Backoff on error
+            
     await client.close()
-    print(f"[{datetime.utcnow().isoformat()}] Daily stats update completed.")
+
+async def main():
+    state = load_state()
+    current_region = state["current_region"]
+    current_id = state["current_id"]
+    
+    # We loop forever, rotating through regions
+    regions_list = list(REGIONS.keys())
+    
+    if current_region in regions_list:
+        start_index = regions_list.index(current_region)
+    else:
+        start_index = 0
+        
+    while True:
+        for i in range(start_index, len(regions_list)):
+            region = regions_list[i]
+            lower, upper = REGIONS[region]
+            
+            # If we are resuming, use the saved ID, otherwise use the lower bound
+            start_id = current_id if (region == current_region) else lower
+            
+            await scrape_region(region, start_id, upper)
+            
+            # Reset current_id for the next region
+            current_id = 0
+            
+        # Reset start_index to 0 to loop from the first region again
+        start_index = 0
+        current_region = regions_list[0]
+        current_id = REGIONS[current_region][0]
+        print("Completed a full cycle of all regions. Starting again.")
 
 if __name__ == "__main__":
-    asyncio.run(run_daily_update())
+    asyncio.run(main())
