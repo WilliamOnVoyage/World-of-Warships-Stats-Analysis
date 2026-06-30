@@ -30,7 +30,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: wows-scraper
-    command: python worker/updater.py
+    command: python -m worker.updater
     env_file:
       - ./backend/.env
     volumes:
