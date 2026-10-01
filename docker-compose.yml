@@ -10,6 +10,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - INTERNAL_API_URL=http://backend:8000
     restart: unless-stopped
     depends_on:
       - backend

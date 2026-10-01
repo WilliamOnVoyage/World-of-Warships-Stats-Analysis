@@ -7,7 +7,7 @@ jest.mock('recharts', () => {
   const OriginalModule = jest.requireActual('recharts')
   return {
     ...OriginalModule,
-    ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
+    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     AreaChart: () => <div data-testid="area-chart" />,
     BarChart: () => <div data-testid="bar-chart" />,
   }

@@ -81,6 +81,13 @@ celerybeat-schedule
 # virtualenv
 venv/
 ENV/
+.venv/
+.venv*/
+
+# Node & Next.js
+node_modules/
+.next/
+out/
 
 # Spyder project settings
 .spyderproject

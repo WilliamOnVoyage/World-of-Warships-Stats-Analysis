@@ -1,51 +1,91 @@
-# EC2 Deployment Guide
+# Production Deployment & Operations Guide
 
-To deploy the World of Warships Stats Tracker to your Ubuntu EC2 instance with AWS RDS, follow these steps.
+This guide covers operational access, architecture, and deployment procedures for the World of Warships Stats Tracker on AWS.
 
-## 1. Prepare the EC2 Instance
-SSH into your EC2 instance and install Docker and Docker Compose:
-```bash
-sudo apt update
-sudo apt install -y docker.io docker-compose
+## Quick Reference Links (Production Server)
+
+| Service | Endpoint | Description |
+| :--- | :--- | :--- |
+| **Web Application** | [http://44.253.134.12:3000](http://44.253.134.12:3000) | Next.js 16 Neon Tactical UI & Charts |
+| **Backend API (Swagger Docs)** | [http://44.253.134.12:8000/docs](http://44.253.134.12:8000/docs) | Interactive OpenAPI / Swagger UI |
+| **API Health Check** | [http://44.253.134.12:8000/health](http://44.253.134.12:8000/health) | Uptime & health verification (`{"status":"healthy"}`) |
+| **Overview Aggregate API** | [http://44.253.134.12:8000/api/stats/overview](http://44.253.134.12:8000/api/stats/overview) | Global player & battle summary counters |
+| **OpenAPI Schema** | [http://44.253.134.12:8000/openapi.json](http://44.253.134.12:8000/openapi.json) | Raw OpenAPI v3 specification |
+
+---
+
+## AWS Infrastructure Details
+
+- **EC2 Instance:** `t3.medium` (Ubuntu 24.04 LTS) in `us-west-2` (Oregon)
+- **Elastic IP (Static):** `44.253.134.12` (Whitelisted for Wargaming Developer API)
+- **RDS PostgreSQL 16:** `wows-stats-db.cy2fcthbqjrl.us-west-2.rds.amazonaws.com:5432/wows_stats`
+- **Application Directory:** `/home/ubuntu/app`
+- **SSH Command:**
+  ```bash
+  ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12
+  ```
+
+---
+
+## System Architecture Diagram
+
+```mermaid
+graph TD
+    Client["User Browser"] -->|HTTP :3000| Frontend["Next.js 16 Frontend Container (wows-frontend)"]
+    Client -->|HTTP :8000| Backend["FastAPI Backend Container (wows-backend)"]
+    Frontend -->|Internal Proxy :8000| Backend
+
+    Backend -->|SQL / Session| RDS[("AWS RDS PostgreSQL 16\nplayer & partitioned player_snapshot")]
+    Backend -->|Async HTTP / 10 req/s| WG["Wargaming Public API\n(NA, EU, ASIA)"]
+
+    Scraper["Background Scraper (wows-scraper)"] -->|Async Scan| WG
+    Scraper -->|Upsert Player & Snapshots| RDS
 ```
 
-## 2. Clone the Repository
+---
+
+## Operational Commands
+
+### 1. Check Container Health
 ```bash
-git clone git@github.com:WilliamOnVoyage/World-of-Warships-Stats-Analysis.git
-cd World-of-Warships-Stats-Analysis
+ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 \
+  "sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 ```
 
-## 3. Set up Environment Variables
-Create a `.env` file inside the `backend/` directory:
+### 2. View Service Logs
 ```bash
-nano backend/.env
+# View backend API logs
+ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 "sudo docker logs wows-backend --tail 50 -f"
+
+# View scraper worker logs
+ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 "sudo docker logs wows-scraper --tail 50 -f"
+
+# View frontend logs
+ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 "sudo docker logs wows-frontend --tail 50 -f"
 ```
 
-Add the following variables. Crucially, set the `DATABASE_URL` to your new AWS RDS PostgreSQL endpoint:
+### 3. Deploying New Code to Production
+```bash
+ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 << 'EOF'
+cd /home/ubuntu/app
+sudo git pull origin master
+sudo docker compose up -d --build
+EOF
+```
 
+### 4. Database Initialization / Partition Generation
+The tables and monthly range partitions are initialized automatically, but can also be manually run:
+```bash
+ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 \
+  "sudo docker exec wows-backend python init_db.py"
+```
+
+---
+
+## Environment Configuration
+
+Production `.env` location on EC2: `/home/ubuntu/app/backend/.env`
 ```env
-# AWS RDS Connection String
-# Format: postgresql://[user]:[password]@[rds-endpoint]:5432/[db-name]
-DATABASE_URL=postgresql://wows_admin:YourSecurePassword@your-rds-endpoint.us-east-1.rds.amazonaws.com:5432/wows_stats
-
-# Wargaming API Application ID
-WARGAMING_APP_ID=your_wargaming_api_key
+DATABASE_URL=postgresql://wows_admin:<SECURE_PASSWORD>@wows-stats-db.cy2fcthbqjrl.us-west-2.rds.amazonaws.com:5432/wows_stats
+WARGAMING_APP_ID=bc7a1942582313fd553a85240bd491c8
 ```
-
-## 4. Run the Application
-Start the entire stack (Frontend, Backend API, and the continuous background Scraper) using Docker Compose:
-
-```bash
-sudo docker-compose up -d --build
-```
-
-- **Frontend:** Accessible on port `3000`.
-- **Backend API:** Accessible on port `8000`.
-- **Scraper:** Runs continuously in the background. It will automatically create the `Player` and `PlayerSnapshot` tables in your RDS instance on startup.
-
-## 5. Check Scraper Logs
-To ensure the scraper is successfully connecting to RDS and fetching Wargaming API data:
-```bash
-sudo docker-compose logs -f scraper
-```
-You should see it enumerating through the IDs and finding active players!

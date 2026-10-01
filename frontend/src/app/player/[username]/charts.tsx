@@ -2,8 +2,6 @@
 
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   AreaChart,
   Area,
   BarChart,
@@ -12,7 +10,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  type TooltipProps,
 } from "recharts";
 
 interface HistoryPoint {
@@ -22,15 +19,27 @@ interface HistoryPoint {
   avgDamage: number;
 }
 
+interface TooltipPayloadItem {
+  color?: string;
+  name?: string;
+  value?: number | string;
+}
+
+interface NeonTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}
+
 // Custom Neon Tactical themed tooltip
-function NeonTooltip({ active, payload, label }: any) {
+function NeonTooltip({ active, payload, label }: NeonTooltipProps) {
   if (!active || !payload || !payload.length) return null;
   return (
     <div className="bg-[#0a0a1a]/95 border border-cyan-500/40 backdrop-blur-md px-4 py-3 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
       <p className="text-cyan-400 text-xs tracking-widest font-bold mb-2 uppercase">
         {label}
       </p>
-      {payload.map((entry: any, idx: number) => (
+      {payload.map((entry, idx) => (
         <p key={idx} className="text-sm" style={{ color: entry.color }}>
           <span className="text-zinc-400 mr-2">{entry.name}:</span>
           <span className="font-bold">

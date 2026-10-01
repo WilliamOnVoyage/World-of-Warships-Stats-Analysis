@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { WinRateChart, AvgDamageChart, BattlesChart } from "./charts";
+
+const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 async function getPlayerData(username: string) {
   try {
-    const res = await fetch(`http://127.0.0.1:8000/api/player/${username}`, {
+    const res = await fetch(`${API_BASE}/api/player/${username}`, {
       next: { revalidate: 60 }
     });
     if (!res.ok) {
@@ -32,7 +33,9 @@ export default async function PlayerProfile({
     return (
       <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[50vh]">
         <h1 className="text-3xl font-bold text-white mb-4">Player Not Found</h1>
-        <p className="text-zinc-400 mb-8">We couldn't find a World of Warships player with the username "{username}".</p>
+        <p className="text-zinc-400 mb-8">
+          We couldn&apos;t find a World of Warships player with the username &ldquo;{username}&rdquo;.
+        </p>
         <Link href="/" className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors font-medium tracking-widest uppercase text-sm border border-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
           Back to Search
         </Link>

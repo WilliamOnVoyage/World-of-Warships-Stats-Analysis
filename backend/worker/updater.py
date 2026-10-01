@@ -2,7 +2,10 @@ import asyncio
 import os
 import json
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+load_dotenv()
+
 from sqlmodel import create_engine, Session
 from database.models import Player, PlayerSnapshot, create_partition_if_not_exists
 from api.wargaming import WargamingAPIClient
@@ -12,11 +15,10 @@ engine = create_engine(DATABASE_URL)
 
 STATE_FILE = "scraper_state.json"
 
-# ID ranges for different regions
+# ID ranges for active Wargaming regions
 REGIONS = {
-    "ru": (1, 500_000_000),
-    "eu": (500_000_000, 1_000_000_000),
     "na": (1_000_000_000, 2_000_000_000),
+    "eu": (500_000_000, 1_000_000_000),
     "asia": (2_000_000_000, 3_000_000_000)
 }
 
@@ -31,7 +33,7 @@ def save_state(region: str, current_id: int):
         json.dump({"current_region": region, "current_id": current_id}, f)
 
 async def scrape_region(region: str, start_id: int, end_id: int):
-    print(f"[{datetime.utcnow().isoformat()}] Starting scraping for region {region.upper()} from ID {start_id}")
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Starting scraping for region {region.upper()} from ID {start_id}")
     
     app_id = os.getenv("WARGAMING_APP_ID")
     if not app_id:
@@ -53,10 +55,10 @@ async def scrape_region(region: str, start_id: int, end_id: int):
                 save_state(region, current_id + chunk_size)
                 continue
                 
-            now = datetime.utcnow()
-            create_partition_if_not_exists(engine, now)
+            now = datetime.now(timezone.utc)
             
             with Session(engine) as session:
+                create_partition_if_not_exists(session.get_bind(), now)
                 valid_count = 0
                 for acc_id_str, info in data.items():
                     if not info or info.get("hidden_profile"):
@@ -76,9 +78,9 @@ async def scrape_region(region: str, start_id: int, end_id: int):
                     if not player:
                         player = Player(
                             account_id=acc_id,
-                            username=info.get("nickname", "Unknown"),
-                            region=region,
-                            created_at=datetime.fromtimestamp(info.get("created_at", now.timestamp()))
+                            nickname=info.get("nickname", "Unknown"),
+                            realm=region,
+                            created_at=datetime.fromtimestamp(info.get("created_at", now.timestamp()), tz=timezone.utc)
                         )
                     player.last_updated = now
                     session.add(player)

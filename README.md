@@ -1,155 +1,230 @@
-# World of Warships Stats Analysis and Web Application
+# World of Warships Stats Tracker (Neon Tactical Command)
 
-[![Build Status](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis.svg?branch=master)](https://travis-ci.org/WilliamOnVoyage/World-of-Warships-Stats-Analysis) ![AWS CodeBuild](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiVSthN0QzYzd5RnFqN1lpNkdGVjBXMncvRlREandzYVRWWng4anh1dlFOSGlhWnh6VmhCSXpzUXE3MU5wMWttNlpzMXl6THFkR1pKbFJZeThwTjIxQ2RNPSIsIml2UGFyYW1ldGVyU3BlYyI6Ii8wN20zYTVqbWthaHJOTlgiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) [![Test Coverage](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/badges/coverage.svg)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/coverage) [![Maintainability](https://api.codeclimate.com/v1/badges/60dd12c25dd6fa7e97b4/maintainability)](https://codeclimate.com/github/WilliamOnVoyage/World-of-Warships-Stats-Analysis/maintainability)
-[![CodeFactor](https://www.codefactor.io/repository/github/williamonvoyage/world-of-warships-stats-analysis/badge)](https://www.codefactor.io/repository/github/williamonvoyage/world-of-warships-stats-analysis)
-[![Pythonversion](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
-## System Design
-![Architecture diagram](WOWS_Architecture.png)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20Partitioned-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
+[![AWS](https://img.shields.io/badge/AWS-EC2%20%7C%20RDS-FF9900?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
 
-_Created using [Gliffy](www.gliffy.com)_
-### Major classes
+An AI-native, high-performance web platform and automated data pipeline for tracking and visualizing World of Warships player statistics, win rates, and combat performance across all major global servers (NA, EU, ASIA).
 
-|Class|Description|functions|attributes|
-|:----|:----|:----|:----|
-|**wows_api**|...|...|...|
-|**abstract_db**|...|...|...|
-|**prediction_model**|...|...|...|
-|**web_connector**|...|...|...|
-
-## API
-This python based script handles [World of Warships API request](https://developers.wargaming.net/) for statistical data and store them in local MySQL database. The World of Warships API needs an application_id for credential connection with the API server, the application_id should be registered on [Wargaming.net](https://developers.wargaming.net/applications/) and stored in a local configuration file named as "[config.json](#local-configuration-file-format)". Also the ip address of the terminal running this script (provided by package [ipgetter](https://pypi.python.org/pypi/ipgetter/0.6)) should be added in your application launched on [developer room of Wargaming.net](https://developers.wargaming.net/applications/).
-
-There are several limitations, as well as specific JSON format regarding different types of the API request (refer to [Wargaming.net API reference](https://developers.wargaming.net/reference/all/wot/account/list/?application_id=bc7a1942582313fd553a85240bd491c8&r_realm=ru)), please check based on your need.
-
-## Database
-### MongoDB
-Since the API request returns JSON format data, it is natural to use MongoDB (BSON) for data storing. The newest and historical stats of a player differ a little. To be consistent with the data, we store the newest stats and historical stats differently.
-
-### ~~MySQL [Deprecated]~~
-The script connects relational database (MySQL, AWS RDS, etc.) for storing extracted data. The players' id list is stored in an individual table `wows_idlist`, which is essential for efficient API request since the complete id list is not officially provided, and the account number is sparsely distributed in a large range ([WOWS account number range](#account-id-range)). Some statistics like the number of battles are stored in `wows_stats`, and you can customize your own database as well.
-The players' statistical data can then be retrieved through SQL and analyzed for your own purpose.
-
-***We replaced the ~~MySQL~~ with MongoDB due to the performance limitation.***
-
-#### Newest stats:
-```
-{
-      "_id":1008331251,
-      "daily_stats":{
-            ObjectId('000000201701011008331251'),
-            ...
-      },
-      "account_id": 1008331251,
-      "nickname": "zmlzeze",
-      "last_battle_time": 1500140223,
-      "leveling_tier": 15,
-      "created_at": 1435322987,
-      "leveling_points": 8612323,
-      "updated_at": 1500053592,
-      "private": null,
-      "hidden_profile": false,
-      "logout_at": 1500053581,
-      "karma": null,
-      "statistics": {
-        "distance": 117155,
-        "battles": 3143,
-        "pvp": {
-        ...
-        }
-      },
-      "stats_updated_at": 1500140964
-    }
-```
-#### Historical stats:
-```
-{
-      "_id":ObjectId('000000201701011008331251'),
-      "capture_points": 399,
-      "account_id": 1008331251,
-      "max_xp": 4913,
-      "wins": 1742,
-      "planes_killed": 5550,
-      "battles": 2882,
-      "damage_dealt": 213130514,
-      "battle_type": "pvp",
-      "date": "20170101",
-      "xp": 3923528,
-      "frags": 3612,
-      "survived_battles": 1356,
-      "dropped_capture_points": 3629
-}
-```
-The database provides stats for modeling and web application, thus the performance is crucial. For NA server, the player number is about 1.6 million, and about 30% play at least 100 battles (considered as **valid players**). Since each player has daily update, the total number of historical stats will keep increasing with time. Based on estimation, the newest stats for **1.6 million** players take up to **2 GB** memory, while the historical stats of valid players over **a year** take about **50 GB** memory on disk. 
-
-## Analysis
-### Data Preprocessing
-When retrieving players' data from database, we use `pandas` Panel to construct the 3D DataFrame as:
-
-|ID\day|1|2|3|...|
-|:----:|:----:|:----:|:----:|:----:|
-|10001|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
-|10002|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
-|10003|[t,w,l,d]|[t,w,l,d]|[t,w,l,d]|...|
-|...|...|...|...|...|
-
-The `[t,w,l,d]` is the vector of one day's stats of `[battles,wins,losses,draws]`.
-
-### LSTM Model
-We use the LSTM without attention model to predict the players' performance based on previous days' stats. The prediction is within certain time window and the objective is to minimize the distance between the ground truth and predicted stats vectors:
-
-### Local configuration file format
-```
-{
-  "wows_api": {
-    "application_id": "XXX",
-    "player_url": "https://api.worldofwarships.com/wows/account/list/",
-    "account_url": "https://api.worldofwarships.com/wows/account/info/",
-    "stats_by_date_url": "https://api.worldofwarships.com/wows/account/statsbydate/",
-    "DB_TYPE": "mongo",
-    "DATE_FORMAT": "%Y-%m-%d",
-    "NA_ACCOUNT_LIMIT_LO": 1000000000,
-    "NA_ACCOUNT_LIMIT_HI": 2000000000,
-    "ID_STEP": 100,
-    "SIZE_PER_WRITE": 10000,
-    "URL_REQ_DELAY": 0,
-    "URL_REQ_TIMEOUT": 45,
-    "URL_REQ_TRYNUM": 3
-  },
-  "mysql": {
-    "dbname": "XXX",
-    "usr": "XXX",
-    "pw": "XXX",
-    "hostname": "XX.XX.XX.XX",
-    "port": 123
-  },
-  "mongo": {
-    "dbname": "XXX",
-    "collection": "XXX",
-    "usr": "XXX",
-    "pw": "XXX",
-    "hostname": "XX.XX.XX.XX",
-    "port": 123
-  },
-  "AWS_RDS": {
-    "dbname": "XXX",
-    "usr": "XXX",
-    "pw": "XXX",
-    "hostname": "XX.XX.XX.XX",
-    "port": 123
-  }
-}
-```
-#### Account id range:
-* [0, 500000000) : 'RU';
-* [500000000, 1000000000) : 'EU';
-* [1000000000, 2000000000) : 'NA';
-* [2000000000, 3000000000) : 'ASIA';
-* [3000000000, ) : 'KR';
-
-## Web Application
-We use the [Flask](http://flask.pocoo.org/) framework to develop the front-end web application with Python back-end.
-### HTML/JavaScript front-end
-
-### Python back-end
 ---
-More projects on [my private repository summary](https://williamonvoyage.github.io/Private-Repository-Summary/)
+
+## 🚀 Quick Reference Links (Production Server)
+
+The application is deployed on a dedicated AWS EC2 instance backed by AWS RDS PostgreSQL in Oregon (`us-west-2`):
+
+| Resource | URL / Access | Description |
+| :--- | :--- | :--- |
+| **Live Web App** | [http://44.253.134.12:3000](http://44.253.134.12:3000) | Next.js 16 Cyberpunk/Neon Tactical UI |
+| **API Documentation (Swagger)** | [http://44.253.134.12:8000/docs](http://44.253.134.12:8000/docs) | Interactive Swagger UI / OpenAPI 3.0 |
+| **API Health Check** | [http://44.253.134.12:8000/health](http://44.253.134.12:8000/health) | Uptime probe (`{"status":"healthy"}`) |
+| **Aggregate Overview API** | [http://44.253.134.12:8000/api/stats/overview](http://44.253.134.12:8000/api/stats/overview) | Global counter & player stats |
+| **OpenAPI Schema** | [http://44.253.134.12:8000/openapi.json](http://44.253.134.12:8000/openapi.json) | Full OpenAPI JSON specification |
+| **Production SSH** | `ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12` | Direct server operations |
+
+---
+
+## 🏛 System Architecture
+
+The modernized system uses a containerized multi-tier microservice architecture deployed via Docker Compose on AWS EC2, connected to AWS RDS PostgreSQL.
+
+```mermaid
+flowchart TD
+    subgraph Users ["Clients & Browsers"]
+        Browser["User Web Browser\n(Desktop & Mobile)"]
+    end
+
+    subgraph EC2 ["AWS EC2 (Ubuntu 24.04 - Elastic IP: 44.253.134.12)"]
+        subgraph FrontendService ["Frontend Service (:3000)"]
+            NextApp["Next.js 16 App Router\n- Standalone Output\n- Cyber-Tactical Theme\n- Recharts Visualizations\n- Dynamic API Proxy Rewrite"]
+        end
+
+        subgraph BackendService ["Backend Service (:8000)"]
+            FastAPIApp["FastAPI REST API\n- SQLModel / SQLAlchemy 2.0\n- Case-Insensitive Player Search\n- On-Demand Historical Backfill\n- Async Wargaming Client (10 req/s)"]
+        end
+
+        subgraph WorkerService ["Background Worker"]
+            Scraper["Automated Scraper\n- Continuous Region Enumeration (NA, EU, ASIA)\n- Dynamic Monthly Partition Creation\n- State Checkpointing (scraper_state.json)"]
+        end
+    end
+
+    subgraph AWS_RDS ["AWS RDS Cloud Database"]
+        Postgres[("PostgreSQL 16 Engine\nwows_stats DB\n- player table\n- player_snapshot (Range Partitioned by month)")]
+    end
+
+    subgraph WargamingAPI ["Wargaming.net Global APIs"]
+        WG_NA["api.worldofwarships.com (NA)"]
+        WG_EU["api.worldofwarships.eu (EU)"]
+        WG_ASIA["api.worldofwarships.asia (ASIA)"]
+    end
+
+    Browser -->|HTTP :3000| NextApp
+    Browser -->|Direct HTTP :8000| FastAPIApp
+    NextApp -->|Internal Proxy :8000| FastAPIApp
+    FastAPIApp -->|Connection Pool| Postgres
+    Scraper -->|Batch Upsert & Snapshot| Postgres
+    FastAPIApp -->|Async HTTP| WargamingAPI
+    Scraper -->|Rate-Limited Batches| WargamingAPI
+```
+
+---
+
+## 📊 Data Schema & Storage Architecture
+
+The database utilizes **PostgreSQL 16 native range partitioning** on timestamps to efficiently store years of high-volume player history without table bloat.
+
+### 1. `player` Table
+Stores basic account metadata and caching timestamps.
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `account_id` | BIGINT | PRIMARY KEY | Unique Wargaming player ID |
+| `nickname` | VARCHAR | INDEXED | In-game player handle |
+| `realm` | VARCHAR | INDEXED | Server region (`na`, `eu`, `asia`) |
+| `last_updated` | TIMESTAMP WITH TIME ZONE | | Last sync timestamp with WG API |
+| `created_at` | TIMESTAMP WITH TIME ZONE | | Account discovery timestamp |
+
+### 2. `player_snapshot` (Partitioned Table)
+Stores daily cumulative performance snapshots. Partitioned by `RANGE (timestamp)` monthly.
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `account_id` | BIGINT | COMPOSITE PK (foreign key to `player`) | Player account ID |
+| `timestamp` | TIMESTAMP WITH TIME ZONE | COMPOSITE PK | Snapshot recording date/time |
+| `battles` | INTEGER | | Total battles fought |
+| `wins` | INTEGER | | Total victories |
+| `damage_dealt` | BIGINT | | Total cumulative damage |
+| `survived` | INTEGER | | Total survived battles |
+| `frags` | INTEGER | | Total enemy warships destroyed |
+| `xp` | BIGINT | | Cumulative experience earned |
+
+*Partitions are created on demand per month (e.g. `player_snapshot_2026_10` for October 2026).*
+
+---
+
+## ⚡ REST API Specification
+
+### `GET /health`
+Returns service status.
+```json
+{
+  "status": "healthy"
+}
+```
+
+### `GET /api/stats/overview`
+Aggregated statistics displayed on the homepage dashboard.
+```json
+{
+  "totalPlayers": 1420,
+  "totalBattles": 5120349,
+  "avgWinRate": 52.34,
+  "status": "online"
+}
+```
+
+### `GET /api/player/{username}`
+Retrieves player profile and historical performance data for charting. If player is not cached in the local database, automatically resolves via Wargaming API and seeds up to 28 days of historical data via `statsbydate`.
+```json
+{
+  "username": "zmlzeze",
+  "accountId": 1008331251,
+  "realm": "na",
+  "lastUpdated": "2026-10-01T12:00:00Z",
+  "stats": {
+    "battles": 3143,
+    "winRate": 55.42,
+    "avgDamage": 67811,
+    "survived": 1356,
+    "frags": 3612,
+    "xp": 3923528
+  },
+  "history": [
+    {
+      "date": "2026-09-01",
+      "battles": 3100,
+      "winRate": 55.2,
+      "avgDamage": 67500
+    }
+  ]
+}
+```
+
+---
+
+## 💻 Local Development Quickstart
+
+### Prerequisites
+- Docker & Docker Compose **OR** Python 3.11+ & Node.js 20+
+
+### Option A: Run with Docker Compose (Recommended)
+```bash
+# 1. Clone repository
+git clone https://github.com/WilliamOnVoyage/World-of-Warships-Stats-Analysis.git
+cd World-of-Warships-Stats-Analysis
+
+# 2. Configure backend environment
+cp backend/.env.example backend/.env
+# Edit backend/.env to include your WARGAMING_APP_ID
+
+# 3. Start all services
+docker compose up --build
+```
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- Interactive Docs: `http://localhost:8000/docs`
+
+### Option B: Run Standalone Services
+
+#### 1. Backend
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+pip install pytest pytest-asyncio pytest-mock httpx python-dotenv
+
+# Run tests
+pytest
+
+# Start development server
+uvicorn main:app --reload --port 8000
+```
+
+#### 2. Frontend
+```bash
+cd frontend
+npm ci
+
+# Run linter and tests
+npm run lint
+npm run test
+
+# Start Next.js development server
+npm run dev
+```
+
+---
+
+## 🛠 Testing & CI/CD
+
+Continuous integration runs automatically on every commit and pull request to `master` via GitHub Actions:
+- **Backend:** Python 3.11 environment running `pytest` with async mocks.
+- **Frontend:** Node 20 environment running ESLint (`npm run lint`), Jest (`npm run test`), and Next.js standalone build (`npm run build`).
+
+To run the full suite locally:
+```bash
+# Backend tests
+(cd backend && source .venv/bin/activate && pytest)
+
+# Frontend tests & build
+(cd frontend && npm run lint && npm run test && npm run build)
+```
+
+---
+
+## 📜 License & Acknowledgements
+- Distributed under the Apache 2.0 License.
+- Data provided by the official [Wargaming.net Developer Room](https://developers.wargaming.net/).

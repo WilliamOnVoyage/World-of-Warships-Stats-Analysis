@@ -1,8 +1,10 @@
-from typing import Optional
+from typing import Optional, Any
 from sqlmodel import SQLModel, Field
 from sqlalchemy import text
-from sqlalchemy.engine import Engine
-from datetime import datetime
+from datetime import datetime, timezone
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 class Player(SQLModel, table=True):
     __tablename__ = "player"
@@ -11,8 +13,8 @@ class Player(SQLModel, table=True):
     nickname: str = Field(index=True)
     realm: str = Field(default="na", index=True)
     
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class PlayerSnapshot(SQLModel, table=True):
@@ -33,11 +35,16 @@ class PlayerSnapshot(SQLModel, table=True):
     xp: int = Field(default=0)
 
 
-def create_partition_if_not_exists(engine: Engine, dt: datetime):
+def create_partition_if_not_exists(bind: Any, dt: datetime):
     """
     Creates a monthly partition for the PlayerSnapshot table dynamically if it doesn't exist.
-    E.g., for dt = 2026-06-18, creates table "player_snapshot_2026_06"
+    E.g., for dt = 2026-06-18, creates table "player_snapshot_2026_06".
+    Safely no-ops for non-PostgreSQL databases (e.g. SQLite in unit tests).
     """
+    dialect = getattr(bind, "dialect", None)
+    if dialect and dialect.name != "postgresql":
+        return
+
     partition_name = f"player_snapshot_{dt.strftime('%Y_%m')}"
     
     # Calculate start and end bounds for the month
@@ -54,5 +61,8 @@ def create_partition_if_not_exists(engine: Engine, dt: datetime):
         FOR VALUES FROM ('{start_date}') TO ('{end_date}');
     """)
     
-    with engine.begin() as conn:
-        conn.execute(create_stmt)
+    if hasattr(bind, "begin"):
+        with bind.begin() as conn:
+            conn.execute(create_stmt)
+    else:
+        bind.execute(create_stmt)

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+
 interface OverviewStats {
   totalPlayers: number;
   totalBattles: number;
@@ -22,7 +24,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/stats/overview")
+    fetch(`${API_BASE}/api/stats/overview`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data) setOverview(data); })
       .catch(() => {});

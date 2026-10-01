@@ -8,7 +8,7 @@ from sqlmodel import Session, select, create_engine
 from sqlalchemy import func, text
 from database.models import Player, PlayerSnapshot, create_partition_if_not_exists
 from api.wargaming import WargamingAPIClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -76,14 +76,14 @@ async def get_global_stats(session: Session = Depends(get_session)):
 
 @app.get("/api/player/{username}")
 async def get_player_stats(username: str, session: Session = Depends(get_session)):
-    # 1. Check if player exists in our DB
-    statement = select(Player).where(Player.nickname == username)
+    # 1. Check if player exists in our DB (case-insensitive)
+    statement = select(Player).where(func.lower(Player.nickname) == username.lower())
     player = session.exec(statement).first()
     
     app_id = os.getenv("WARGAMING_APP_ID", "demo")
     client = WargamingAPIClient(application_id=app_id)
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     try:
         # If player is not in our database, we fetch them from Wargaming API
@@ -111,7 +111,7 @@ async def get_player_stats(username: str, session: Session = Depends(get_session
             
             if stats:
                 # Save today's cumulative snapshot
-                create_partition_if_not_exists(engine, now)
+                create_partition_if_not_exists(session.get_bind(), now)
                 snapshot = PlayerSnapshot(
                     account_id=account_id,
                     timestamp=now,
@@ -136,7 +136,7 @@ async def get_player_stats(username: str, session: Session = Depends(get_session
                             continue
                         # Parse date YYYYMMDD -> datetime
                         try:
-                            snapshot_dt = datetime.strptime(date_str, "%Y%m%d")
+                            snapshot_dt = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=timezone.utc)
                         except ValueError:
                             continue
                         
@@ -144,7 +144,7 @@ async def get_player_stats(username: str, session: Session = Depends(get_session
                         if snapshot_dt.date() == now.date():
                             continue
                         
-                        create_partition_if_not_exists(engine, snapshot_dt)
+                        create_partition_if_not_exists(session.get_bind(), snapshot_dt)
                         hist_snapshot = PlayerSnapshot(
                             account_id=account_id,
                             timestamp=snapshot_dt,
