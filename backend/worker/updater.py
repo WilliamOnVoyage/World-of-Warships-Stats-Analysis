@@ -13,7 +13,9 @@ from api.wargaming import WargamingAPIClient
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./wows_dev.db")
 engine = create_engine(DATABASE_URL)
 
-STATE_FILE = "scraper_state.json"
+DATA_DIR = os.getenv("DATA_DIR", "/app/data" if os.path.exists("/app") else "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+STATE_FILE = os.path.join(DATA_DIR, "scraper_state.json")
 
 # ID ranges for active Wargaming regions
 REGIONS = {
@@ -24,13 +26,20 @@ REGIONS = {
 
 def load_state():
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(STATE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
     return {"current_region": "na", "current_id": 1_000_000_000}
 
 def save_state(region: str, current_id: int):
-    with open(STATE_FILE, "w") as f:
-        json.dump({"current_region": region, "current_id": current_id}, f)
+    try:
+        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+        with open(STATE_FILE, "w") as f:
+            json.dump({"current_region": region, "current_id": current_id}, f)
+    except Exception as e:
+        print(f"Failed to save state: {e}")
 
 async def scrape_region(region: str, start_id: int, end_id: int):
     print(f"[{datetime.now(timezone.utc).isoformat()}] Starting scraping for region {region.upper()} from ID {start_id}")
@@ -76,11 +85,18 @@ async def scrape_region(region: str, start_id: int, end_id: int):
                     # 1. Upsert Player
                     player = session.get(Player, acc_id)
                     if not player:
+                        nickname_val = info.get("nickname") or "Unknown"
+                        created_at_val = info.get("created_at")
+                        created_at_dt = (
+                            datetime.fromtimestamp(created_at_val, tz=timezone.utc)
+                            if created_at_val is not None
+                            else now
+                        )
                         player = Player(
                             account_id=acc_id,
-                            nickname=info.get("nickname", "Unknown"),
+                            nickname=nickname_val,
                             realm=region,
-                            created_at=datetime.fromtimestamp(info.get("created_at", now.timestamp()), tz=timezone.utc)
+                            created_at=created_at_dt
                         )
                     player.last_updated = now
                     session.add(player)
@@ -108,7 +124,9 @@ async def scrape_region(region: str, start_id: int, end_id: int):
         except Exception as e:
             print(f"Error at {current_id}: {e}")
             traceback.print_exc()
-            await asyncio.sleep(5)  # Backoff on error
+            # Advance state past the failing chunk so we don't get stuck in a retry loop
+            save_state(region, current_id + chunk_size)
+            await asyncio.sleep(2)  # Short backoff on error
             
     await client.close()
 

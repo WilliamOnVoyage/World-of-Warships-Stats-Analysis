@@ -65,7 +65,6 @@ async def test_get_player_stats(mocker):
         }
     }
     mock_client.get_player_info.return_value = mock_info
-    mock_client.get_player_stats_by_date.return_value = {} # No backfill history
 
     # Patch the initialization in main.py to use our mock
     mocker.patch("main.WargamingAPIClient", return_value=mock_client)

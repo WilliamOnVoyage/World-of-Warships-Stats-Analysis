@@ -124,43 +124,6 @@ async def get_player_stats(username: str, session: Session = Depends(get_session
                 )
                 session.add(snapshot)
             
-            # Backfill historical data via statsbydate (up to 28 days)
-            try:
-                history_data = await client.get_player_stats_by_date(account_id)
-                player_history = history_data.get(str(account_id), {})
-                pvp_history = player_history.get("pvp", {}) if player_history else {}
-                
-                if pvp_history:
-                    for date_str, day_stats in pvp_history.items():
-                        if not day_stats:
-                            continue
-                        # Parse date YYYYMMDD -> datetime
-                        try:
-                            snapshot_dt = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=timezone.utc)
-                        except ValueError:
-                            continue
-                        
-                        # Skip today — we already inserted the cumulative snapshot
-                        if snapshot_dt.date() == now.date():
-                            continue
-                        
-                        create_partition_if_not_exists(session.get_bind(), snapshot_dt)
-                        hist_snapshot = PlayerSnapshot(
-                            account_id=account_id,
-                            timestamp=snapshot_dt,
-                            battles=day_stats.get("battles", 0),
-                            wins=day_stats.get("wins", 0),
-                            damage_dealt=day_stats.get("damage_dealt", 0),
-                            survived=day_stats.get("survived_battles", 0),
-                            frags=day_stats.get("frags", 0),
-                            xp=day_stats.get("xp", 0)
-                        )
-                        session.add(hist_snapshot)
-                    
-                    logger.info(f"Backfilled {len(pvp_history)} days of history for {username}")
-            except Exception as e:
-                logger.warning(f"Failed to backfill history for {username}: {e}")
-            
             session.commit()
             session.refresh(player)
     finally:
