@@ -573,11 +573,88 @@ async def get_encyclopedia_ships(
         }
     }
 
+_SHIP_PROFILE_CACHE: Dict[int, Dict[str, Any]] = {}
+
 @app.get("/api/encyclopedia/ship/{ship_id}")
 async def get_ship_details(ship_id: int, session: Session = Depends(get_session)):
     ship = session.get(ShipEncyclopedia, ship_id)
     if not ship:
         raise HTTPException(status_code=404, detail="Ship not found in encyclopedia")
+
+    profile = _SHIP_PROFILE_CACHE.get(ship_id)
+    if not profile:
+        app_id = os.getenv("WARGAMING_APP_ID", "demo")
+        client = WargamingAPIClient(application_id=app_id)
+        try:
+            raw = await client.get_ship_info(ship_id)
+            if raw and "default_profile" in raw:
+                dp = raw["default_profile"]
+                hull = dp.get("hull") or {}
+                armour = dp.get("armour") or {}
+                artillery = dp.get("artillery") or {}
+                torps = dp.get("torpedoes") or {}
+                mobility = dp.get("mobility") or {}
+                concealment = dp.get("concealment") or {}
+                aa = dp.get("anti_aircraft") or {}
+                atba = dp.get("atbas") or {}
+
+                # Format shells
+                shells_data = {}
+                if isinstance(artillery.get("shells"), dict):
+                    for stype, sval in artillery["shells"].items():
+                        shells_data[stype] = {
+                            "name": sval.get("name"),
+                            "damage": sval.get("damage"),
+                            "burnProbability": sval.get("burn_probability"),
+                            "bulletMass": sval.get("bullet_mass"),
+                            "bulletSpeed": sval.get("bullet_speed"),
+                        }
+
+                profile = {
+                    "health": hull.get("health", 0),
+                    "armourRange": {
+                        "min": armour.get("range", {}).get("min", 0),
+                        "max": armour.get("range", {}).get("max", 0),
+                    },
+                    "floodDamageReduction": armour.get("flood_damage", 0),
+                    "artillery": {
+                        "distance": artillery.get("distance", 0.0),
+                        "shotDelay": artillery.get("shot_delay", 0.0),
+                        "rotationTime": artillery.get("rotation_time", 0.0),
+                        "maxDispersion": artillery.get("max_dispersion", 0),
+                        "gunRate": artillery.get("gun_rate", 0.0),
+                        "shells": shells_data,
+                    } if artillery and artillery.get("distance") else None,
+                    "torpedoes": {
+                        "name": torps.get("torpedo_name"),
+                        "distance": torps.get("distance", 0.0),
+                        "speed": torps.get("torpedo_speed", 0),
+                        "maxDamage": torps.get("max_damage", 0),
+                        "reloadTime": torps.get("reload_time", 0.0),
+                        "visibilityDist": torps.get("visibility_dist", 0.0),
+                    } if torps and torps.get("distance") else None,
+                    "secondaries": {
+                        "distance": atba.get("distance", 0.0),
+                    } if atba and atba.get("distance") else None,
+                    "mobility": {
+                        "maxSpeed": mobility.get("max_speed", 0.0),
+                        "turningRadius": mobility.get("turning_radius", 0),
+                        "rudderTime": mobility.get("rudder_time", 0.0),
+                    },
+                    "concealment": {
+                        "detectShip": concealment.get("detect_distance_by_ship", 0.0),
+                        "detectPlane": concealment.get("detect_distance_by_plane", 0.0),
+                    },
+                    "antiAircraft": {
+                        "defense": aa.get("defense", 0),
+                    } if aa and aa.get("defense") else None,
+                }
+                _SHIP_PROFILE_CACHE[ship_id] = profile
+        except Exception as e:
+            logger.warning(f"Failed to fetch profile for ship {ship_id}: {e}")
+        finally:
+            await client.close()
+
     return {
         "shipId": ship.ship_id,
         "name": ship.name,
@@ -587,7 +664,8 @@ async def get_ship_details(ship_id: int, session: Session = Depends(get_session)
         "isPremium": ship.is_premium,
         "imageSmall": ship.image_small,
         "imageLarge": ship.image_large,
-        "description": ship.description
+        "description": ship.description,
+        "specs": profile
     }
 
 @app.get("/api/leaderboard/ships")

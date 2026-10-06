@@ -17,6 +17,52 @@ interface Ship {
   description?: string;
 }
 
+interface ShipSpecs {
+  health: number;
+  armourRange: { min: number; max: number };
+  floodDamageReduction: number;
+  artillery: {
+    distance: number;
+    shotDelay: number;
+    rotationTime: number;
+    maxDispersion: number;
+    gunRate: number;
+    shells: Record<
+      string,
+      {
+        name?: string;
+        damage?: number;
+        burnProbability?: number;
+        bulletSpeed?: number;
+        bulletMass?: number;
+      }
+    >;
+  } | null;
+  torpedoes: {
+    name?: string;
+    distance: number;
+    speed: number;
+    maxDamage: number;
+    reloadTime: number;
+    visibilityDist: number;
+  } | null;
+  secondaries: {
+    distance: number;
+  } | null;
+  mobility: {
+    maxSpeed: number;
+    turningRadius: number;
+    rudderTime: number;
+  };
+  concealment: {
+    detectShip: number;
+    detectPlane: number;
+  };
+  antiAircraft: {
+    defense: number;
+  } | null;
+}
+
 const NATIONS = [
   { id: "all", label: "ALL NATIONS" },
   { id: "usa", label: "USA" },
@@ -68,6 +114,8 @@ export default function EncyclopediaPage() {
   const [selectedTier, setSelectedTier] = useState<number>(0);
   const [premiumFilter, setPremiumFilter] = useState<string>("all"); // "all", "tech", "premium"
   const [selectedShip, setSelectedShip] = useState<Ship | null>(null);
+  const [selectedShipSpecs, setSelectedShipSpecs] = useState<ShipSpecs | null>(null);
+  const [loadingSpecs, setLoadingSpecs] = useState<boolean>(false);
 
   useEffect(() => {
     setLoading(true);
@@ -91,6 +139,21 @@ export default function EncyclopediaPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [selectedNation, selectedType, selectedTier, premiumFilter, search]);
+
+  const handleOpenDossier = (s: Ship) => {
+    setSelectedShip(s);
+    setSelectedShipSpecs(null);
+    setLoadingSpecs(true);
+    fetch(`${API_BASE}/api/encyclopedia/ship/${s.shipId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.specs) {
+          setSelectedShipSpecs(data.specs);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSpecs(false));
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 w-full">
@@ -261,7 +324,7 @@ export default function EncyclopediaPage() {
             {ships.map((s) => (
               <div
                 key={s.shipId}
-                onClick={() => setSelectedShip(s)}
+                onClick={() => handleOpenDossier(s)}
                 className="border-2 border-[#1A1A17] bg-[#F7F4EC] hover:bg-white hover:border-[#B3261E] transition-all cursor-pointer flex flex-col justify-between group shadow-sm"
               >
                 {/* Card Header */}
@@ -331,23 +394,30 @@ export default function EncyclopediaPage() {
           onClick={() => setSelectedShip(null)}
         >
           <div
-            className="border-2 border-[#1A1A17] bg-[#EFEBE0] max-w-2xl w-full p-8 relative shadow-2xl"
+            className="border-2 border-[#1A1A17] bg-[#EFEBE0] max-w-4xl w-full p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Modal Header */}
             <div className="flex justify-between items-start border-b-2 border-[#1A1A17] pb-4 mb-6">
               <div>
                 <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#B3261E] font-bold">
-                  WARSHIP TECHNICAL ARCHIVE // ID: {selectedShip.shipId}
+                  TACTICAL DOSSIER & ARCHIVE // ID: {selectedShip.shipId}
                 </div>
-                <h2 className="text-4xl font-black uppercase tracking-tight text-[#1A1A17] mt-1">
+                <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-[#1A1A17] mt-1">
                   {selectedShip.name}
                 </h2>
-                <div className="flex gap-3 text-xs font-mono text-[#5B6770] uppercase mt-2">
-                  <span>TIER: {toRoman(selectedShip.tier)}</span>
+                <div className="flex flex-wrap gap-3 text-xs font-mono text-[#5B6770] uppercase mt-2">
+                  <span className="font-bold text-[#B3261E]">TIER {toRoman(selectedShip.tier)}</span>
                   <span>•</span>
-                  <span>NATION: {selectedShip.nation}</span>
+                  <span>THEATER: {selectedShip.nation}</span>
                   <span>•</span>
                   <span>CLASS: {selectedShip.type}</span>
+                  {selectedShip.isPremium && (
+                    <>
+                      <span>•</span>
+                      <span className="text-[#B3261E] font-bold">PREMIUM COMMISSION</span>
+                    </>
+                  )}
                 </div>
               </div>
               <button
@@ -358,6 +428,7 @@ export default function EncyclopediaPage() {
               </button>
             </div>
 
+            {/* Artwork Banner */}
             {selectedShip.imageLarge || selectedShip.imageSmall ? (
               <div className="p-6 bg-[#F7F4EC] border border-[#1A1A17] mb-6 flex items-center justify-center">
                 <img
@@ -368,12 +439,213 @@ export default function EncyclopediaPage() {
               </div>
             ) : null}
 
+            {/* In-Game Technical Specifications Blueprint */}
+            <div className="border-2 border-[#1A1A17] bg-[#F7F4EC] p-6 mb-6">
+              <div className="flex justify-between items-baseline border-b border-[#1A1A17] pb-2 mb-4">
+                <span className="text-xs font-mono uppercase tracking-[0.2em] text-[#B3261E] font-bold">
+                  TELEMETRY SPECIFICATIONS BLUEPRINT
+                </span>
+                <span className="text-[10px] font-mono text-[#5B6770] uppercase">
+                  IN-GAME ACTIVE PROFILE
+                </span>
+              </div>
+
+              {loadingSpecs ? (
+                <div className="p-8 text-center font-mono text-xs uppercase text-[#5B6770] tracking-widest">
+                  Retrieving Telemetry Parameters from Naval Command...
+                </div>
+              ) : selectedShipSpecs ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-mono text-xs">
+                  {/* Panel 1: Survivability & Armour */}
+                  <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4">
+                    <div className="text-[10px] uppercase font-bold text-[#5B6770] mb-2 border-b border-zinc-300 pb-1">
+                      01 // SURVIVABILITY & ARMOUR
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">HIT POINTS:</span>
+                        <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.health.toLocaleString()} HP</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">ARMOUR PLATING:</span>
+                        <span className="font-bold text-[#1A1A17]">
+                          {selectedShipSpecs.armourRange.max > 0
+                            ? `${selectedShipSpecs.armourRange.min} — ${selectedShipSpecs.armourRange.max} MM`
+                            : "—"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">TORPEDO DEFENSE:</span>
+                        <span className="font-bold text-[#B3261E]">
+                          {selectedShipSpecs.floodDamageReduction > 0
+                            ? `${selectedShipSpecs.floodDamageReduction}% REDUCTION`
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel 2: Artillery (if equipped) */}
+                  {selectedShipSpecs.artillery ? (
+                    <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4">
+                      <div className="text-[10px] uppercase font-bold text-[#5B6770] mb-2 border-b border-zinc-300 pb-1">
+                        02 // MAIN BATTERY ARTILLERY
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">FIRING RANGE:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.artillery.distance} KM</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">RELOAD CYCLE:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.artillery.shotDelay} S ({selectedShipSpecs.artillery.gunRate} RPM)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">180° TRAVERSE:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.artillery.rotationTime} S</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">MAX DISPERSION:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.artillery.maxDispersion} M</span>
+                        </div>
+                        {selectedShipSpecs.artillery.shells?.HE && (
+                          <div className="flex justify-between text-[11px] pt-1 border-t border-zinc-300">
+                            <span className="text-[#5B6770]">HE ALPHA / FIRE:</span>
+                            <span className="font-bold text-[#1A1A17]">
+                              {selectedShipSpecs.artillery.shells.HE.damage?.toLocaleString() || "—"} / {selectedShipSpecs.artillery.shells.HE.burnProbability}%
+                            </span>
+                          </div>
+                        )}
+                        {selectedShipSpecs.artillery.shells?.AP && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-[#5B6770]">AP ALPHA / SPEED:</span>
+                            <span className="font-bold text-[#1A1A17]">
+                              {selectedShipSpecs.artillery.shells.AP.damage?.toLocaleString() || "—"} / {selectedShipSpecs.artillery.shells.AP.bulletSpeed} M/S
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4 flex flex-col justify-center items-center text-[#5B6770]">
+                      <div className="text-[10px] uppercase font-bold mb-1">02 // MAIN BATTERY</div>
+                      <div>NO SURFACE ARTILLERY</div>
+                    </div>
+                  )}
+
+                  {/* Panel 3: Torpedoes (if equipped) */}
+                  {selectedShipSpecs.torpedoes ? (
+                    <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4">
+                      <div className="text-[10px] uppercase font-bold text-[#5B6770] mb-2 border-b border-zinc-300 pb-1">
+                        03 // TORPEDO BATTERY
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">RANGE:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.torpedoes.distance} KM</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">SPEED:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.torpedoes.speed} KTS</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">MAX DAMAGE:</span>
+                          <span className="font-bold text-[#B3261E]">{selectedShipSpecs.torpedoes.maxDamage.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">RELOAD:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.torpedoes.reloadTime} S</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#5B6770]">DETECTION:</span>
+                          <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.torpedoes.visibilityDist} KM</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4 flex flex-col justify-center items-center text-[#5B6770]">
+                      <div className="text-[10px] uppercase font-bold mb-1">03 // TORPEDO BATTERY</div>
+                      <div>NO TORPEDO TUBES</div>
+                    </div>
+                  )}
+
+                  {/* Panel 4: Mobility & Propulsion */}
+                  <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4">
+                    <div className="text-[10px] uppercase font-bold text-[#5B6770] mb-2 border-b border-zinc-300 pb-1">
+                      04 // PROPULSION & MANEUVERABILITY
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">MAX SPEED:</span>
+                        <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.mobility.maxSpeed} KTS</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">TURNING RADIUS:</span>
+                        <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.mobility.turningRadius} M</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">RUDDER SHIFT:</span>
+                        <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.mobility.rudderTime} S</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel 5: Concealment */}
+                  <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4">
+                    <div className="text-[10px] uppercase font-bold text-[#5B6770] mb-2 border-b border-zinc-300 pb-1">
+                      05 // CONCEALMENT & STEALTH
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">SURFACE DETECTION:</span>
+                        <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.concealment.detectShip} KM</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">AIR DETECTION:</span>
+                        <span className="font-bold text-[#1A1A17]">{selectedShipSpecs.concealment.detectPlane} KM</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel 6: Anti-Aircraft & Secondaries */}
+                  <div className="border border-[#1A1A17] bg-[#EFEBE0] p-4">
+                    <div className="text-[10px] uppercase font-bold text-[#5B6770] mb-2 border-b border-zinc-300 pb-1">
+                      06 // DEFENSE & SECONDARIES
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">AA DEFENSE INDEX:</span>
+                        <span className="font-bold text-[#1A1A17]">
+                          {selectedShipSpecs.antiAircraft?.defense || "—"} / 100
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#5B6770]">SECONDARY RANGE:</span>
+                        <span className="font-bold text-[#1A1A17]">
+                          {selectedShipSpecs.secondaries?.distance ? `${selectedShipSpecs.secondaries.distance} KM` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 text-center text-[#5B6770]">
+                  Telemetry parameters unavailable for this hull configuration.
+                </div>
+              )}
+            </div>
+
+            {/* Historical Description */}
             {selectedShip.description && (
               <div className="mb-6 font-serif text-sm text-zinc-800 leading-relaxed bg-[#F7F4EC] p-4 border border-[#1A1A17]">
+                <div className="font-mono text-[10px] uppercase text-[#5B6770] font-bold mb-1">
+                  HISTORICAL NAVAL ARCHIVE RECORD:
+                </div>
                 <p>{selectedShip.description}</p>
               </div>
             )}
 
+            {/* Footer */}
             <div className="flex justify-between items-center pt-4 border-t border-[#1A1A17]">
               <span className="text-[10px] font-mono text-[#5B6770] uppercase">
                 ADMIRALTY ARCHIVE RECORD • OFFICIAL WARGAMING TELEMETRY

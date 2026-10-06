@@ -99,3 +99,11 @@ class WargamingAPIClient:
             "fields": "ship_id,name,tier,type,nation,images.small,images.large,is_premium,description"
         }
         return await self._make_request("/wows/encyclopedia/ships/", params)
+
+    async def get_ship_info(self, ship_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch full technical dossier and profile for a specific ship."""
+        params = {"ship_id": str(ship_id)}
+        data = await self._make_request("/wows/encyclopedia/ships/", params)
+        if data and isinstance(data, dict) and str(ship_id) in data:
+            return data[str(ship_id)]
+        return None
