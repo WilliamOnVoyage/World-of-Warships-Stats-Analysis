@@ -1,6 +1,6 @@
 from typing import Optional, Any
 from sqlmodel import SQLModel, Field
-from sqlalchemy import text
+from sqlalchemy import text, BigInteger, Column
 from datetime import datetime, timezone
 
 def utc_now() -> datetime:
@@ -48,8 +48,8 @@ class PlayerSnapshot(SQLModel, table=True):
     mb_shots: int = Field(default=0)
     torp_hits: int = Field(default=0)
     torp_shots: int = Field(default=0)
-    art_agro: int = Field(default=0)
-    torpedo_agro: int = Field(default=0)
+    art_agro: int = Field(default=0, sa_column=Column(BigInteger, default=0))
+    torpedo_agro: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     
     # Game Mode Breakdown
     solo_battles: int = Field(default=0)
@@ -68,8 +68,8 @@ class DailyServerStats(SQLModel, table=True):
     stat_date: str = Field(primary_key=True) # YYYY-MM-DD
     realm: str = Field(primary_key=True, default="all")
     active_players: int = Field(default=0)
-    battles_fought: int = Field(default=0)
-    damage_dealt: int = Field(default=0)
+    battles_fought: int = Field(default=0, sa_column=Column(BigInteger, default=0))
+    damage_dealt: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     total_tracked_players: int = Field(default=0)
     mean_win_rate: float = Field(default=0.0)
     mean_damage: float = Field(default=0.0)

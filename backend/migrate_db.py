@@ -52,14 +52,16 @@ SQL_MIGRATIONS = [
         stat_date VARCHAR NOT NULL,
         realm VARCHAR NOT NULL DEFAULT 'all',
         active_players INT DEFAULT 0,
-        battles_fought INT DEFAULT 0,
-        damage_dealt INT DEFAULT 0,
+        battles_fought BIGINT DEFAULT 0,
+        damage_dealt BIGINT DEFAULT 0,
         total_tracked_players INT DEFAULT 0,
         mean_win_rate DOUBLE PRECISION DEFAULT 0.0,
         mean_damage DOUBLE PRECISION DEFAULT 0.0,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         PRIMARY KEY (stat_date, realm)
     );
+    ALTER TABLE daily_server_stats ALTER COLUMN damage_dealt TYPE BIGINT;
+    ALTER TABLE daily_server_stats ALTER COLUMN battles_fought TYPE BIGINT;
     """,
 
     # 4. Create PipelineState table
