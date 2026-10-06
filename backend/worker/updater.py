@@ -120,7 +120,8 @@ async def refresh_known_players(realm: str = "na", limit: int = 5000):
                     
                     hidden = bool(info.get("hidden_profile", False))
                     new_lbt = info.get("last_battle_time") or 0
-                    stats_pvp = info.get("statistics", {}).get("pvp", {})
+                    stats_overall = info.get("statistics") or {}
+                    stats_pvp = stats_overall.get("pvp") or {}
                     curr_battles = stats_pvp.get("battles", 0)
                     prev_lbt = known_battle_times.get(acc_id, 0)
 
@@ -135,11 +136,10 @@ async def refresh_known_players(realm: str = "na", limit: int = 5000):
 
                     # DIFF-ONLY SNAPSHOTTING: Only write a snapshot if the player had activity
                     if not hidden and curr_battles > 0 and (new_lbt > prev_lbt or prev_lbt == 0):
-                        stats_overall = info.get("statistics", {})
-                        solo = stats_overall.get("pvp_solo", {})
-                        div2 = stats_overall.get("pvp_div2", {})
-                        div3 = stats_overall.get("pvp_div3", {})
-                        rank = stats_overall.get("rank_solo", {})
+                        solo = stats_overall.get("pvp_solo") or {}
+                        div2 = stats_overall.get("pvp_div2") or {}
+                        div3 = stats_overall.get("pvp_div3") or {}
+                        rank = stats_overall.get("rank_solo") or {}
 
                         snapshot = PlayerSnapshot(
                             account_id=acc_id,
