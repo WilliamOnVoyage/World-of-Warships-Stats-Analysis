@@ -110,7 +110,7 @@ export default function Home() {
               COMMANDERS TRACKED
             </div>
             <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
-              {overview ? formatNumber(overview.totalPlayers) : "3.27M"}
+              {overview ? formatNumber(overview.totalPlayers) : <span className="opacity-30 font-mono">---</span>}
             </div>
             <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
               NA • EU • ASIA REGISTER
@@ -123,7 +123,7 @@ export default function Home() {
               BATTLES ANALYZED
             </div>
             <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
-              {overview ? formatNumber(overview.totalBattles) : "18.4M"}
+              {overview ? formatNumber(overview.totalBattles) : <span className="opacity-30 font-mono">---</span>}
             </div>
             <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
               RANDOM BATTLES (PVP) ONLY
@@ -136,10 +136,10 @@ export default function Home() {
               FLEET MEAN WIN RATE
             </div>
             <div className="text-5xl md:text-6xl font-black tracking-tight text-[#B3261E]">
-              {overview ? `${overview.avgWinRate}%` : "49.12%"}
+              {overview ? `${overview.avgWinRate.toFixed(2)}%` : <span className="opacity-30 font-mono">---</span>}
             </div>
             <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
-              WEIGHTED GLOBAL AVERAGE
+              VERIFIED PVP COMMANDERS
             </div>
           </div>
 
