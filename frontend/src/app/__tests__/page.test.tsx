@@ -3,19 +3,18 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import Home from '../page'
 import { useRouter } from 'next/navigation'
 
-// Mock the useRouter hook
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }))
 
-// Mock the global fetch
 global.fetch = jest.fn(() =>
   Promise.resolve({
+    ok: true,
     json: () => Promise.resolve({
-      playersTracked: 1,
-      battlesAnalyzed: "5.0K",
-      avgWinRate: "50.0%",
-      status: "ONLINE"
+      totalPlayers: 3268909,
+      totalBattles: 18400000,
+      avgWinRate: 49.12,
+      status: "online"
     }),
   })
 ) as jest.Mock
@@ -30,15 +29,15 @@ describe('Home Page', () => {
     jest.clearAllMocks()
   })
 
-  it('renders the search input', () => {
+  it('renders the commander search input', () => {
     render(<Home />)
-    expect(screen.getByPlaceholderText('ENTER PLAYER HANDLE...')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/ENTER COMMANDER HANDLE/i)).toBeInTheDocument()
   })
 
-  it('calls router.push when a player name is submitted', () => {
+  it('calls router.push when a commander name is submitted', () => {
     render(<Home />)
-    const input = screen.getByPlaceholderText('ENTER PLAYER HANDLE...')
-    const submitButton = screen.getByText('INITIALIZE')
+    const input = screen.getByPlaceholderText(/ENTER COMMANDER HANDLE/i)
+    const submitButton = screen.getByText(/DISPATCH QUERY/i)
 
     fireEvent.change(input, { target: { value: 'TestPlayer' } })
     fireEvent.click(submitButton)

@@ -80,3 +80,22 @@ async def test_get_player_stats(mocker):
     assert len(data["history"]) == 1
     assert data["history"][0]["battles"] == 50
     assert data["history"][0]["winRate"] == 60.0
+
+@pytest.mark.asyncio
+async def test_leaderboard_endpoint():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/leaderboard?category=win_rate&min_battles=0")
+    assert response.status_code == 200
+    data = response.json()
+    assert "leaderboard" in data
+    assert data["category"] == "win_rate"
+
+@pytest.mark.asyncio
+async def test_internal_pipeline_status():
+    headers = {"X-Internal-Key": "wows-secret-internal-key-2026"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/internal/pipeline/status", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "totalPlayers" in data
+    assert "pipelineStates" in data

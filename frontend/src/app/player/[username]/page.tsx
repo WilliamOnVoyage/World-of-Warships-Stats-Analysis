@@ -32,137 +32,194 @@ export default async function PlayerProfile({
 
   if (!playerData) {
     return (
-      <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[50vh]">
-        <h1 className="text-3xl font-bold text-white mb-4">Player Not Found</h1>
-        <p className="text-zinc-400 mb-8">
-          We couldn&apos;t find a World of Warships player with the username &ldquo;{username}&rdquo;.
+      <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-20 flex flex-col items-center justify-center min-h-[50vh]">
+        <span className="stamp-badge text-xs mb-4">RECORD NOT FOUND</span>
+        <h1 className="text-4xl font-black uppercase tracking-tight text-[#1A1A17] mb-4">
+          COMMANDER NOT IN REGISTER
+        </h1>
+        <p className="text-sm font-mono text-[#5B6770] mb-8 text-center max-w-md">
+          No active telemetry record was located for commander handle &ldquo;{username}&rdquo;.
         </p>
-        <Link href="/" className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors font-medium tracking-widest uppercase text-sm border border-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-          Back to Search
+        <Link
+          href="/"
+          className="px-6 py-3 bg-[#1A1A17] hover:bg-[#B3261E] text-white transition-colors font-mono font-bold text-xs uppercase tracking-widest"
+        >
+          ← RETURN TO DISPATCH
         </Link>
       </div>
     );
   }
 
   const { stats, realm, lastUpdated, history } = playerData;
-  const updatedAt = new Date(lastUpdated).toLocaleString();
+  const updatedAt = new Date(lastUpdated).toLocaleString("en-US", { timeZone: "UTC" });
 
-  // Derive per-stat color coding
-  const winRateColor =
-    stats.winRate >= 55
-      ? "text-green-400"
-      : stats.winRate >= 50
-        ? "text-cyan-400"
-        : "text-amber-400";
+  const survivalRate = stats.battles > 0 ? ((stats.survived / stats.battles) * 100).toFixed(2) : "0.00";
+  const fragsPerBattle = stats.battles > 0 ? (stats.frags / stats.battles).toFixed(2) : "0.00";
+  const planesPerBattle = stats.battles > 0 ? ((stats.planesKilled || 0) / stats.battles).toFixed(2) : "0.00";
+  const avgXp = stats.battles > 0 ? Math.round(stats.xp / stats.battles).toLocaleString() : "0";
 
   return (
-    <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
-      {/* Back Link */}
-      <div className="mb-8">
-        <Link href="/" className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1 w-fit mb-6 group">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-          </svg>
-          <span className="tracking-widest uppercase">Back to Search</span>
+    <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-12">
+      {/* Navigation & Stamp */}
+      <div className="mb-8 flex items-center justify-between border-b border-[#1A1A17] pb-4">
+        <Link
+          href="/"
+          className="text-xs font-mono uppercase tracking-widest text-[#5B6770] hover:text-[#B3261E] flex items-center gap-2 group transition-colors"
+        >
+          <span className="group-hover:-translate-x-1 transition-transform">←</span>
+          <span>RETURN TO DISPATCH</span>
         </Link>
+        <span className="stamp-badge text-[10px]">
+          CLASSIFIED // VERIFIED TELEMETRY
+        </span>
+      </div>
 
-        {/* Player Header */}
-        <div className="flex items-end justify-between">
+      {/* Commander Header Dossier */}
+      <section className="border-b-2 border-[#1A1A17] pb-8 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2 tracking-wider drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#B3261E] font-bold mb-2">
+              DOSSIER NO. {realm.toUpperCase()}-{playerData.accountId}
+            </div>
+            <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter text-[#1A1A17] leading-none font-sans">
               {playerData.username}
             </h1>
-            <div className="flex gap-3 text-sm text-zinc-400">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]"></span> Active
-              </span>
+            <div className="flex flex-wrap gap-4 text-xs font-mono text-[#5B6770] mt-4 uppercase">
+              <span className="font-bold text-[#1A1A17]">THEATER: {realm.toUpperCase()} SERVER</span>
               <span>•</span>
-              <span className="uppercase tracking-widest">{realm} Server • Random Battles</span>
+              <span>MODE: RANDOM BATTLES (PVP)</span>
               <span>•</span>
-              <span>Last updated: {updatedAt}</span>
+              <span>SYNCHRONIZED: {updatedAt} UTC</span>
             </div>
           </div>
           <RefreshButton username={playerData.username} />
         </div>
-      </div>
+      </section>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-6 backdrop-blur-sm relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 to-transparent opacity-60"></div>
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Win Rate</div>
-          <div className={`text-4xl font-bold ${winRateColor} drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]`}>
-            {stats.winRate.toFixed(2)}%
+      {/* 01 — CORE COMBAT INDICATORS (4-COLUMN GRID) */}
+      <section className="border-t-2 border-l-2 border-[#1A1A17] mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          {/* Win Rate */}
+          <div className="border-r-2 border-b-2 border-[#1A1A17] p-8 bg-[#F7F4EC] hover:bg-white transition-colors">
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#5B6770] mb-2 font-bold">
+              01 // WIN RATE (PVP)
+            </div>
+            <div className="text-5xl md:text-6xl font-black tracking-tight text-[#B3261E]">
+              {stats.winRate.toFixed(2)}%
+            </div>
+            <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
+              VICTORIES IN RANDOM BATTLES
+            </div>
           </div>
-        </div>
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-6 backdrop-blur-sm relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-fuchsia-500 to-transparent opacity-60"></div>
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Average Damage</div>
-          <div className="text-4xl font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-            {stats.avgDamage.toLocaleString()}
-          </div>
-        </div>
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-6 backdrop-blur-sm relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-transparent opacity-60"></div>
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">PvP Battles</div>
-          <div className="text-4xl font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-            {stats.battles.toLocaleString()}
-          </div>
-        </div>
-      </div>
 
-      {/* Additional Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-5 backdrop-blur-sm">
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Survived</div>
-          <div className="text-2xl font-bold text-zinc-200">{stats.survived.toLocaleString()}</div>
-          <div className="text-xs text-zinc-500 mt-1">
-            {stats.battles > 0 ? `${((stats.survived / stats.battles) * 100).toFixed(1)}% survival rate` : "N/A"}
+          {/* Battles */}
+          <div className="border-r-2 border-b-2 border-[#1A1A17] p-8 bg-[#F7F4EC] hover:bg-white transition-colors">
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#5B6770] mb-2 font-bold">
+              02 // PVP BATTLES
+            </div>
+            <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
+              {stats.battles.toLocaleString()}
+            </div>
+            <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
+              DENOMINATOR: RANDOM ONLY
+            </div>
           </div>
-        </div>
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-5 backdrop-blur-sm">
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Total Frags</div>
-          <div className="text-2xl font-bold text-zinc-200">{stats.frags.toLocaleString()}</div>
-          <div className="text-xs text-zinc-500 mt-1">
-            {stats.battles > 0 ? `${(stats.frags / stats.battles).toFixed(2)} per battle` : "N/A"}
-          </div>
-        </div>
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-5 backdrop-blur-sm">
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Total XP</div>
-          <div className="text-2xl font-bold text-zinc-200">{stats.xp.toLocaleString()}</div>
-          <div className="text-xs text-zinc-500 mt-1">
-            {stats.battles > 0 ? `${Math.round(stats.xp / stats.battles).toLocaleString()} avg per battle` : "N/A"}
-          </div>
-        </div>
-      </div>
 
-      {/* Charts Section */}
-      {history && history.length > 0 ? (
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-1 h-6 bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]"></div>
-            <h2 className="text-lg font-bold text-white tracking-[0.15em] uppercase">Performance History</h2>
-            <span className="text-xs text-zinc-500 tracking-widest">({history.length} DATA POINTS)</span>
+          {/* Average Damage */}
+          <div className="border-r-2 border-b-2 border-[#1A1A17] p-8 bg-[#F7F4EC] hover:bg-white transition-colors">
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#5B6770] mb-2 font-bold">
+              03 // AVERAGE DAMAGE
+            </div>
+            <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
+              {stats.avgDamage.toLocaleString()}
+            </div>
+            <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
+              MEAN STRUCTURAL DAMAGE
+            </div>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* K/D Ratio */}
+          <div className="border-r-2 border-b-2 border-[#1A1A17] p-8 bg-[#F7F4EC] hover:bg-white transition-colors">
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#5B6770] mb-2 font-bold">
+              04 // K/D RATIO
+            </div>
+            <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
+              {(stats.kdRatio || (stats.frags / Math.max(stats.battles - stats.survived, 1))).toFixed(2)}
+            </div>
+            <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
+              DESTRUCTION RATIO
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 02 — DETAILED COMBAT MATRIX */}
+      <section className="border-2 border-[#1A1A17] bg-[#F7F4EC] p-8 mb-12">
+        <div className="flex justify-between items-baseline mb-6 border-b border-[#1A1A17] pb-3">
+          <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-[#1A1A17] font-bold">
+            02 // EXTENDED COMBAT TELEMETRY
+          </h2>
+          <span className="text-[10px] font-mono text-[#5B6770] uppercase">
+            ACTIVE SENSOR LOG
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="border-t border-[#1A1A17] pt-3">
+            <div className="text-[10px] font-mono text-[#5B6770] uppercase">WARSHIPS SUNK</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{stats.frags.toLocaleString()}</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{fragsPerBattle} / battle</div>
+          </div>
+
+          <div className="border-t border-[#1A1A17] pt-3">
+            <div className="text-[10px] font-mono text-[#5B6770] uppercase">SURVIVAL RATE</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{survivalRate}%</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{stats.survived.toLocaleString()} survived</div>
+          </div>
+
+          <div className="border-t border-[#1A1A17] pt-3">
+            <div className="text-[10px] font-mono text-[#5B6770] uppercase">PLANES DESTROYED</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{(stats.planesKilled || 0).toLocaleString()}</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{planesPerBattle} / battle</div>
+          </div>
+
+          <div className="border-t border-[#1A1A17] pt-3">
+            <div className="text-[10px] font-mono text-[#5B6770] uppercase">MAX DAMAGE RECORD</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{(stats.maxDamage || 0).toLocaleString()}</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">single battle max</div>
+          </div>
+
+          <div className="border-t border-[#1A1A17] pt-3">
+            <div className="text-[10px] font-mono text-[#5B6770] uppercase">SCOUTING DAMAGE</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{((stats.damageScouting || 0) / 1_000_000).toFixed(1)}M</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">spotting total</div>
+          </div>
+
+          <div className="border-t border-[#1A1A17] pt-3">
+            <div className="text-[10px] font-mono text-[#5B6770] uppercase">AVERAGE XP</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{avgXp}</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">per battle mean</div>
+          </div>
+        </div>
+      </section>
+
+      {/* 03 — HISTORICAL CHARTS */}
+      {history && history.length > 0 && (
+        <section className="mb-16">
+          <div className="flex justify-between items-baseline mb-6 border-b-2 border-[#1A1A17] pb-3">
+            <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-[#1A1A17] font-bold">
+              03 // TEMPORAL PERFORMANCE TRAJECTORY
+            </h2>
+            <span className="text-xs font-mono text-[#5B6770]">
+              {history.length} CHRONOLOGICAL LOG POINTS
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <WinRateChart data={history} />
             <AvgDamageChart data={history} />
           </div>
-          <BattlesChart data={history} />
-        </div>
-      ) : (
-        <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-8 backdrop-blur-sm min-h-[200px] flex items-center justify-center">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-              </svg>
-            </div>
-            <p className="text-zinc-400 text-sm tracking-widest uppercase">
-              Insufficient data — charts will appear after more snapshots are collected.
-            </p>
-          </div>
-        </div>
+        </section>
       )}
     </div>
   );

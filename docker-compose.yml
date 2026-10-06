@@ -12,6 +12,11 @@ services:
       - NODE_ENV=production
       - INTERNAL_API_URL=http://backend:8000
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     depends_on:
       - backend
 
@@ -25,6 +30,11 @@ services:
     env_file:
       - ./backend/.env
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   scraper:
     build:
@@ -37,6 +47,11 @@ services:
     volumes:
       - scraper_data:/app/data
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     depends_on:
       - backend
 

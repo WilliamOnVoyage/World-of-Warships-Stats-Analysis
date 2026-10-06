@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #EFEBE0;
+  --paper-raised: #F7F4EC;
+  --paper-border: #1A1A17;
+  --ink: #1A1A17;
+  --ink-muted: #5B6770;
+  --signal-red: #B3261E;
+  --brass: #8A7A4A;
+  --background: var(--paper);
+  --foreground: var(--ink);
 }
 
 @theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-signal-red: var(--signal-red);
+  --color-brass: var(--brass);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle archival chart grid texture */
+.archival-grid {
+  background-image: 
+    linear-gradient(to right, rgba(26, 26, 23, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 26, 23, 0.05) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+}
+
+/* Industrial stamp effect */
+.stamp-badge {
+  border: 2px solid var(--signal-red);
+  color: var(--signal-red);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  transform: rotate(-1deg);
 }

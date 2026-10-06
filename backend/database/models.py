@@ -12,6 +12,10 @@ class Player(SQLModel, table=True):
     account_id: int = Field(primary_key=True)
     nickname: str = Field(index=True)
     realm: str = Field(default="na", index=True)
+    last_battle_time: Optional[int] = Field(default=None, index=True)
+    hidden_profile: bool = Field(default=False)
+    leveling_tier: Optional[int] = Field(default=None)
+    clan_id: Optional[int] = Field(default=None, index=True)
     
     last_updated: datetime = Field(default_factory=utc_now)
     created_at: datetime = Field(default_factory=utc_now)
@@ -27,12 +31,74 @@ class PlayerSnapshot(SQLModel, table=True):
     account_id: int = Field(primary_key=True, foreign_key="player.account_id")
     timestamp: datetime = Field(primary_key=True)
     
+    # Core PvP
     battles: int = Field(default=0)
     wins: int = Field(default=0)
     damage_dealt: int = Field(default=0)
     survived: int = Field(default=0)
     frags: int = Field(default=0)
     xp: int = Field(default=0)
+    
+    # Extended Combat Telemetry
+    max_damage: int = Field(default=0)
+    damage_scouting: int = Field(default=0)
+    ships_spotted: int = Field(default=0)
+    planes_killed: int = Field(default=0)
+    mb_hits: int = Field(default=0)
+    mb_shots: int = Field(default=0)
+    torp_hits: int = Field(default=0)
+    torp_shots: int = Field(default=0)
+    art_agro: int = Field(default=0)
+    torpedo_agro: int = Field(default=0)
+    
+    # Game Mode Breakdown
+    solo_battles: int = Field(default=0)
+    solo_wins: int = Field(default=0)
+    div2_battles: int = Field(default=0)
+    div2_wins: int = Field(default=0)
+    div3_battles: int = Field(default=0)
+    div3_wins: int = Field(default=0)
+    rank_battles: int = Field(default=0)
+    rank_wins: int = Field(default=0)
+
+
+class DailyServerStats(SQLModel, table=True):
+    __tablename__ = "daily_server_stats"
+    
+    stat_date: str = Field(primary_key=True) # YYYY-MM-DD
+    realm: str = Field(primary_key=True, default="all")
+    active_players: int = Field(default=0)
+    battles_fought: int = Field(default=0)
+    damage_dealt: int = Field(default=0)
+    total_tracked_players: int = Field(default=0)
+    mean_win_rate: float = Field(default=0.0)
+    mean_damage: float = Field(default=0.0)
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class PipelineState(SQLModel, table=True):
+    __tablename__ = "pipeline_state"
+    
+    job_name: str = Field(primary_key=True)
+    cursor_value: int = Field(default=0)
+    max_seen_id: int = Field(default=0)
+    heartbeat_at: datetime = Field(default_factory=utc_now)
+    status: str = Field(default="idle")
+    details: Optional[str] = Field(default=None)
+
+
+class PipelineRun(SQLModel, table=True):
+    __tablename__ = "pipeline_run"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    job_name: str = Field(index=True)
+    started_at: datetime = Field(default_factory=utc_now)
+    finished_at: Optional[datetime] = Field(default=None)
+    status: str = Field(default="running")
+    items_processed: int = Field(default=0)
+    items_updated: int = Field(default=0)
+    errors_count: int = Field(default=0)
+    error_message: Optional[str] = Field(default=None)
 
 
 def create_partition_if_not_exists(bind: Any, dt: datetime):
@@ -47,7 +113,6 @@ def create_partition_if_not_exists(bind: Any, dt: datetime):
 
     partition_name = f"player_snapshot_{dt.strftime('%Y_%m')}"
     
-    # Calculate start and end bounds for the month
     start_date = f"{dt.year}-{dt.month:02d}-01"
     
     if dt.month == 12:

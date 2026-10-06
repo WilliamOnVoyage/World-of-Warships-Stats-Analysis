@@ -1,21 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "WoWS Stats Tracker",
-  description: "AI-native World of Warships player statistics and analytics.",
+  title: "Naval Record Office — World of Warships Statistics",
+  description: "Official telemetry, commander dossiers, and historical analytics for World of Warships.",
 };
 
 export default function RootLayout({
@@ -24,32 +13,55 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
-    >
-      <body className="min-h-full flex flex-col bg-[#050510] text-cyan-50 font-mono selection:bg-cyan-500/30">
-        <header className="sticky top-0 z-50 w-full border-b-2 border-cyan-500/30 bg-[#050510]/80 backdrop-blur-xl shadow-[0_0_15px_rgba(34,211,238,0.1)]">
-          <div className="absolute bottom-[-2px] left-0 w-1/4 h-[2px] bg-cyan-400 shadow-[0_0_10px_#0ff]"></div>
-          <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 border border-cyan-400 flex items-center justify-center bg-cyan-950/50 shadow-[0_0_10px_rgba(34,211,238,0.4)]">
-                <div className="w-4 h-4 border border-fuchsia-400/80 animate-pulse"></div>
-              </div>
-              <span className="text-xl font-bold tracking-[0.2em] text-cyan-400 uppercase drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">
-                WoWS Stats
+    <html lang="en" className="h-full">
+      <body className="min-h-full flex flex-col bg-[#EFEBE0] text-[#1A1A17] font-sans antialiased selection:bg-[#B3261E] selection:text-white">
+        {/* Admiralty Masthead Header */}
+        <header className="border-b-2 border-[#1A1A17] bg-[#EFEBE0]">
+          <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-baseline justify-between gap-4">
+            <div className="flex items-baseline gap-4">
+              <Link href="/" className="group flex items-baseline gap-3">
+                <span className="w-3.5 h-3.5 bg-[#B3261E] inline-block" />
+                <span className="text-xl md:text-2xl font-black uppercase tracking-tight text-[#1A1A17] group-hover:text-[#B3261E] transition-colors">
+                  Naval Record Office
+                </span>
+              </Link>
+              <span className="text-xs font-mono uppercase text-[#5B6770] tracking-widest hidden md:inline">
+                TELEMETRY & DOSSIER ARCHIVE // EN-US
               </span>
             </div>
-            <nav className="flex gap-8 text-sm font-bold tracking-widest text-cyan-600">
-              <Link href="/" className="hover:text-cyan-300 transition-colors hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">HOME</Link>
-              <a href="#" className="hover:text-cyan-300 transition-colors hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">LEADERBOARD</a>
-              <a href="#" className="text-fuchsia-500 hover:text-fuchsia-300 transition-colors hover:drop-shadow-[0_0_5px_rgba(217,70,239,0.5)]">LOGIN</a>
+
+            <nav className="flex items-center gap-8 text-xs font-mono uppercase tracking-widest font-bold">
+              <Link href="/" className="hover:text-[#B3261E] transition-colors">
+                01 // DISPATCH
+              </Link>
+              <Link href="/#leaderboard" className="hover:text-[#B3261E] transition-colors">
+                02 // LEADERBOARDS
+              </Link>
+              <span className="text-[#B3261E] flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#B3261E] animate-pulse" />
+                LIVE
+              </span>
             </nav>
           </div>
         </header>
+
+        {/* Main Content */}
         <main className="flex-1 flex flex-col relative z-0">
           {children}
         </main>
+
+        {/* Archival Footer */}
+        <footer className="border-t border-[#1A1A17] bg-[#E5E1D5] py-8 text-xs font-mono text-[#5B6770]">
+          <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <span>NAVAL RECORD OFFICE • WORLD OF WARSHIPS STATISTICAL ARCHIVE</span>
+            </div>
+            <div className="flex gap-6 uppercase">
+              <span>OPERATIONAL THEATERS: NA • EU • ASIA</span>
+              <span>CLASSIFICATION: PUBLIC</span>
+            </div>
+          </div>
+        </footer>
       </body>
     </html>
   );
