@@ -16,7 +16,9 @@ RUN pip install --no-cache-dir \
     "httpx>=0.24.1" \
     "pydantic>=2.0" \
     "aiolimiter>=1.1.0" \
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0" \
+    "pyarrow>=14.0.0" \
+    "boto3>=1.28.0"
 
 COPY . .
 

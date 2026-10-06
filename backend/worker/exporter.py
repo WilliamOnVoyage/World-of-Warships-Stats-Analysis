@@ -79,6 +79,7 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
         "planes_killed", "solo_battles", "solo_wins", "div2_battles", "div2_wins",
         "div3_battles", "div3_wins", "rank_battles", "rank_wins"
     ]
+    data_dict = {col: [getattr(row, col, row[i]) for row in result] for i, col in enumerate(columns)}
     import pyarrow as pa
     import pyarrow.parquet as pq
 
