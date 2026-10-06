@@ -74,9 +74,8 @@ async def scrape_region(region: str, start_id: int, end_id: int):
                         continue
                         
                     stats = info.get("statistics", {}).get("pvp", {})
-                    overall = info.get("statistics", {})
                     
-                    if not stats or overall.get("battles", 0) == 0:
+                    if not stats or stats.get("battles", 0) == 0:
                         continue
                         
                     acc_id = int(acc_id_str)
@@ -105,7 +104,7 @@ async def scrape_region(region: str, start_id: int, end_id: int):
                     snapshot = PlayerSnapshot(
                         account_id=acc_id,
                         timestamp=now,
-                        battles=overall.get("battles", 0),
+                        battles=stats.get("battles", 0),
                         wins=stats.get("wins", 0),
                         damage_dealt=stats.get("damage_dealt", 0),
                         survived=stats.get("survived_battles", 0),

@@ -75,7 +75,11 @@ async def get_global_stats(session: Session = Depends(get_session)):
 
 
 @app.get("/api/player/{username}")
-async def get_player_stats(username: str, session: Session = Depends(get_session)):
+async def get_player_stats(
+    username: str,
+    refresh: bool = False,
+    session: Session = Depends(get_session)
+):
     # 1. Check if player exists in our DB (case-insensitive)
     statement = select(Player).where(func.lower(Player.nickname) == username.lower())
     player = session.exec(statement).first()
@@ -86,36 +90,40 @@ async def get_player_stats(username: str, session: Session = Depends(get_session
     now = datetime.now(timezone.utc)
 
     try:
-        # If player is not in our database, we fetch them from Wargaming API
-        if not player:
-            # Check user cap for dev database
-            player_count = session.exec(select(func.count()).select_from(Player)).one()
-            if player_count >= MAX_TRACKED_PLAYERS:
-                await client.close()
-                raise HTTPException(status_code=400, detail="Development database has reached its 1000 user capacity limit.")
+        # Fetch from Wargaming API if player not in DB or refresh requested
+        if not player or refresh:
+            if not player:
+                # Check user cap for dev database
+                player_count = session.exec(select(func.count()).select_from(Player)).one()
+                if player_count >= MAX_TRACKED_PLAYERS:
+                    await client.close()
+                    raise HTTPException(status_code=400, detail="Development database has reached its 1000 user capacity limit.")
+                    
+                account_id = await client.get_account_id(username)
+                if not account_id:
+                    await client.close()
+                    raise HTTPException(status_code=404, detail="Player not found in Wargaming database")
                 
-            account_id = await client.get_account_id(username)
-            if not account_id:
-                await client.close()
-                raise HTTPException(status_code=404, detail="Player not found in Wargaming database")
-            
-            # Add player
-            player = Player(account_id=account_id, nickname=username, realm="na", last_updated=now, created_at=now)
-            session.add(player)
+                # Add player
+                player = Player(account_id=account_id, nickname=username, realm="na", last_updated=now, created_at=now)
+                session.add(player)
+            else:
+                account_id = player.account_id
+                player.last_updated = now
+                session.add(player)
             
             # Fetch current cumulative stats
             info_data = await client.get_player_info([account_id])
             info = info_data.get(str(account_id), {})
             stats = info.get("statistics", {}).get("pvp", {})
-            overall = info.get("statistics", {})
             
-            if stats:
-                # Save today's cumulative snapshot
+            if stats and stats.get("battles", 0) > 0:
+                # Save today's cumulative snapshot using PVP (Random Battles) stats
                 create_partition_if_not_exists(session.get_bind(), now)
                 snapshot = PlayerSnapshot(
                     account_id=account_id,
                     timestamp=now,
-                    battles=overall.get("battles", 0),
+                    battles=stats.get("battles", 0),
                     wins=stats.get("wins", 0),
                     damage_dealt=stats.get("damage_dealt", 0),
                     survived=stats.get("survived_battles", 0),

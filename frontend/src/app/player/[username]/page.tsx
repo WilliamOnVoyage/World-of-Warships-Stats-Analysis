@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { WinRateChart, AvgDamageChart, BattlesChart } from "./charts";
+import { RefreshButton } from "./refresh-button";
 
 const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -76,14 +77,12 @@ export default async function PlayerProfile({
                 <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]"></span> Active
               </span>
               <span>•</span>
-              <span className="uppercase tracking-widest">{realm} Server</span>
+              <span className="uppercase tracking-widest">{realm} Server • Random Battles</span>
               <span>•</span>
               <span>Last updated: {updatedAt}</span>
             </div>
           </div>
-          <button className="px-4 py-2 bg-cyan-950/50 hover:bg-cyan-900/50 transition-colors rounded-lg text-sm font-medium border border-cyan-500/30 text-cyan-300 tracking-widest uppercase shadow-[0_0_10px_rgba(6,182,212,0.15)] hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]">
-            Refresh Stats
-          </button>
+          <RefreshButton username={playerData.username} />
         </div>
       </div>
 
@@ -93,7 +92,7 @@ export default async function PlayerProfile({
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 to-transparent opacity-60"></div>
           <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Win Rate</div>
           <div className={`text-4xl font-bold ${winRateColor} drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]`}>
-            {stats.winRate.toFixed(1)}%
+            {stats.winRate.toFixed(2)}%
           </div>
         </div>
         <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-6 backdrop-blur-sm relative overflow-hidden group">
@@ -105,7 +104,7 @@ export default async function PlayerProfile({
         </div>
         <div className="bg-[#080818]/60 border border-cyan-900/40 rounded-xl p-6 backdrop-blur-sm relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-transparent opacity-60"></div>
-          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">Total Battles</div>
+          <div className="text-xs font-bold text-cyan-600 mb-1 tracking-[0.2em] uppercase">PvP Battles</div>
           <div className="text-4xl font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
             {stats.battles.toLocaleString()}
           </div>
