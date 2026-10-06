@@ -102,7 +102,10 @@ async def refresh_known_players(realm: str = "na", limit: int = 5000):
     try:
         for i in range(0, len(account_ids), BATCH_SIZE):
             chunk = account_ids[i:i + BATCH_SIZE]
-            data = await client.get_player_info(chunk)
+            data = await client.get_player_info(
+                chunk,
+                extra="statistics.pvp_solo,statistics.pvp_div2,statistics.pvp_div3,statistics.rank_solo,statistics.pve"
+            )
             if not data:
                 continue
 
@@ -210,7 +213,10 @@ async def discover_new_players(realm: str = "na", chunk_count: int = 100):
     try:
         for _ in range(chunk_count):
             batch = list(range(current_id, current_id + BATCH_SIZE))
-            data = await client.get_player_info(batch)
+            data = await client.get_player_info(
+                batch,
+                extra="statistics.pvp_solo,statistics.pvp_div2,statistics.pvp_div3,statistics.rank_solo,statistics.pve"
+            )
             
             if data:
                 with Session(engine) as session:

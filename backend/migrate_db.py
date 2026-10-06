@@ -90,6 +90,44 @@ SQL_MIGRATIONS = [
         error_message TEXT
     );
     CREATE INDEX IF NOT EXISTS ix_pipeline_run_job_name ON pipeline_run (job_name);
+    """,
+
+    # 6. Create ShipEncyclopedia table
+    """
+    CREATE TABLE IF NOT EXISTS ship_encyclopedia (
+        ship_id BIGINT PRIMARY KEY,
+        name VARCHAR NOT NULL,
+        tier INT NOT NULL,
+        type VARCHAR NOT NULL,
+        nation VARCHAR NOT NULL,
+        is_premium BOOLEAN DEFAULT FALSE,
+        image_small VARCHAR,
+        image_large VARCHAR,
+        description TEXT,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_ship_encyclopedia_name ON ship_encyclopedia (name);
+    CREATE INDEX IF NOT EXISTS ix_ship_encyclopedia_tier ON ship_encyclopedia (tier);
+    CREATE INDEX IF NOT EXISTS ix_ship_encyclopedia_type ON ship_encyclopedia (type);
+    CREATE INDEX IF NOT EXISTS ix_ship_encyclopedia_nation ON ship_encyclopedia (nation);
+    """,
+
+    # 7. Create Clan table
+    """
+    CREATE TABLE IF NOT EXISTS clan (
+        clan_id INT PRIMARY KEY,
+        tag VARCHAR NOT NULL,
+        name VARCHAR NOT NULL,
+        realm VARCHAR NOT NULL DEFAULT 'na',
+        members_count INT DEFAULT 0,
+        description TEXT,
+        leader_name VARCHAR,
+        created_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_clan_tag ON clan (tag);
+    CREATE INDEX IF NOT EXISTS ix_clan_name ON clan (name);
+    CREATE INDEX IF NOT EXISTS ix_clan_realm ON clan (realm);
     """
 ]
 

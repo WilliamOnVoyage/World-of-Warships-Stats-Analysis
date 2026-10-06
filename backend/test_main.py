@@ -65,6 +65,8 @@ async def test_get_player_stats(mocker):
         }
     }
     mock_client.get_player_info.return_value = mock_info
+    mock_client.get_clan_account_info.return_value = None
+    mock_client.get_ship_stats.return_value = []
 
     # Patch the initialization in main.py to use our mock
     mocker.patch("main.WargamingAPIClient", return_value=mock_client)
@@ -99,3 +101,31 @@ async def test_internal_pipeline_status():
     data = response.json()
     assert "totalPlayers" in data
     assert "pipelineStates" in data
+
+@pytest.mark.asyncio
+async def test_leaderboard_with_modes():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        for mode in ["pvp", "solo", "div", "rank", "pve"]:
+            response = await ac.get(f"/api/leaderboard?category=win_rate&mode={mode}&min_battles=0")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["mode"] == mode
+            assert "leaderboard" in data
+
+@pytest.mark.asyncio
+async def test_encyclopedia_endpoints(mocker):
+    # Mock WG API client for sync or direct query
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/encyclopedia/ships?limit=10")
+        assert response.status_code == 200
+        data = response.json()
+        assert "ships" in data
+        assert "total" in data
+
+@pytest.mark.asyncio
+async def test_clan_leaderboard():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/leaderboard/clans")
+        assert response.status_code == 200
+        data = response.json()
+        assert "clans" in data

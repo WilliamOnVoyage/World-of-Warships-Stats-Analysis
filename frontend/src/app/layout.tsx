@@ -37,6 +37,9 @@ export default function RootLayout({
               <Link href="/#leaderboard" className="hover:text-[#B3261E] transition-colors">
                 02 // LEADERBOARDS
               </Link>
+              <Link href="/encyclopedia" className="hover:text-[#B3261E] transition-colors">
+                03 // ENCYCLOPEDIA
+              </Link>
               <span className="text-[#B3261E] flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#B3261E] animate-pulse" />
                 LIVE

@@ -101,6 +101,35 @@ class PipelineRun(SQLModel, table=True):
     error_message: Optional[str] = Field(default=None)
 
 
+class ShipEncyclopedia(SQLModel, table=True):
+    __tablename__ = "ship_encyclopedia"
+
+    ship_id: int = Field(primary_key=True)
+    name: str = Field(index=True)
+    tier: int = Field(index=True)
+    type: str = Field(index=True) # Destroyer, Cruiser, Battleship, AirCarrier, Submarine
+    nation: str = Field(index=True) # usa, japan, germany, etc.
+    is_premium: bool = Field(default=False)
+    image_small: Optional[str] = Field(default=None)
+    image_large: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class Clan(SQLModel, table=True):
+    __tablename__ = "clan"
+
+    clan_id: int = Field(primary_key=True)
+    tag: str = Field(index=True)
+    name: str = Field(index=True)
+    realm: str = Field(default="na", index=True)
+    members_count: int = Field(default=0)
+    description: Optional[str] = Field(default=None)
+    leader_name: Optional[str] = Field(default=None)
+    created_at: Optional[datetime] = Field(default=None)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 def create_partition_if_not_exists(bind: Any, dt: datetime):
     """
     Creates a monthly partition for the PlayerSnapshot table dynamically if it doesn't exist.

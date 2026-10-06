@@ -74,3 +74,28 @@ class WargamingAPIClient:
         params = {"account_id": str(account_id), "extra": "clan"}
         data = await self._make_request("/wows/clans/accountinfo/", params)
         return data.get(str(account_id))
+
+    async def get_clan_info(self, clan_id: int) -> Optional[Dict[str, Any]]:
+        """Get clan details and roster."""
+        params = {"clan_id": str(clan_id), "extra": "members"}
+        data = await self._make_request("/wows/clans/info/", params)
+        return data.get(str(clan_id))
+
+    async def search_clans(self, search: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Search clans by tag or name."""
+        params = {"search": search, "limit": limit}
+        data = await self._make_request("/wows/clans/list/", params)
+        return data if isinstance(data, list) else []
+
+    async def get_encyclopedia_ships(
+        self,
+        page_no: int = 1,
+        limit: int = 100
+    ) -> Dict[str, Any]:
+        """Fetch page of ships from official encyclopedia."""
+        params = {
+            "page_no": page_no,
+            "limit": limit,
+            "fields": "ship_id,name,tier,type,nation,images.small,images.large,is_premium,description"
+        }
+        return await self._make_request("/wows/encyclopedia/ships/", params)
