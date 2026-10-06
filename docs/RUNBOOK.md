@@ -145,23 +145,28 @@ print(df)
 
 ## 6. Tiered Alerting & Incident Playbook
 
-### Tier 1: Catastrophic Alerts (Immediate Response)
-- **Condition 1: Scraper Heartbeat Stale (>30 min):**
-  - Symptom: `pipeline_state.heartbeat_at` is older than 30 minutes.
-  - Action: Run `./scripts/ops.sh logs scraper` to view the traceback. If frozen, run `./scripts/ops.sh restart-scraper`.
-- **Condition 2: Wargaming API 407 (IP Whitelist Rejection):**
-  - Symptom: Logs show `407 INVALID_IP_ADDRESS` or `REQUEST_LIMIT_EXCEEDED`.
-  - Action: Verify Elastic IP `44.253.134.12` is configured in Wargaming Developer Console.
-- **Condition 3: RDS Storage >85% Full:**
-  - Symptom: RDS free storage alert fires.
+### Active AWS Notification Setup
+- **SNS Topic:** `arn:aws:sns:us-west-2:910534718184:WoWS-Stats-Critical-Alerts`
+- **Subscribed Email:** `endeavourwilliam.zhou@gmail.com`
+- **Anti-Fatigue Policy:** Multi-period thresholds on AWS CloudWatch + 12-hour cooldown deduplication on pipeline stalls. Zero email bombardment.
+
+### Tier 1: Catastrophic Alerts (Immediate Response via CloudWatch)
+- **Alarm 1: `wows-ec2-instance-failed`**
+  - Metric: `StatusCheckFailed >= 1` for 2 consecutive minutes on EC2 `i-06bef9ba2c963cd36`.
+  - Action: Reboot EC2 instance or check AWS Management Console.
+- **Alarm 2: `wows-rds-storage-critical`**
+  - Metric: `FreeStorageSpace <= 2 GB` for 10 consecutive minutes on RDS `wows-stats-db`.
   - Action: Modify RDS storage: `aws rds modify-db-instance --db-instance-identifier wows-stats-db --allocated-storage 50 --apply-immediately`.
 
-### Tier 2: Important Alerts (Daily Digest)
-- Review daily rollup: `SELECT * FROM daily_server_stats ORDER BY stat_date DESC LIMIT 7;`.
-- Check active players count and new account registrations.
+### Tier 2: Pipeline Scraper Stall (Hourly Health Monitor with 12h Cooldown)
+- **Monitor:** `/home/ubuntu/app/scripts/check_health.sh` scheduled via cron every hour (`0 * * * *`).
+- **Condition:** Latest heartbeat across `pipeline_state` older than 45 minutes.
+- **Suppression:** Maximum 1 alert per 12 hours. Suppressed while in degraded state to protect your inbox. Automatically resets upon recovery.
+- **Action:** Run `./scripts/ops.sh logs scraper`. If frozen, restart scraper via `./scripts/ops.sh restart-scraper`.
 
-### Tier 3: Informational (Weekly)
-- Review weekly player growth and region distribution (NA / EU / ASIA).
+### Tier 3: Informational / Daily Telemetry (Zero Email Policy)
+- Routine performance and daily rollups are strictly silent (no emails sent).
+- Retained in PostgreSQL (`SELECT * FROM daily_server_stats ORDER BY stat_date DESC LIMIT 7;`) and visible on web dashboard.
 
 ---
 
