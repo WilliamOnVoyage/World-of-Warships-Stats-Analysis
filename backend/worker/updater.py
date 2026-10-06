@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-from sqlmodel import create_engine, Session, select, text
+from sqlmodel import create_engine, Session, select, text, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from database.models import (
     Player,
@@ -273,8 +273,8 @@ def generate_daily_rollup():
         start_time = datetime.fromisoformat(f"{stat_date}T00:00:00+00:00")
         end_time = datetime.fromisoformat(f"{stat_date}T23:59:59+00:00")
         
-        result = session.exec(sql, {"start_time": start_time, "end_time": end_time}).first()
-        total_players = session.exec(select(text("count(*)")).select_from(Player)).one()[0]
+        result = session.execute(sql, {"start_time": start_time, "end_time": end_time}).first()
+        total_players = session.exec(select(func.count(Player.account_id))).one()
 
         rollup = DailyServerStats(
             stat_date=stat_date,

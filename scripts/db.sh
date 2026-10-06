@@ -42,26 +42,27 @@ case "$cmd" in
         ;;
     setup-analyst)
         echo "Setting up read-only user 'wows_analyst'..."
-        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" 'docker exec -i $(docker ps -qf name=backend) python -c "
+        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" "docker exec -i wows-backend python -" << 'EOF'
 from main import engine
 from sqlmodel import Session, text
+
 with Session(engine) as s:
-    s.exec(text(\"\"\"
-        DO \$\$
+    s.exec(text("""
+        DO $$
         BEGIN
-            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = chr(39)||'wows_analyst'||chr(39)) THEN
-                CREATE ROLE wows_analyst WITH LOGIN PASSWORD '\''AnalystRead2026!'\'';
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'wows_analyst') THEN
+                CREATE ROLE wows_analyst WITH LOGIN PASSWORD 'AnalystRead2026!';
             END IF;
         END
-        \$\$;
+        $$;
         GRANT CONNECT ON DATABASE wows_stats TO wows_analyst;
         GRANT USAGE ON SCHEMA public TO wows_analyst;
         GRANT SELECT ON ALL TABLES IN SCHEMA public TO wows_analyst;
         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO wows_analyst;
-    \"\"\"))
+    """))
     s.commit()
-    print(\"Role wows_analyst configured successfully!\")
-"'
+    print("Role wows_analyst configured successfully!")
+EOF
         ;;
     *)
         usage
