@@ -66,7 +66,7 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
     """)
 
     with Session(engine) as session:
-        result = session.exec(query, {"start_ts": start_ts, "end_ts": end_ts}).all()
+        result = session.execute(query, {"start_ts": start_ts, "end_ts": end_ts}).all()
 
     if not result:
         print(f"[Exporter] No snapshots found for date {target_date}.")
