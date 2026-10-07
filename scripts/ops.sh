@@ -40,18 +40,22 @@ with Session(engine) as s:
         ;;
     telemetry)
         echo "=== WoWS Developer Telemetry Dashboard ($EC2_HOST) ==="
-        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" '
-            docker exec -i $(docker ps -qf name=backend) python -c "
+        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" "docker exec -i \$(docker ps -qf name=backend) python - << 'EOF'
 from datetime import datetime, timezone
 from main import engine
 from sqlmodel import Session, text
 
 with Session(engine) as s:
     now = datetime.now(timezone.utc)
-    realms = s.execute(text(\"SELECT COALESCE(realm, '\''unknown'\''), count(*) FROM player GROUP BY realm ORDER BY count(*) DESC\")).fetchall()
+    realms = s.execute(text(\"\"\"
+        SELECT COALESCE(realm, 'unknown'), count(*) 
+        FROM player 
+        GROUP BY realm 
+        ORDER BY count(*) DESC
+    \"\"\")).fetchall()
     total_players = sum(r[1] for r in realms)
     total_snapshots = s.execute(text(\"SELECT count(*) FROM player_snapshot\")).scalar()
-    recent_snapshots = s.execute(text(\"SELECT count(*) FROM player_snapshot WHERE timestamp >= NOW() - INTERVAL '\''24 HOURS'\''\")).scalar()
+    recent_snapshots = s.execute(text(\"SELECT count(*) FROM player_snapshot WHERE timestamp >= NOW() - INTERVAL '24 HOURS'\")).scalar()
     
     print(\"\n[01 // FLEET REGISTRY BY REALM]\")
     for r in realms:
@@ -68,14 +72,21 @@ with Session(engine) as s:
         age_str = f\"{int((now - hb).total_seconds() / 60)}m ago\" if hb else \"never\"
         if hb and (now - hb).total_seconds() < 60:
             age_str = \"just now\"
-        details = (j[4] or \"\")[:40]
+        details = (j[4] or \"\")[:45]
         print(f\"  {j[0]:<24} {j[1]:>12,}  {age_str:<12} {j[3]:<10} {details}\")
-\"
+
+    print(\"\n[03 // HISTORICAL DAILY ROLLUPS]\")
+    rollups = s.execute(text(\"SELECT stat_date, realm, total_tracked_players, active_players, battles_fought, mean_win_rate FROM daily_server_stats ORDER BY stat_date DESC LIMIT 5\")).fetchall()
+    print(f\"  {'DATE':<12} {'THEATER':<8} {'TRACKED':<12} {'ACTIVE':<10} {'BATTLES':<14} {'SERVER WR'}\")
+    print(\"  \" + \"-\" * 70)
+    for ro in rollups:
+        print(f\"  {ro[0]:<12} {ro[1].upper():<8} {ro[2]:>10,} {ro[3]:>8,} {ro[4]:>12,} {ro[5]:>8.2f}%\")
+EOF
             echo \"\"
-            echo \"[03 // INFRASTRUCTURE BUFFER]\"
-            df -h / | awk '\''NR==2 {print \"  • EC2 Host Storage: \" $4 \" available / \" $2 \" total (\" $5 \" used)\"}'\''
-            free -m | awk '\''NR==2 {print \"  • EC2 Memory:       \" $7 \"MB available / \" $2 \"MB total\"}'\''
-        '
+            echo \"[04 // INFRASTRUCTURE BUFFER]\"
+            df -h / | awk 'NR==2 {print \"  • EC2 Host Storage: \" \$4 \" available / \" \$2 \" total (\" \$5 \" used)\"}'
+            free -m | awk 'NR==2 {print \"  • EC2 Memory:       \" \$7 \"MB available / \" \$2 \"MB total\"}'
+        "
         ;;
     logs)
         service="${2:-scraper}"
