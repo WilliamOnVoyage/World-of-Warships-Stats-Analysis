@@ -875,3 +875,53 @@ async def trigger_parquet_export(target_date: Optional[str] = Body(None, embed=T
     """Triggers an on-demand Parquet export to S3/local data lake."""
     result_path = export_date_to_parquet(target_date)
     return {"status": "success", "destination": result_path}
+
+@app.get("/api/telemetry/overview")
+async def get_telemetry_overview(session: Session = Depends(get_session)):
+    """Returns Tier 3 informational telemetry, pipeline status, and daily rollups."""
+    now = datetime.now(timezone.utc)
+    player_count = session.exec(select(func.count()).select_from(Player)).one()
+    snapshot_count = session.exec(select(func.count()).select_from(PlayerSnapshot)).one()
+
+    states = session.exec(select(PipelineState).order_by(PipelineState.job_name)).all()
+    pipeline_jobs = []
+    for s in states:
+        hb_age = int((now - s.heartbeat_at).total_seconds() / 60) if s.heartbeat_at else None
+        pipeline_jobs.append({
+            "jobName": s.job_name,
+            "cursor": s.cursor_value,
+            "status": s.status,
+            "heartbeat": s.heartbeat_at.isoformat() if s.heartbeat_at else None,
+            "heartbeatAgeMinutes": hb_age,
+            "details": s.details
+        })
+
+    daily_stats = session.exec(
+        select(DailyServerStats).order_by(DailyServerStats.stat_date.desc()).limit(14)
+    ).all()
+    rollups = []
+    for d in daily_stats:
+        rollups.append({
+            "statDate": d.stat_date,
+            "realm": d.realm,
+            "activePlayers": d.active_players,
+            "battlesFought": d.battles_fought,
+            "totalTrackedPlayers": d.total_tracked_players,
+            "meanWinRate": d.mean_win_rate,
+            "damageDealt": d.damage_dealt
+        })
+
+    return {
+        "timestamp": now.isoformat(),
+        "totalPlayers": player_count,
+        "totalSnapshots": snapshot_count,
+        "pipelineJobs": pipeline_jobs,
+        "dailyRollups": rollups,
+        "systemHealth": {
+            "ec2Status": "OK",
+            "rdsStatus": "OK",
+            "snsTopic": "arn:aws:sns:us-west-2:910534718184:WoWS-Stats-Critical-Alerts",
+            "antiSpamPolicy": "12-Hour Cooldown Deduplication",
+            "cloudWatchAlarms": ["wows-ec2-instance-failed", "wows-rds-storage-critical"]
+        }
+    }
