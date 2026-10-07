@@ -9,13 +9,13 @@ def utc_now() -> datetime:
 class Player(SQLModel, table=True):
     __tablename__ = "player"
     
-    account_id: int = Field(primary_key=True)
+    account_id: int = Field(sa_column=Column(BigInteger, primary_key=True, autoincrement=False))
     nickname: str = Field(index=True)
     realm: str = Field(default="na", index=True)
-    last_battle_time: Optional[int] = Field(default=None, index=True)
+    last_battle_time: Optional[int] = Field(default=None, sa_column=Column(BigInteger, nullable=True, index=True))
     hidden_profile: bool = Field(default=False)
     leveling_tier: Optional[int] = Field(default=None)
-    clan_id: Optional[int] = Field(default=None, index=True)
+    clan_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, nullable=True, index=True))
     
     last_updated: datetime = Field(default_factory=utc_now)
     created_at: datetime = Field(default_factory=utc_now)
@@ -28,7 +28,7 @@ class PlayerSnapshot(SQLModel, table=True):
     )
     
     # Composite PK required for native partitioning in Postgres
-    account_id: int = Field(primary_key=True, foreign_key="player.account_id")
+    account_id: int = Field(sa_column=Column(BigInteger, primary_key=True))
     timestamp: datetime = Field(primary_key=True)
     
     # Core PvP
@@ -80,10 +80,10 @@ class PipelineState(SQLModel, table=True):
     __tablename__ = "pipeline_state"
     
     job_name: str = Field(primary_key=True)
-    cursor_value: int = Field(default=0)
-    range_start: int = Field(default=0)
-    range_end: int = Field(default=0)
-    max_seen_id: int = Field(default=0)
+    cursor_value: int = Field(default=0, sa_column=Column(BigInteger, default=0))
+    range_start: int = Field(default=0, sa_column=Column(BigInteger, default=0))
+    range_end: int = Field(default=0, sa_column=Column(BigInteger, default=0))
+    max_seen_id: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     heartbeat_at: datetime = Field(default_factory=utc_now)
     status: str = Field(default="idle")
     details: Optional[str] = Field(default=None)
@@ -95,7 +95,7 @@ class PipelineProgressSample(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     job_name: str = Field(index=True)
     sampled_at: datetime = Field(default_factory=utc_now, index=True)
-    cursor_value: int = Field(default=0)
+    cursor_value: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     items_processed: int = Field(default=0)
     items_found: int = Field(default=0)
 
@@ -117,11 +117,11 @@ class PipelineRun(SQLModel, table=True):
 class ShipEncyclopedia(SQLModel, table=True):
     __tablename__ = "ship_encyclopedia"
 
-    ship_id: int = Field(primary_key=True)
+    ship_id: int = Field(sa_column=Column(BigInteger, primary_key=True, autoincrement=False))
     name: str = Field(index=True)
     tier: int = Field(index=True)
     type: str = Field(index=True) # Destroyer, Cruiser, Battleship, AirCarrier, Submarine
-    nation: str = Field(index=True) # usa, japan, germany, etc.
+    nation: str = Field(index=True) # japan, usa, etc.
     is_premium: bool = Field(default=False)
     image_small: Optional[str] = Field(default=None)
     image_large: Optional[str] = Field(default=None)
@@ -132,7 +132,7 @@ class ShipEncyclopedia(SQLModel, table=True):
 class Clan(SQLModel, table=True):
     __tablename__ = "clan"
 
-    clan_id: int = Field(primary_key=True)
+    clan_id: int = Field(sa_column=Column(BigInteger, primary_key=True, autoincrement=False))
     tag: str = Field(index=True)
     name: str = Field(index=True)
     realm: str = Field(default="na", index=True)

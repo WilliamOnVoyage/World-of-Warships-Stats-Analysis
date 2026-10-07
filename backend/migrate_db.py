@@ -115,7 +115,7 @@ SQL_MIGRATIONS = [
     # 7. Create Clan table
     """
     CREATE TABLE IF NOT EXISTS clan (
-        clan_id INT PRIMARY KEY,
+        clan_id BIGINT PRIMARY KEY,
         tag VARCHAR NOT NULL,
         name VARCHAR NOT NULL,
         realm VARCHAR NOT NULL DEFAULT 'na',
@@ -128,6 +128,10 @@ SQL_MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS ix_clan_tag ON clan (tag);
     CREATE INDEX IF NOT EXISTS ix_clan_name ON clan (name);
     CREATE INDEX IF NOT EXISTS ix_clan_realm ON clan (realm);
+    ALTER TABLE clan ALTER COLUMN clan_id TYPE BIGINT;
+    ALTER TABLE player ALTER COLUMN account_id TYPE BIGINT;
+    ALTER TABLE player ALTER COLUMN clan_id TYPE BIGINT;
+    ALTER TABLE player_snapshot ALTER COLUMN account_id TYPE BIGINT;
     """,
 
     # 8. Add range boundaries to PipelineState
