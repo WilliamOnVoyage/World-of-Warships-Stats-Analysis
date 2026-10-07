@@ -89,11 +89,30 @@ EOF
         "
         ;;
     dashboard)
-        echo "=== Opening Secure SSH Tunnel to WoWS Grafana Dashboard ==="
+        echo "=== WoWS Grafana Developer Dashboard Tunnel ==="
+        if lsof -i :3001 -sTCP:LISTEN >/dev/null 2>&1; then
+            echo "• An SSH tunnel is already active and listening on http://localhost:3001"
+            echo "• Open the dashboard directly in your browser:"
+            echo "  👉 http://localhost:3001/d/wows-pipeline-telemetry/wows-ingestion-pipeline-and-operational-telemetry"
+            echo ""
+            echo "Tip: Run '$0 dashboard-stop' to terminate this tunnel."
+            exit 0
+        fi
         echo "Forwarding localhost:3001 -> EC2:127.0.0.1:3001..."
-        echo "Open in your browser: http://localhost:3001"
+        echo "Open in your browser: http://localhost:3001/d/wows-pipeline-telemetry/wows-ingestion-pipeline-and-operational-telemetry"
         echo "Press Ctrl+C to close the tunnel."
         ssh -i "${KEY_PATH}" -N -L "3001:127.0.0.1:3001" "ubuntu@${EC2_HOST}"
+        ;;
+    dashboard-stop)
+        echo "=== Stopping WoWS Grafana Tunnel ==="
+        pids=$(lsof -t -i :3001 -sTCP:LISTEN 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            echo "Closing tunnel process(es): $pids"
+            kill $pids
+            echo "Tunnel closed."
+        else
+            echo "No tunnel currently listening on port 3001."
+        fi
         ;;
     logs)
         service="${2:-scraper}"
@@ -116,7 +135,7 @@ EOF
         echo "Deployment complete."
         ;;
     *)
-        echo "Usage: $0 [status|telemetry|dashboard|logs <backend|scraper|frontend|grafana>|restart-scraper|deploy]"
+        echo "Usage: $0 [status|telemetry|dashboard|dashboard-stop|logs <backend|scraper|frontend|grafana>|restart-scraper|deploy]"
         exit 1
         ;;
 esac
