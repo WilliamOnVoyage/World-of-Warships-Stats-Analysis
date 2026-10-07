@@ -38,31 +38,46 @@ case "$cmd" in
         ;;
     psql)
         echo "Connecting to RDS via localhost:${LOCAL_PORT}..."
-        PGPASSWORD="${PGPASSWORD:-aCR6H3sOwBFiWbs2vbKo}" psql -h localhost -p "${LOCAL_PORT}" -U "${DB_USER}" -d "${DB_NAME}"
+        if [ -z "${PGPASSWORD:-}" ]; then
+            read -rsp "Enter password for ${DB_USER}: " PGPASSWORD
+            echo ""
+        fi
+        PGPASSWORD="${PGPASSWORD}" psql -h localhost -p "${LOCAL_PORT}" -U "${DB_USER}" -d "${DB_NAME}"
         ;;
     setup-analyst)
+        ANALYST_PASSWORD="${ANALYST_PASSWORD:-}"
+        if [ -z "${ANALYST_PASSWORD}" ]; then
+            ANALYST_PASSWORD=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 16)
+        fi
         echo "Setting up read-only user 'wows_analyst'..."
-        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" "docker exec -i wows-backend python -" << 'EOF'
+        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" "docker exec -i wows-backend python -c \"
 from main import engine
 from sqlmodel import Session, text
 
 with Session(engine) as s:
-    s.exec(text("""
-        DO $$
+    s.exec(text('''
+        DO \\\$\\\$
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'wows_analyst') THEN
-                CREATE ROLE wows_analyst WITH LOGIN PASSWORD 'AnalystRead2026!';
+                CREATE ROLE wows_analyst WITH LOGIN PASSWORD '${ANALYST_PASSWORD}';
+            ELSE
+                ALTER ROLE wows_analyst WITH PASSWORD '${ANALYST_PASSWORD}';
             END IF;
         END
-        $$;
+        \\\$\\\$;
         GRANT CONNECT ON DATABASE wows_stats TO wows_analyst;
         GRANT USAGE ON SCHEMA public TO wows_analyst;
         GRANT SELECT ON ALL TABLES IN SCHEMA public TO wows_analyst;
         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO wows_analyst;
-    """))
+    '''))
     s.commit()
-    print("Role wows_analyst configured successfully!")
-EOF
+    print('Role wows_analyst configured successfully!')
+\""
+        echo "=========================================================="
+        echo "wows_analyst credentials configured:"
+        echo "  Username: wows_analyst"
+        echo "  Password: ${ANALYST_PASSWORD}"
+        echo "=========================================================="
         ;;
     *)
         usage
