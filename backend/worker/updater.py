@@ -229,8 +229,10 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
 
 async def discover_new_players(realm: str = "na", chunk_count: int = 50) -> int:
     """
-    Scouts new account IDs beyond the high water mark for the given realm.
-    Lightweight, high-speed sequential range scanning.
+    Scouts new account IDs for the given realm.
+    - Baseline Phase: Sequential range scan from high_water_mark to upper_limit.
+    - Frontier Delta Phase: Once caught up to live edge or upper_limit, probes forward
+      directly from MAX(account_id) to detect brand-new registrations with zero waste.
     """
     job_name = f"discovery_{realm}"
     app_id = os.getenv("WARGAMING_APP_ID")
@@ -240,58 +242,103 @@ async def discover_new_players(realm: str = "na", chunk_count: int = 50) -> int:
     client = WargamingAPIClient(application_id=app_id, realm=realm, rate_limiter=GLOBAL_LIMITER)
     config = REGIONS.get(realm, REGIONS["na"])
     
-    current_id = config["high_water_mark"]
     with Session(engine) as session:
         state = session.exec(select(PipelineState).where(PipelineState.job_name == job_name)).first()
-        if state and config["high_water_mark"] <= state.cursor_value < config["upper_limit"]:
+        max_db_id = session.exec(select(func.max(Player.account_id)).where(Player.realm == realm)).one_or_none() or config["high_water_mark"]
+
+    is_frontier_mode = False
+    current_id = config["high_water_mark"]
+
+    if state:
+        # Check if already in frontier delta mode
+        if (
+            state.status == "standby"
+            or state.cursor_value >= config["upper_limit"]
+            or (state.details and "Frontier Delta" in state.details)
+        ):
+            is_frontier_mode = True
+            current_id = max_db_id
+        elif config["high_water_mark"] <= state.cursor_value < config["upper_limit"]:
             current_id = state.cursor_value
 
     new_found = 0
     total_scanned = 0
+    consecutive_empty = 0
     now = datetime.now(timezone.utc)
+    max_seen_id = max_db_id
+
+    # If in frontier mode, probe a compact leading-edge window (e.g. 10 chunks)
+    effective_chunks = min(chunk_count, 10) if is_frontier_mode else chunk_count
 
     try:
-        for _ in range(chunk_count):
+        for _ in range(effective_chunks):
             batch = list(range(current_id, current_id + BATCH_SIZE))
             data = await client.get_player_info(batch)
             total_scanned += len(batch)
             
+            batch_found = 0
             if data:
                 with Session(engine) as session:
                     acc_ids = [int(k) for k, v in data.items() if v]
-                    existing_ids = set(session.exec(select(Player.account_id).where(Player.account_id.in_(acc_ids))).all())
-                    for acc_id_str, info in data.items():
-                        if not info:
-                            continue
-                        acc_id = int(acc_id_str)
-                        if acc_id not in existing_ids:
-                            new_player = Player(
-                                account_id=acc_id,
-                                nickname=info.get("nickname") or f"Player_{acc_id}",
-                                realm=realm,
-                                last_battle_time=info.get("last_battle_time"),
-                                hidden_profile=bool(info.get("hidden_profile", False)),
-                                leveling_tier=info.get("leveling_tier"),
-                                created_at=datetime.fromtimestamp(info.get("created_at", int(now.timestamp())), tz=timezone.utc),
-                                last_updated=now
-                            )
-                            session.add(new_player)
-                            new_found += 1
-                    session.commit()
+                    if acc_ids:
+                        existing_ids = set(session.exec(select(Player.account_id).where(Player.account_id.in_(acc_ids))).all())
+                        for acc_id_str, info in data.items():
+                            if not info:
+                                continue
+                            acc_id = int(acc_id_str)
+                            if acc_id not in existing_ids:
+                                new_player = Player(
+                                    account_id=acc_id,
+                                    nickname=info.get("nickname") or f"Player_{acc_id}",
+                                    realm=realm,
+                                    last_battle_time=info.get("last_battle_time"),
+                                    hidden_profile=bool(info.get("hidden_profile", False)),
+                                    leveling_tier=info.get("leveling_tier"),
+                                    created_at=datetime.fromtimestamp(info.get("created_at", int(now.timestamp())), tz=timezone.utc),
+                                    last_updated=now
+                                )
+                                session.add(new_player)
+                                new_found += 1
+                                batch_found += 1
+                                if acc_id > max_seen_id:
+                                    max_seen_id = acc_id
+                        session.commit()
+
+            if batch_found > 0:
+                consecutive_empty = 0
+            else:
+                consecutive_empty += 1
 
             current_id += BATCH_SIZE
-            if current_id >= config["upper_limit"]:
-                current_id = config["high_water_mark"]
+
+            # Check if we reached the live edge: 5 empty batches past max_db_id or reached upper_limit
+            if (current_id >= max_db_id and consecutive_empty >= 5) or current_id >= config["upper_limit"]:
+                is_frontier_mode = True
+                current_id = max_seen_id
+                break
+
+        if is_frontier_mode:
+            status = "standby"
+            details = f"Frontier Delta: Live edge at ID {max_seen_id:,} • Awaiting new registrations"
+            range_start = config["high_water_mark"]
+            range_end = max_seen_id
+            cursor_to_report = max_seen_id
+        else:
+            status = "running"
+            details = f"Cursor at {current_id:,} • Discovered {new_found} new players in pass"
+            range_start = config["high_water_mark"]
+            range_end = config["upper_limit"]
+            cursor_to_report = current_id
 
         update_heartbeat(
             job_name,
-            current_id,
-            "running",
-            f"Cursor at {current_id:,} • Discovered {new_found} new players in pass",
-            range_start=config["high_water_mark"],
-            range_end=config["upper_limit"]
+            cursor_to_report,
+            status,
+            details,
+            range_start=range_start,
+            range_end=range_end
         )
-        record_progress_sample(job_name, current_id, total_scanned, new_found)
+        record_progress_sample(job_name, cursor_to_report, total_scanned, new_found)
 
     finally:
         await client.close()
