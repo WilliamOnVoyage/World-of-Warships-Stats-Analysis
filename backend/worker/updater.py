@@ -32,8 +32,8 @@ engine = create_engine(DATABASE_URL)
 
 REGIONS = {
     "na": {"high_water_mark": 1_075_000_000, "upper_limit": 1_100_000_000},
-    "eu": {"high_water_mark": 720_000_000, "upper_limit": 760_000_000},
-    "asia": {"high_water_mark": 2_055_000_000, "upper_limit": 2_080_000_000},
+    "eu": {"high_water_mark": 500_000_000, "upper_limit": 760_000_000},
+    "asia": {"high_water_mark": 2_000_000_000, "upper_limit": 2_050_000_000},
 }
 
 BATCH_SIZE = 100
@@ -89,6 +89,12 @@ async def refresh_known_players(realm: str = "na", limit: int = 5000):
         players_to_refresh = session.exec(query).all()
 
     if not players_to_refresh:
+        update_heartbeat(
+            job_name=job_name,
+            cursor=0,
+            status="idle",
+            details=f"Queue empty (0 tracked {realm.upper()} commanders pending)"
+        )
         await client.close()
         return 0
 
@@ -200,11 +206,11 @@ async def discover_new_players(realm: str = "na", chunk_count: int = 100):
     client = WargamingAPIClient(application_id=app_id, realm=realm)
     config = REGIONS.get(realm, REGIONS["na"])
     
-    # Retrieve current cursor from DB
+    # Retrieve current cursor from DB (enforcing valid window)
     current_id = config["high_water_mark"]
     with Session(engine) as session:
         state = session.exec(select(PipelineState).where(PipelineState.job_name == job_name)).first()
-        if state and state.cursor_value > config["high_water_mark"]:
+        if state and config["high_water_mark"] <= state.cursor_value < config["upper_limit"]:
             current_id = state.cursor_value
 
     new_found = 0
@@ -213,20 +219,18 @@ async def discover_new_players(realm: str = "na", chunk_count: int = 100):
     try:
         for _ in range(chunk_count):
             batch = list(range(current_id, current_id + BATCH_SIZE))
-            data = await client.get_player_info(
-                batch,
-                extra="statistics.pvp_solo,statistics.pvp_div2,statistics.pvp_div3,statistics.rank_solo,statistics.pve"
-            )
+            # Lightweight call: no extra statistics payloads needed during discovery
+            data = await client.get_player_info(batch)
             
             if data:
                 with Session(engine) as session:
-                    create_partition_if_not_exists(session.get_bind(), now)
+                    acc_ids = [int(k) for k, v in data.items() if v]
+                    existing_ids = set(session.exec(select(Player.account_id).where(Player.account_id.in_(acc_ids))).all())
                     for acc_id_str, info in data.items():
                         if not info:
                             continue
                         acc_id = int(acc_id_str)
-                        existing = session.get(Player, acc_id)
-                        if not existing:
+                        if acc_id not in existing_ids:
                             new_player = Player(
                                 account_id=acc_id,
                                 nickname=info.get("nickname") or f"Player_{acc_id}",
@@ -266,13 +270,13 @@ def generate_daily_rollup():
         if existing:
             return
 
-        # Compute aggregate metrics for yesterday
+        # Compute aggregate metrics for yesterday (using weighted server win rate)
         sql = text("""
             SELECT 
                 COUNT(DISTINCT account_id) as active_players,
                 COALESCE(SUM(battles), 0) as battles_fought,
                 COALESCE(SUM(damage_dealt), 0) as damage_dealt,
-                COALESCE(AVG(CASE WHEN battles > 0 THEN wins * 100.0 / battles ELSE 0 END), 0) as mean_wr
+                COALESCE(SUM(wins)::numeric * 100.0 / NULLIF(SUM(battles), 0), 0) as mean_wr
             FROM player_snapshot
             WHERE timestamp >= :start_time AND timestamp < :end_time
         """)
@@ -303,13 +307,16 @@ async def main():
 
     while True:
         try:
+            update_heartbeat("pipeline_orchestrator", status="running", details="Initiating telemetry refresh cycle")
             # 1. Telemetry refresh for known players across regions
             for region in ["na", "eu", "asia"]:
+                update_heartbeat("pipeline_orchestrator", status="running", details=f"Refreshing telemetry for {region.upper()}")
                 await refresh_known_players(realm=region, limit=2000)
                 await asyncio.sleep(2)
 
             # 2. Scout for new player registrations
             for region in ["na", "eu", "asia"]:
+                update_heartbeat("pipeline_orchestrator", status="running", details=f"Scouting new registrations for {region.upper()}")
                 await discover_new_players(realm=region, chunk_count=20)
                 await asyncio.sleep(2)
 
@@ -317,6 +324,7 @@ async def main():
             generate_daily_rollup()
 
             # Short rest between main cycles
+            update_heartbeat("pipeline_orchestrator", status="running", details="Cycle complete. Standing by for next cycle.")
             await asyncio.sleep(10)
 
         except Exception as e:

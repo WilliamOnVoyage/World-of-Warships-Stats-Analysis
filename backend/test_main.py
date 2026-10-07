@@ -129,3 +129,19 @@ async def test_clan_leaderboard():
         assert response.status_code == 200
         data = response.json()
         assert "clans" in data
+
+@pytest.mark.asyncio
+async def test_internal_pipeline_overview_auth():
+    # 1. Unauthenticated request must be rejected
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        unauth = await ac.get("/internal/pipeline/overview")
+        assert unauth.status_code == 401
+
+    # 2. Authenticated request with secret key succeeds
+    headers = {"X-Internal-Key": "wows-secret-internal-key-2026"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        auth_resp = await ac.get("/internal/pipeline/overview", headers=headers)
+        assert auth_resp.status_code == 200
+        data = auth_resp.json()
+        assert "pipelineJobs" in data
+        assert "systemHealth" in data

@@ -876,9 +876,9 @@ async def trigger_parquet_export(target_date: Optional[str] = Body(None, embed=T
     result_path = export_date_to_parquet(target_date)
     return {"status": "success", "destination": result_path}
 
-@app.get("/api/telemetry/overview")
-async def get_telemetry_overview(session: Session = Depends(get_session)):
-    """Returns Tier 3 informational telemetry, pipeline status, and daily rollups."""
+@app.get("/internal/pipeline/overview", dependencies=[Depends(verify_internal_key)])
+async def get_internal_pipeline_overview(session: Session = Depends(get_session)):
+    """Returns Tier 3 operational pipeline status and metrics for authenticated developers."""
     now = datetime.now(timezone.utc)
     player_count = session.exec(select(func.count()).select_from(Player)).one()
     snapshot_count = session.exec(select(func.count()).select_from(PlayerSnapshot)).one()
