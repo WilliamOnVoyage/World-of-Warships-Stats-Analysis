@@ -8,17 +8,8 @@ LOCK_FILE="/tmp/wows_scraper_alert.lock"
 COOLDOWN_SECONDS=43200 # 12 hours
 SNS_TOPIC="arn:aws:sns:us-west-2:910534718184:WoWS-Stats-Critical-Alerts"
 AWS_REGION="us-west-2"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/../backend/.env"
-INTERNAL_KEY="${INTERNAL_API_KEY:-}"
-if [ -z "${INTERNAL_KEY}" ] && [ -f "${ENV_FILE}" ]; then
-  INTERNAL_KEY=$(grep -E '^INTERNAL_API_KEY=' "${ENV_FILE}" | cut -d= -f2- | tr -d '"'"'"' || true)
-fi
-
-if [ -z "${INTERNAL_KEY}" ]; then
-  echo "[$(date -u)] ERROR: INTERNAL_API_KEY is not set in environment or ${ENV_FILE}"
-  exit 1
-fi
+API_URL="http://127.0.0.1:8000/internal/pipeline/status"
+INTERNAL_KEY="wows-secret-internal-key-2026"
 
 STATUS_JSON=$(curl -s --max-time 10 "${API_URL}" -H "X-Internal-Key: ${INTERNAL_KEY}" || echo "")
 

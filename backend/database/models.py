@@ -81,10 +81,23 @@ class PipelineState(SQLModel, table=True):
     
     job_name: str = Field(primary_key=True)
     cursor_value: int = Field(default=0)
+    range_start: int = Field(default=0)
+    range_end: int = Field(default=0)
     max_seen_id: int = Field(default=0)
     heartbeat_at: datetime = Field(default_factory=utc_now)
     status: str = Field(default="idle")
     details: Optional[str] = Field(default=None)
+
+
+class PipelineProgressSample(SQLModel, table=True):
+    __tablename__ = "pipeline_progress_sample"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    job_name: str = Field(index=True)
+    sampled_at: datetime = Field(default_factory=utc_now, index=True)
+    cursor_value: int = Field(default=0)
+    items_processed: int = Field(default=0)
+    items_found: int = Field(default=0)
 
 
 class PipelineRun(SQLModel, table=True):

@@ -67,36 +67,44 @@ postgresql://wows_admin@localhost:5433/wows_stats
 ```
 
 ### 3.2 Read-Only Analyst Role
-To create or rotate a read-only user (`wows_analyst`) safe against accidental drops or writes:
+To create a read-only user (`wows_analyst`) safe against accidental drops or writes:
 ```bash
 ./scripts/db.sh setup-analyst
 ```
 Credentials:
 - **Username:** `wows_analyst`
-- **Password:** Printed securely during `setup-analyst` execution
+- **Password:** `AnalystRead2026!`
 - **Host:** `localhost:5433` (through tunnel)
 
 ---
 
 ## 4. Internal Developer REST API (`/internal/*`)
 
-All internal endpoints require the `X-Internal-Key` HTTP header (configured via `INTERNAL_API_KEY` in `backend/.env`):
+All internal endpoints require the `X-Internal-Key` HTTP header (set in `.env` as `INTERNAL_API_KEY`):
 
 ### 4.1 Check Pipeline Status & Heartbeats
 ```bash
-curl -s -H "X-Internal-Key: <YOUR_INTERNAL_API_KEY>" \
+curl -s -H "X-Internal-Key: wows-secret-internal-key-2026" \
   "http://44.253.134.12:8000/internal/pipeline/status" | jq .
 ```
 
 ### 4.2 Query Recently Active Players
 ```bash
-curl -s -H "X-Internal-Key: <YOUR_INTERNAL_API_KEY>" \
+curl -s -H "X-Internal-Key: wows-secret-internal-key-2026" \
   "http://44.253.134.12:8000/internal/players/active?days=30&limit=20" | jq .
 ```
 
-### 4.3 Trigger Parquet Data Lake Export
+### 4.3 Ad-hoc Read-Only SQL Query Runner
 ```bash
-curl -s -X POST -H "X-Internal-Key: <YOUR_INTERNAL_API_KEY>" \
+curl -s -X POST -H "X-Internal-Key: wows-secret-internal-key-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT realm, count(*) FROM player GROUP BY realm;"}' \
+  "http://44.253.134.12:8000/internal/query" | jq .
+```
+
+### 4.4 Trigger Parquet Data Lake Export
+```bash
+curl -s -X POST -H "X-Internal-Key: wows-secret-internal-key-2026" \
   -H "Content-Type: application/json" \
   -d '{"target_date": "2026-10-05"}' \
   "http://44.253.134.12:8000/internal/analytics/export" | jq .

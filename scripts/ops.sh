@@ -88,6 +88,13 @@ EOF
             free -m | awk 'NR==2 {print \"  • EC2 Memory:       \" \$7 \"MB available / \" \$2 \"MB total\"}'
         "
         ;;
+    dashboard)
+        echo "=== Opening Secure SSH Tunnel to WoWS Grafana Dashboard ==="
+        echo "Forwarding localhost:3001 -> EC2:127.0.0.1:3001..."
+        echo "Open in your browser: http://localhost:3001"
+        echo "Press Ctrl+C to close the tunnel."
+        ssh -i "${KEY_PATH}" -N -L "3001:127.0.0.1:3001" "ubuntu@${EC2_HOST}"
+        ;;
     logs)
         service="${2:-scraper}"
         echo "Tailing logs for wows-${service}..."
@@ -109,7 +116,7 @@ EOF
         echo "Deployment complete."
         ;;
     *)
-        echo "Usage: $0 [status|telemetry|logs <backend|scraper|frontend>|restart-scraper|deploy]"
+        echo "Usage: $0 [status|telemetry|dashboard|logs <backend|scraper|frontend|grafana>|restart-scraper|deploy]"
         exit 1
         ;;
 esac

@@ -1,0 +1,301 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "FLEET TELEMETRY & INGESTION OVERVIEW",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "wows_postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "wows_postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) AS total_fleet FROM player;",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Tracked Fleet (NA / EU / ASIA)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "wows_postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "wows_postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) AS active_24h FROM player_snapshot WHERE timestamp >= NOW() - INTERVAL '24 HOURS';",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Sorties (Past 24 Hours)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "wows_postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "purple", "value": null }]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "wows_postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) AS total_snapshots FROM player_snapshot;",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Combat Snapshots in DB",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "wows_postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "green", "value": 5 }
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "wows_postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT count(*) AS active_jobs FROM pipeline_state WHERE status = 'running';",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Ingestion Workers",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "INGESTION PIPELINES, PROGRESS & DYNAMIC ETAS",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "wows_postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "params": "Progress %" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "mode": "basic", "type": "gauge" }
+              },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 100 },
+              { "id": "unit", "value": "percent" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "params": "Estimated ETA" },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-text" }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 6 },
+      "id": 5,
+      "options": {
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Pipeline", "desc": false }]
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "wows_postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "WITH recent_rates AS (\n  SELECT \n    job_name,\n    (MAX(cursor_value) - MIN(cursor_value))::numeric / NULLIF(EXTRACT(EPOCH FROM (MAX(sampled_at) - MIN(sampled_at))), 0) AS ids_per_second\n  FROM pipeline_progress_sample\n  WHERE sampled_at >= NOW() - INTERVAL '15 MINUTES'\n  GROUP BY job_name\n)\nSELECT \n  s.job_name AS \"Pipeline\",\n  s.status AS \"Status\",\n  s.cursor_value AS \"Current Cursor\",\n  s.range_end AS \"Range Target\",\n  CASE \n    WHEN s.range_end > s.range_start AND s.range_start > 0 THEN \n      ROUND(((s.cursor_value - s.range_start)::numeric / (s.range_end - s.range_start) * 100.0), 2)\n    ELSE 100.0\n  END AS \"Progress %\",\n  COALESCE(ROUND(r.ids_per_second, 1), 0.0) AS \"Throughput (IDs/s)\",\n  CASE \n    WHEN s.range_end > s.cursor_value AND r.ids_per_second > 1.0 THEN \n      CONCAT(\n        FLOOR((s.range_end - s.cursor_value) / r.ids_per_second / 86400)::text, 'd ',\n        FLOOR(((s.range_end - s.cursor_value) / r.ids_per_second % 86400) / 3600)::text, 'h ',\n        FLOOR(((s.range_end - s.cursor_value) / r.ids_per_second % 3600) / 60)::text, 'm'\n      )\n    WHEN s.cursor_value >= s.range_end AND s.range_end > 0 THEN 'COMPLETE'\n    ELSE 'STANDBY / CALC'\n  END AS \"Estimated ETA\",\n  s.details AS \"Latest Telemetry Report\"\nFROM pipeline_state s\nLEFT JOIN recent_rates r ON s.job_name = r.job_name\nORDER BY s.job_name;",
+          "refId": "A"
+        }
+      ],
+      "title": "Pipeline Range Progress, Throughput Rate & Dynamic ETA",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 102,
+      "title": "HISTORICAL PERFORMANCE & SERVER ROLLUPS",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "wows_postgres" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "params": "Server Win Rate" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "yellow", "value": 45 },
+                    { "color": "green", "value": 47 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 14 },
+      "id": 6,
+      "options": {
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Date", "desc": true }]
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "wows_postgres" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT \n  stat_date AS \"Date\",\n  UPPER(realm) AS \"Theater\",\n  total_tracked_players AS \"Tracked Fleet\",\n  active_players AS \"Active Sorties\",\n  battles_fought AS \"Battles Analyzed\",\n  mean_win_rate AS \"Server Win Rate\",\n  damage_dealt AS \"Damage Total\"\nFROM daily_server_stats\nORDER BY stat_date DESC\nLIMIT 14;",
+          "refId": "A"
+        }
+      ],
+      "title": "Daily Theater Rollups & Server Win Rate (daily_server_stats)",
+      "type": "table"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["wows", "pipeline", "telemetry"],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "WoWS Ingestion Pipeline & Operational Telemetry",
+  "uid": "wows-pipeline-telemetry",
+  "version": 1,
+  "weekStart": ""
+}

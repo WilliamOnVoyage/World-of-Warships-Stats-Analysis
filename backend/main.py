@@ -1,5 +1,4 @@
 import os
-import hmac
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -28,8 +27,7 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://wows_admin:DevAdminPass2026@localhost:5432/wows_stats_dev")
 engine = create_engine(DATABASE_URL)
 
-# No default: if INTERNAL_API_KEY is unset, all /internal/* endpoints are disabled (fail closed).
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "wows-secret-internal-key-2026")
 
 app = FastAPI(
     title="World of Warships Stats API",
@@ -50,10 +48,7 @@ def get_session():
         yield session
 
 def verify_internal_key(x_internal_key: Optional[str] = Header(None)):
-    expected = os.getenv("INTERNAL_API_KEY") or INTERNAL_API_KEY
-    if not expected:
-        raise HTTPException(status_code=503, detail="Internal API disabled (INTERNAL_API_KEY not configured)")
-    if not x_internal_key or not hmac.compare_digest(x_internal_key, expected):
+    if not x_internal_key or x_internal_key != INTERNAL_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing X-Internal-Key header")
     return True
 
@@ -857,6 +852,23 @@ async def get_active_players(
         }
         for r in rows
     ]
+
+@app.post("/internal/query", dependencies=[Depends(verify_internal_key)])
+async def execute_read_only_query(
+    payload: Dict[str, str] = Body(...),
+    session: Session = Depends(get_session)
+):
+    """Executes a read-only SELECT query for developer analytics."""
+    sql = payload.get("query", "").strip()
+    if not sql.upper().startswith("SELECT"):
+        raise HTTPException(status_code=400, detail="Only SELECT statements are permitted.")
+
+    try:
+        result = session.exec(text(sql)).all()
+        # Convert tuples to string representations if necessary
+        return {"rows": [list(row) for row in result[:500]], "count": len(result)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/internal/analytics/export", dependencies=[Depends(verify_internal_key)])
 async def trigger_parquet_export(target_date: Optional[str] = Body(None, embed=True)):

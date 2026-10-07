@@ -6,7 +6,7 @@ from aiolimiter import AsyncLimiter
 from datetime import datetime
 
 class WargamingAPIClient:
-    def __init__(self, application_id: str, realm: str = "na"):
+    def __init__(self, application_id: str, realm: str = "na", rate_limiter: Optional[AsyncLimiter] = None):
         self.application_id = application_id
         self.realm = realm.lower()
         
@@ -17,8 +17,8 @@ class WargamingAPIClient:
         }
         self.base_url = realm_mapping.get(self.realm, realm_mapping["na"])
         
-        # Rate limit: max 10 requests per second
-        self.rate_limiter = AsyncLimiter(10, 1)
+        # Shared or instance rate limiter
+        self.rate_limiter = rate_limiter or AsyncLimiter(10, 1)
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
 
     async def close(self):
@@ -86,6 +86,19 @@ class WargamingAPIClient:
         params = {"search": search, "limit": limit}
         data = await self._make_request("/wows/clans/list/", params)
         return data if isinstance(data, list) else []
+
+    async def get_clans_list(self, page_no: int = 1, limit: int = 100) -> List[Dict[str, Any]]:
+        """Fetch page of clans from official registry."""
+        params = {"page_no": page_no, "limit": limit}
+        data = await self._make_request("/wows/clans/list/", params)
+        return data if isinstance(data, list) else []
+
+    async def get_clans_batch_info(self, clan_ids: List[int]) -> Dict[str, Any]:
+        """Fetch rosters and details for up to 100 clans in a single request."""
+        if not clan_ids:
+            return {}
+        params = {"clan_id": ",".join(map(str, clan_ids)), "extra": "members"}
+        return await self._make_request("/wows/clans/info/", params)
 
     async def get_encyclopedia_ships(
         self,

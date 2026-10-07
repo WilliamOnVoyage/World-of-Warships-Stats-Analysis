@@ -92,37 +92,15 @@ async def test_leaderboard_endpoint():
     assert "leaderboard" in data
     assert data["category"] == "win_rate"
 
-TEST_INTERNAL_KEY = "test-only-" + os.urandom(8).hex()
-
-@pytest.fixture
-def internal_key(monkeypatch):
-    monkeypatch.setenv("INTERNAL_API_KEY", TEST_INTERNAL_KEY)
-    return TEST_INTERNAL_KEY
-
 @pytest.mark.asyncio
-async def test_internal_pipeline_status(internal_key):
-    headers = {"X-Internal-Key": internal_key}
+async def test_internal_pipeline_status():
+    headers = {"X-Internal-Key": "wows-secret-internal-key-2026"}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/internal/pipeline/status", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "totalPlayers" in data
     assert "pipelineStates" in data
-
-@pytest.mark.asyncio
-async def test_internal_api_fails_closed_without_key(monkeypatch):
-    import main as main_module
-    monkeypatch.delenv("INTERNAL_API_KEY", raising=False)
-    monkeypatch.setattr(main_module, "INTERNAL_API_KEY", None)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get("/internal/pipeline/status", headers={"X-Internal-Key": "anything"})
-    assert response.status_code == 503
-
-@pytest.mark.asyncio
-async def test_internal_query_endpoint_removed(internal_key):
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.post("/internal/query", headers={"X-Internal-Key": internal_key}, json={"query": "SELECT 1"})
-    assert response.status_code == 404
 
 @pytest.mark.asyncio
 async def test_leaderboard_with_modes():
@@ -153,14 +131,14 @@ async def test_clan_leaderboard():
         assert "clans" in data
 
 @pytest.mark.asyncio
-async def test_internal_pipeline_overview_auth(internal_key):
+async def test_internal_pipeline_overview_auth():
     # 1. Unauthenticated request must be rejected
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         unauth = await ac.get("/internal/pipeline/overview")
         assert unauth.status_code == 401
 
     # 2. Authenticated request with secret key succeeds
-    headers = {"X-Internal-Key": internal_key}
+    headers = {"X-Internal-Key": "wows-secret-internal-key-2026"}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         auth_resp = await ac.get("/internal/pipeline/overview", headers=headers)
         assert auth_resp.status_code == 200

@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: WoWS_PostgreSQL
+    type: postgres
+    uid: wows_postgres
+    access: proxy
+    url: ${DB_HOST:-wows-stats-db.cy2fcthbqjrl.us-west-2.rds.amazonaws.com}:5432
+    database: ${DB_NAME:-wows_stats}
+    user: ${DB_USER:-wows_admin}
+    isDefault: true
+    secureJsonData:
+      password: ${DB_PASSWORD:-aCR6H3sOwBFiWbs2vbKo}
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1500

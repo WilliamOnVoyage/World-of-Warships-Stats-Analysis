@@ -128,6 +128,23 @@ SQL_MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS ix_clan_tag ON clan (tag);
     CREATE INDEX IF NOT EXISTS ix_clan_name ON clan (name);
     CREATE INDEX IF NOT EXISTS ix_clan_realm ON clan (realm);
+    """,
+
+    # 8. Add range boundaries to PipelineState
+    "ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS range_start BIGINT DEFAULT 0;",
+    "ALTER TABLE pipeline_state ADD COLUMN IF NOT EXISTS range_end BIGINT DEFAULT 0;",
+
+    # 9. Create PipelineProgressSample table for moving average rate and ETA calculation
+    """
+    CREATE TABLE IF NOT EXISTS pipeline_progress_sample (
+        id SERIAL PRIMARY KEY,
+        job_name VARCHAR NOT NULL,
+        sampled_at TIMESTAMPTZ DEFAULT NOW(),
+        cursor_value BIGINT DEFAULT 0,
+        items_processed INT DEFAULT 0,
+        items_found INT DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS ix_pipeline_progress_sample_job_time ON pipeline_progress_sample (job_name, sampled_at);
     """
 ]
 

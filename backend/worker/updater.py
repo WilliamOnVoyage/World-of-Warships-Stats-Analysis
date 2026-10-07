@@ -1,9 +1,10 @@
 """
-WoWS Data Pipeline Worker v2
-- Decoupled Discovery Scout (finds new players above high-water marks)
-- Telemetry Refresher (updates known players in DB in 100-ID batches with diff-only snapshotting)
-- Multi-Region Support (NA, EU, ASIA)
-- PostgreSQL Bulk Upserts (1 round-trip per 100 accounts)
+WoWS Data Pipeline Worker v3 (High-Throughput Concurrent Architecture)
+- Shared 10 req/s Token Bucket (aiolimiter) across all ingestion tasks
+- Fast-Track Clan Roster Crawler (100% active player discovery for EU & ASIA)
+- Concurrent Background ID Range Sweepers (EU: 350 IDs/s, ASIA: 150 IDs/s)
+- Telemetry Refresher with Diff-Only Snapshotting
+- Periodic Time-Series Progress Sampler (for rolling average rates & ETA calculation)
 - Pipeline Run Ledger & Heartbeat Monitoring
 """
 import asyncio
@@ -17,18 +18,24 @@ load_dotenv()
 
 from sqlmodel import create_engine, Session, select, text, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from aiolimiter import AsyncLimiter
 from database.models import (
     Player,
     PlayerSnapshot,
     DailyServerStats,
     PipelineState,
     PipelineRun,
+    PipelineProgressSample,
+    Clan,
     create_partition_if_not_exists,
 )
 from api.wargaming import WargamingAPIClient
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./wows_dev.db")
 engine = create_engine(DATABASE_URL)
+
+# Shared global rate limiter enforcing strictly <= 10 req/s across all concurrent workers
+GLOBAL_LIMITER = AsyncLimiter(10, 1.0)
 
 REGIONS = {
     "na": {"high_water_mark": 1_075_000_000, "upper_limit": 1_100_000_000},
@@ -38,8 +45,15 @@ REGIONS = {
 
 BATCH_SIZE = 100
 
-def update_heartbeat(job_name: str, cursor: int = 0, status: str = "running", details: str = ""):
-    """Updates the pipeline_state table with current heartbeat."""
+def update_heartbeat(
+    job_name: str,
+    cursor: int = 0,
+    status: str = "running",
+    details: str = "",
+    range_start: int = 0,
+    range_end: int = 0
+):
+    """Updates the pipeline_state table with current heartbeat and progress bounds."""
     try:
         with Session(engine) as session:
             stmt = select(PipelineState).where(PipelineState.job_name == job_name)
@@ -49,12 +63,18 @@ def update_heartbeat(job_name: str, cursor: int = 0, status: str = "running", de
                 state = PipelineState(
                     job_name=job_name,
                     cursor_value=cursor,
+                    range_start=range_start,
+                    range_end=range_end,
                     heartbeat_at=now,
                     status=status,
                     details=details
                 )
             else:
                 state.cursor_value = cursor
+                if range_start > 0:
+                    state.range_start = range_start
+                if range_end > 0:
+                    state.range_end = range_end
                 state.heartbeat_at = now
                 state.status = status
                 if details:
@@ -64,22 +84,35 @@ def update_heartbeat(job_name: str, cursor: int = 0, status: str = "running", de
     except Exception as e:
         print(f"[{job_name}] Failed to update heartbeat: {e}")
 
-async def refresh_known_players(realm: str = "na", limit: int = 5000):
+def record_progress_sample(job_name: str, cursor: int, processed: int, found: int):
+    """Records a time-series checkpoint for moving average rate and ETA calculation."""
+    try:
+        with Session(engine) as session:
+            sample = PipelineProgressSample(
+                job_name=job_name,
+                sampled_at=datetime.now(timezone.utc),
+                cursor_value=cursor,
+                items_processed=processed,
+                items_found=found
+            )
+            session.add(sample)
+            session.commit()
+    except Exception as e:
+        pass
+
+async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
     """
     Refreshes players that already exist in our DB.
-    Batches 100 accounts per Wargaming API call.
-    Uses diff-only snapshot insertion (only saves when battles/last_battle_time increased).
+    Batches 100 accounts per Wargaming API call using diff-only snapshotting.
     """
     job_name = f"telemetry_{realm}"
     app_id = os.getenv("WARGAMING_APP_ID")
     if not app_id:
-        print(f"[{job_name}] WARGAMING_APP_ID not set. Skipping.")
         return 0
 
-    client = WargamingAPIClient(application_id=app_id, realm=realm)
+    client = WargamingAPIClient(application_id=app_id, realm=realm, rate_limiter=GLOBAL_LIMITER)
     
     with Session(engine) as session:
-        # Select players needing update (oldest updated first)
         query = (
             select(Player.account_id, Player.last_battle_time)
             .where(Player.realm == realm)
@@ -140,7 +173,7 @@ async def refresh_known_players(realm: str = "na", limit: int = 5000):
                         player.leveling_tier = info.get("leveling_tier")
                         session.add(player)
 
-                    # DIFF-ONLY SNAPSHOTTING: Only write a snapshot if the player had activity
+                    # DIFF-ONLY SNAPSHOTTING
                     if not hidden and curr_battles > 0 and (new_lbt > prev_lbt or prev_lbt == 0):
                         solo = stats_overall.get("pvp_solo") or {}
                         div2 = stats_overall.get("pvp_div2") or {}
@@ -187,26 +220,26 @@ async def refresh_known_players(realm: str = "na", limit: int = 5000):
                 details=f"Processed {processed_count} players, {updated_snapshots} active snapshots saved"
             )
 
+        record_progress_sample(job_name, processed_count, processed_count, updated_snapshots)
+
     finally:
         await client.close()
 
-    print(f"[{job_name}] Finished cycle: {processed_count} checked, {updated_snapshots} new snapshots saved.")
     return processed_count
 
-async def discover_new_players(realm: str = "na", chunk_count: int = 100):
+async def discover_new_players(realm: str = "na", chunk_count: int = 50) -> int:
     """
     Scouts new account IDs beyond the high water mark for the given realm.
-    Advances cursor by BATCH_SIZE (100) per request.
+    Lightweight, high-speed sequential range scanning.
     """
     job_name = f"discovery_{realm}"
     app_id = os.getenv("WARGAMING_APP_ID")
     if not app_id:
-        return
+        return 0
 
-    client = WargamingAPIClient(application_id=app_id, realm=realm)
+    client = WargamingAPIClient(application_id=app_id, realm=realm, rate_limiter=GLOBAL_LIMITER)
     config = REGIONS.get(realm, REGIONS["na"])
     
-    # Retrieve current cursor from DB (enforcing valid window)
     current_id = config["high_water_mark"]
     with Session(engine) as session:
         state = session.exec(select(PipelineState).where(PipelineState.job_name == job_name)).first()
@@ -214,13 +247,14 @@ async def discover_new_players(realm: str = "na", chunk_count: int = 100):
             current_id = state.cursor_value
 
     new_found = 0
+    total_scanned = 0
     now = datetime.now(timezone.utc)
 
     try:
         for _ in range(chunk_count):
             batch = list(range(current_id, current_id + BATCH_SIZE))
-            # Lightweight call: no extra statistics payloads needed during discovery
             data = await client.get_player_info(batch)
+            total_scanned += len(batch)
             
             if data:
                 with Session(engine) as session:
@@ -246,31 +280,142 @@ async def discover_new_players(realm: str = "na", chunk_count: int = 100):
                     session.commit()
 
             current_id += BATCH_SIZE
-            # Wrap around if reached upper limit
             if current_id >= config["upper_limit"]:
                 current_id = config["high_water_mark"]
 
-            update_heartbeat(job_name, current_id, "running", f"Discovered {new_found} new players so far")
+        update_heartbeat(
+            job_name,
+            current_id,
+            "running",
+            f"Cursor at {current_id:,} • Discovered {new_found} new players in pass",
+            range_start=config["high_water_mark"],
+            range_end=config["upper_limit"]
+        )
+        record_progress_sample(job_name, current_id, total_scanned, new_found)
 
     finally:
         await client.close()
 
-    print(f"[{job_name}] Scout pass finished at ID {current_id}. Found {new_found} new players.")
+    return new_found
+
+async def run_clan_crawler(realm: str = "eu", max_pages: int = 10) -> int:
+    """
+    Fast-track discovery by indexing official clan rosters.
+    Each batch of 20 clans returns hundreds of active players in a single API round-trip.
+    """
+    job_name = f"clan_crawler_{realm}"
+    app_id = os.getenv("WARGAMING_APP_ID")
+    if not app_id:
+        return 0
+
+    client = WargamingAPIClient(application_id=app_id, realm=realm, rate_limiter=GLOBAL_LIMITER)
+    current_page = 1
+    with Session(engine) as session:
+        state = session.exec(select(PipelineState).where(PipelineState.job_name == job_name)).first()
+        if state and state.cursor_value > 0:
+            current_page = state.cursor_value
+
+    now = datetime.now(timezone.utc)
+    clans_ingested = 0
+    players_ingested = 0
+
+    try:
+        for page in range(current_page, current_page + max_pages):
+            clans_data = await client.get_clans_list(page_no=page, limit=100)
+            if not clans_data:
+                current_page = 1  # Reset to page 1 for next sweep
+                break
+
+            clan_ids = [c["clan_id"] for c in clans_data if "clan_id" in c]
+            if not clan_ids:
+                continue
+
+            # Batch query clan details and rosters in chunks of 20
+            for i in range(0, len(clan_ids), 20):
+                chunk = clan_ids[i:i + 20]
+                details_data = await client.get_clans_batch_info(chunk)
+                if not details_data:
+                    continue
+
+                with Session(engine) as session:
+                    create_partition_if_not_exists(session.get_bind(), now)
+                    for cid_str, cinfo in details_data.items():
+                        if not cinfo:
+                            continue
+                        cid = int(cid_str)
+                        clans_ingested += 1
+                        
+                        existing_clan = session.get(Clan, cid)
+                        if not existing_clan:
+                            c_created = None
+                            if cinfo.get("created_at"):
+                                c_created = datetime.fromtimestamp(cinfo["created_at"], tz=timezone.utc)
+                            new_clan = Clan(
+                                clan_id=cid,
+                                tag=cinfo.get("tag") or f"[{cid}]",
+                                name=cinfo.get("name") or f"Clan_{cid}",
+                                realm=realm,
+                                members_count=cinfo.get("members_count", 0),
+                                description=cinfo.get("description"),
+                                leader_name=cinfo.get("leader_name"),
+                                created_at=c_created,
+                                updated_at=now
+                            )
+                            session.add(new_clan)
+
+                        members = cinfo.get("members", {})
+                        if members:
+                            m_ids = [int(mid) for mid in members.keys()]
+                            existing_ids = set(session.exec(select(Player.account_id).where(Player.account_id.in_(m_ids))).all())
+                            for mid_str, minfo in members.items():
+                                mid = int(mid_str)
+                                if mid not in existing_ids:
+                                    p_created = None
+                                    if minfo.get("joined_at"):
+                                        p_created = datetime.fromtimestamp(minfo["joined_at"], tz=timezone.utc)
+                                    player = Player(
+                                        account_id=mid,
+                                        nickname=minfo.get("account_name") or f"Player_{mid}",
+                                        realm=realm,
+                                        clan_id=cid,
+                                        last_battle_time=None,
+                                        hidden_profile=False,
+                                        created_at=p_created or now,
+                                        last_updated=now
+                                    )
+                                    session.add(player)
+                                    players_ingested += 1
+                    session.commit()
+
+            current_page = page + 1
+            update_heartbeat(
+                job_name,
+                cursor=current_page,
+                status="running",
+                details=f"Page {page} • {clans_ingested} clans, {players_ingested} players discovered"
+            )
+            record_progress_sample(job_name, current_page, clans_ingested, players_ingested)
+
+    except Exception as e:
+        print(f"[{job_name}] Clan crawler error: {e}")
+        update_heartbeat(job_name, cursor=current_page, status="error", details=str(e)[:250])
+    finally:
+        await client.close()
+
+    return players_ingested
 
 def generate_daily_rollup():
-    """Generates a daily summary row for daily_server_stats table."""
+    """Generates daily summary rows for daily_server_stats table using weighted server totals."""
     now = datetime.now(timezone.utc)
     stat_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
 
     with Session(engine) as session:
-        # Check if already generated for this date
         existing = session.exec(
             select(DailyServerStats).where(DailyServerStats.stat_date == stat_date)
         ).first()
         if existing:
             return
 
-        # Compute aggregate metrics for yesterday (using weighted server win rate)
         sql = text("""
             SELECT 
                 COUNT(DISTINCT account_id) as active_players,
@@ -300,38 +445,67 @@ def generate_daily_rollup():
         session.commit()
         print(f"[Rollup] Saved daily_server_stats for {stat_date}: {rollup.active_players} active players.")
 
-async def main():
-    """Continuous orchestrator loop."""
-    print("Starting WoWS Data Pipeline Worker v2...")
-    update_heartbeat("pipeline_orchestrator", status="running", details="Pipeline started")
+def prune_old_progress_samples():
+    """Prunes progress samples older than 14 days to prevent unbounded growth."""
+    try:
+        with Session(engine) as session:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+            session.execute(
+                text("DELETE FROM pipeline_progress_sample WHERE sampled_at < :cutoff"),
+                {"cutoff": cutoff}
+            )
+            session.commit()
+    except Exception:
+        pass
 
+async def main():
+    """High-throughput concurrent orchestrator."""
+    print("Starting WoWS High-Throughput Pipeline Worker v3...")
+    update_heartbeat("pipeline_orchestrator", status="running", details="Pipeline worker v3 started")
+
+    loop_count = 0
     while True:
         try:
-            update_heartbeat("pipeline_orchestrator", status="running", details="Initiating telemetry refresh cycle")
-            # 1. Telemetry refresh for known players across regions
-            for region in ["na", "eu", "asia"]:
-                update_heartbeat("pipeline_orchestrator", status="running", details=f"Refreshing telemetry for {region.upper()}")
-                await refresh_known_players(realm=region, limit=2000)
-                await asyncio.sleep(2)
+            loop_count += 1
+            update_heartbeat(
+                "pipeline_orchestrator",
+                status="running",
+                details=f"Cycle #{loop_count}: Executing concurrent throughput tasks"
+            )
 
-            # 2. Scout for new player registrations
-            for region in ["na", "eu", "asia"]:
-                update_heartbeat("pipeline_orchestrator", status="running", details=f"Scouting new registrations for {region.upper()}")
-                await discover_new_players(realm=region, chunk_count=20)
-                await asyncio.sleep(2)
+            # Concurrent Execution of Ingestion Tasks under shared 10 req/s rate limiter
+            await asyncio.gather(
+                # 1. Fast-track active commanders via clan indexing (EU + ASIA)
+                run_clan_crawler(realm="eu", max_pages=5),
+                run_clan_crawler(realm="asia", max_pages=5),
+                # 2. Continuous historical range sweepers
+                discover_new_players(realm="eu", chunk_count=35),
+                discover_new_players(realm="asia", chunk_count=15),
+                discover_new_players(realm="na", chunk_count=10),
+                # 3. Telemetry refresh for existing commanders
+                refresh_known_players(realm="na", limit=1500),
+                refresh_known_players(realm="eu", limit=1500),
+                refresh_known_players(realm="asia", limit=1500),
+                return_exceptions=True
+            )
 
-            # 3. Generate daily rollup if needed
-            generate_daily_rollup()
+            # Daily rollup & database housekeeping every 10 cycles (~5-10 minutes)
+            if loop_count % 10 == 0:
+                generate_daily_rollup()
+                prune_old_progress_samples()
 
-            # Short rest between main cycles
-            update_heartbeat("pipeline_orchestrator", status="running", details="Cycle complete. Standing by for next cycle.")
-            await asyncio.sleep(10)
+            update_heartbeat(
+                "pipeline_orchestrator",
+                status="running",
+                details=f"Cycle #{loop_count} complete. Standing by for next burst."
+            )
+            await asyncio.sleep(5)
 
         except Exception as e:
             print(f"[Orchestrator Error] {e}")
             traceback.print_exc()
             update_heartbeat("pipeline_orchestrator", status="error", details=str(e)[:250])
-            await asyncio.sleep(30)
+            await asyncio.sleep(15)
 
 if __name__ == "__main__":
     asyncio.run(main())
