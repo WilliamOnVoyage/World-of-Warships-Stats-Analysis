@@ -5,12 +5,12 @@ datasources:
     type: postgres
     uid: wows_postgres
     access: proxy
-    url: ${DB_HOST:-wows-stats-db.cy2fcthbqjrl.us-west-2.rds.amazonaws.com}:5432
-    database: ${DB_NAME:-wows_stats}
-    user: ${DB_USER:-wows_admin}
+    url: ${DB_HOST}:5432
+    database: ${DB_NAME}
+    user: ${DB_USER}
     isDefault: true
     secureJsonData:
-      password: ${DB_PASSWORD:-aCR6H3sOwBFiWbs2vbKo}
+      password: ${DB_PASSWORD}
     jsonData:
       sslmode: disable
       maxOpenConns: 5
