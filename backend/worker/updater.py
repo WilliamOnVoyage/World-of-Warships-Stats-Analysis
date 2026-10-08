@@ -32,7 +32,10 @@ from database.models import (
 from api.wargaming import WargamingAPIClient
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./wows_dev.db")
-engine = create_engine(DATABASE_URL)
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 # Shared global rate limiter enforcing strictly <= 10 req/s across all concurrent workers
 GLOBAL_LIMITER = AsyncLimiter(10, 1.0)

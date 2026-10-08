@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { WinRateChart, AvgDamageChart, BattlesChart } from "./charts";
+import { WinRateChart, AvgDamageChart } from "./charts";
 import { RefreshButton } from "./refresh-button";
 
 const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -18,6 +18,23 @@ async function getPlayerData(username: string) {
     console.error(error);
     return null;
   }
+}
+
+interface ShipRecord {
+  shipId?: number;
+  name?: string;
+  tier?: number;
+  type?: string;
+  nation?: string;
+  image?: string;
+  battles: number;
+  winRate: number;
+  avgDamage: number;
+  frags: number;
+  hitRatio?: number;
+  mainBatteryHitRate: number;
+  maxDamage: number;
+  isPremium?: boolean;
 }
 
 export default async function PlayerProfile({
@@ -331,7 +348,7 @@ export default async function PlayerProfile({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1A1A17] bg-white">
-                {topShips.map((ship: any, idx: number) => (
+                {topShips.map((ship: ShipRecord, idx: number) => (
                   <tr key={ship.shipId || idx} className="hover:bg-[#F7F4EC] transition-colors">
                     <td className="p-4 font-bold text-sm text-[#5B6770]">
                       {String(idx + 1).padStart(2, "0")}
