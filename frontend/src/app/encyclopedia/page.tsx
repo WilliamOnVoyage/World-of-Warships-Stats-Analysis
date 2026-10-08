@@ -443,7 +443,7 @@ export default function EncyclopediaPage() {
             <div className="border-2 border-[#1A1A17] bg-[#F7F4EC] p-6 mb-6">
               <div className="flex justify-between items-baseline border-b border-[#1A1A17] pb-2 mb-4">
                 <span className="text-xs font-mono uppercase tracking-[0.2em] text-[#B3261E] font-bold">
-                  TELEMETRY SPECIFICATIONS BLUEPRINT
+                  VESSEL SPECIFICATIONS BLUEPRINT
                 </span>
                 <span className="text-[10px] font-mono text-[#5B6770] uppercase">
                   IN-GAME ACTIVE PROFILE
@@ -452,7 +452,7 @@ export default function EncyclopediaPage() {
 
               {loadingSpecs ? (
                 <div className="p-8 text-center font-mono text-xs uppercase text-[#5B6770] tracking-widest">
-                  Retrieving Telemetry Parameters from Naval Command...
+                  Retrieving Naval Parameters from Admiralty Archives...
                 </div>
               ) : selectedShipSpecs ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-mono text-xs">
@@ -630,7 +630,7 @@ export default function EncyclopediaPage() {
                 </div>
               ) : (
                 <div className="p-4 text-center text-[#5B6770]">
-                  Telemetry parameters unavailable for this hull configuration.
+                  Technical parameters unavailable for this hull configuration.
                 </div>
               )}
             </div>
@@ -648,7 +648,7 @@ export default function EncyclopediaPage() {
             {/* Footer */}
             <div className="flex justify-between items-center pt-4 border-t border-[#1A1A17]">
               <span className="text-[10px] font-mono text-[#5B6770] uppercase">
-                ADMIRALTY ARCHIVE RECORD • OFFICIAL WARGAMING TELEMETRY
+                ADMIRALTY ARCHIVE RECORD • OFFICIAL WARGAMING VESSEL REGISTRY
               </span>
               <button
                 onClick={() => setSelectedShip(null)}

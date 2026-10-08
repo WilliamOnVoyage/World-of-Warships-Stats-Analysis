@@ -226,14 +226,27 @@ async def get_player_stats(
     player = session.exec(statement).first()
     
     app_id = os.getenv("WARGAMING_APP_ID", "demo")
-    client = WargamingAPIClient(application_id=app_id)
+    player_realm = player.realm if player else "na"
+    client = WargamingAPIClient(application_id=app_id, realm=player_realm)
     now = datetime.now(timezone.utc)
 
     clan_data = None
     top_ships = []
 
     try:
-        if not player or refresh:
+        # Auto-fetch if player not cached, refresh requested, or existing snapshot lacks mode breakdowns
+        needs_fetch = refresh or (not player)
+        if player and not needs_fetch:
+            latest_sn = session.exec(
+                select(PlayerSnapshot)
+                .where(PlayerSnapshot.account_id == player.account_id)
+                .order_by(PlayerSnapshot.timestamp.desc())
+                .limit(1)
+            ).first()
+            if not latest_sn or (latest_sn.battles > 0 and latest_sn.solo_battles == 0 and latest_sn.div2_battles == 0 and latest_sn.rank_battles == 0):
+                needs_fetch = True
+
+        if needs_fetch:
             if not player:
                 account_id = await client.get_account_id(username)
                 if not account_id:

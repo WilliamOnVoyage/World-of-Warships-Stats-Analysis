@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Naval Record Office — World of Warships Statistics",
-  description: "Official telemetry, commander dossiers, and historical analytics for World of Warships.",
+  description: "Official combat records, commander dossiers, and historical fleet analytics for World of Warships.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
                 </span>
               </Link>
               <span className="text-xs font-mono uppercase text-[#5B6770] tracking-widest hidden md:inline">
-                TELEMETRY & DOSSIER ARCHIVE // EN-US
+                COMBAT RECORDS & FLEET ARCHIVE // EN-US
               </span>
             </div>
 

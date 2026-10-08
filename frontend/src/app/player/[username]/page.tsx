@@ -55,7 +55,7 @@ export default async function PlayerProfile({
           COMMANDER NOT IN REGISTER
         </h1>
         <p className="text-sm font-mono text-[#5B6770] mb-8 text-center max-w-md">
-          No active telemetry record was located for commander handle &ldquo;{username}&rdquo;.
+          No active combat record was located for commander handle &ldquo;{username}&rdquo;.
         </p>
         <Link
           href="/"
@@ -92,7 +92,7 @@ export default async function PlayerProfile({
           <span>RETURN TO DISPATCH</span>
         </Link>
         <span className="stamp-badge text-[10px]">
-          CLASSIFIED // VERIFIED TELEMETRY
+          CLASSIFIED // OFFICIAL COMBAT DOSSIER
         </span>
       </div>
 
@@ -269,10 +269,10 @@ export default async function PlayerProfile({
       <section className="border-2 border-[#1A1A17] bg-[#F7F4EC] p-8 mb-12">
         <div className="flex justify-between items-baseline mb-6 border-b border-[#1A1A17] pb-3">
           <h2 className="text-xs font-mono uppercase tracking-[0.2em] text-[#1A1A17] font-bold">
-            03 // EXTENDED COMBAT TELEMETRY
+            03 // EXTENDED COMBAT METRICS & BALLISTICS
           </h2>
           <span className="text-[10px] font-mono text-[#5B6770] uppercase">
-            ACTIVE SENSOR LOG
+            TACTICAL ENGAGEMENT LOG
           </span>
         </div>
 

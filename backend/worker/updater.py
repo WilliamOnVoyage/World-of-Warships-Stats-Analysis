@@ -108,7 +108,7 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
     Refreshes players that already exist in our DB.
     Batches 100 accounts per Wargaming API call using diff-only snapshotting.
     """
-    job_name = f"telemetry_{realm}"
+    job_name = f"combat_sync_{realm}"
     app_id = os.getenv("WARGAMING_APP_ID")
     if not app_id:
         return 0
@@ -118,7 +118,11 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
     current_cursor = 0
     with Session(engine) as session:
         st = session.exec(select(PipelineState).where(PipelineState.job_name == job_name)).first()
-        if st and st.cursor_value:
+        if not st:
+            legacy_st = session.exec(select(PipelineState).where(PipelineState.job_name == f"telemetry_{realm}")).first()
+            if legacy_st and legacy_st.cursor_value:
+                current_cursor = legacy_st.cursor_value
+        elif st.cursor_value:
             current_cursor = st.cursor_value
 
         query = (

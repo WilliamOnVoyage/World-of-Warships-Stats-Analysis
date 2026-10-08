@@ -11,7 +11,7 @@
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
-      "title": "FLEET TELEMETRY & INGESTION OVERVIEW",
+      "title": "INGESTION PIPELINES & SYSTEM OPERATIONS OVERVIEW",
       "type": "row"
     },
     {
@@ -217,7 +217,7 @@
           "datasource": { "type": "postgres", "uid": "wows_postgres" },
           "editorMode": "code",
           "format": "table",
-          "rawSql": "WITH recent_rates AS (\n  SELECT \n    job_name,\n    (MAX(cursor_value) - MIN(cursor_value))::numeric / NULLIF(EXTRACT(EPOCH FROM (MAX(sampled_at) - MIN(sampled_at))), 0) AS ids_per_second\n  FROM pipeline_progress_sample\n  WHERE sampled_at >= NOW() - INTERVAL '15 MINUTES'\n  GROUP BY job_name\n)\nSELECT \n  s.job_name AS \"Pipeline\",\n  s.status AS \"Status\",\n  s.cursor_value AS \"Current Cursor\",\n  s.range_end AS \"Range Target\",\n  CASE \n    WHEN s.range_end > s.range_start AND s.range_start > 0 THEN \n      ROUND(((s.cursor_value - s.range_start)::numeric / (s.range_end - s.range_start) * 100.0), 2)\n    ELSE 100.0\n  END AS \"Progress %\",\n  COALESCE(ROUND(r.ids_per_second, 1), 0.0) AS \"Throughput (IDs/s)\",\n  CASE \n    WHEN s.range_end > s.cursor_value AND r.ids_per_second > 1.0 THEN \n      CONCAT(\n        FLOOR((s.range_end - s.cursor_value) / r.ids_per_second / 86400)::text, 'd ',\n        FLOOR(((s.range_end - s.cursor_value) / r.ids_per_second % 86400) / 3600)::text, 'h ',\n        FLOOR(((s.range_end - s.cursor_value) / r.ids_per_second % 3600) / 60)::text, 'm'\n      )\n    WHEN s.cursor_value >= s.range_end AND s.range_end > 0 THEN 'COMPLETE'\n    ELSE 'STANDBY / CALC'\n  END AS \"Estimated ETA\",\n  s.details AS \"Latest Telemetry Report\"\nFROM pipeline_state s\nLEFT JOIN recent_rates r ON s.job_name = r.job_name\nORDER BY s.job_name;",
+          "rawSql": "WITH recent_rates AS (\n  SELECT \n    job_name,\n    (MAX(cursor_value) - MIN(cursor_value))::numeric / NULLIF(EXTRACT(EPOCH FROM (MAX(sampled_at) - MIN(sampled_at))), 0) AS ids_per_second\n  FROM pipeline_progress_sample\n  WHERE sampled_at >= NOW() - INTERVAL '15 MINUTES'\n  GROUP BY job_name\n)\nSELECT \n  s.job_name AS \"Pipeline\",\n  s.status AS \"Status\",\n  s.cursor_value AS \"Current Cursor\",\n  s.range_end AS \"Range Target\",\n  CASE \n    WHEN s.range_end > s.range_start AND s.range_start > 0 THEN \n      ROUND(((s.cursor_value - s.range_start)::numeric / (s.range_end - s.range_start) * 100.0), 2)\n    ELSE 100.0\n  END AS \"Progress %\",\n  COALESCE(ROUND(r.ids_per_second, 1), 0.0) AS \"Throughput (IDs/s)\",\n  CASE \n    WHEN s.range_end > s.cursor_value AND r.ids_per_second > 1.0 THEN \n      CONCAT(\n        FLOOR((s.range_end - s.cursor_value) / r.ids_per_second / 86400)::text, 'd ',\n        FLOOR(((s.range_end - s.cursor_value) / r.ids_per_second % 86400) / 3600)::text, 'h ',\n        FLOOR(((s.range_end - s.cursor_value) / r.ids_per_second % 3600) / 60)::text, 'm'\n      )\n    WHEN s.cursor_value >= s.range_end AND s.range_end > 0 THEN 'COMPLETE'\n    ELSE 'STANDBY / CALC'\n  END AS \"Estimated ETA\",\n  s.details AS \"Latest Worker Report\"\nFROM pipeline_state s\nLEFT JOIN recent_rates r ON s.job_name = r.job_name\nORDER BY s.job_name;",
           "refId": "A"
         }
       ],
@@ -294,7 +294,7 @@
   "time": { "from": "now-24h", "to": "now" },
   "timepicker": {},
   "timezone": "utc",
-  "title": "WoWS Ingestion Pipeline & Operational Telemetry",
+  "title": "WoWS Ingestion Pipeline & Operations (DevOps Telemetry)",
   "uid": "wows-pipeline-telemetry",
   "version": 1,
   "weekStart": ""

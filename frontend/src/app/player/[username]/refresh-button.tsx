@@ -28,10 +28,10 @@ export function RefreshButton({ username }: { username: string }) {
       {loading ? (
         <>
           <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          SYNCING LIVE TELEMETRY...
+          SYNCING COMBAT DOSSIER...
         </>
       ) : (
-        "SYNC WITH WARGAMING →"
+        "SYNC COMBAT DOSSIER →"
       )}
     </button>
   );
