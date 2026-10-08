@@ -34,20 +34,20 @@ class PlayerSnapshot(SQLModel, table=True):
     # Core PvP
     battles: int = Field(default=0)
     wins: int = Field(default=0)
-    damage_dealt: int = Field(default=0)
+    damage_dealt: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     survived: int = Field(default=0)
     frags: int = Field(default=0)
-    xp: int = Field(default=0)
+    xp: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     
     # Extended Combat Telemetry
     max_damage: int = Field(default=0)
-    damage_scouting: int = Field(default=0)
+    damage_scouting: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     ships_spotted: int = Field(default=0)
     planes_killed: int = Field(default=0)
     mb_hits: int = Field(default=0)
-    mb_shots: int = Field(default=0)
+    mb_shots: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     torp_hits: int = Field(default=0)
-    torp_shots: int = Field(default=0)
+    torp_shots: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     art_agro: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     torpedo_agro: int = Field(default=0, sa_column=Column(BigInteger, default=0))
     

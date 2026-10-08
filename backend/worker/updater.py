@@ -201,36 +201,39 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
                         div3 = stats_overall.get("pvp_div3") or {}
                         rank = stats_overall.get("rank_solo") or {}
 
-                        snapshot = PlayerSnapshot(
-                            account_id=acc_id,
-                            timestamp=now,
-                            battles=curr_battles,
-                            wins=stats_pvp.get("wins", 0),
-                            damage_dealt=stats_pvp.get("damage_dealt", 0),
-                            survived=stats_pvp.get("survived_battles", 0),
-                            frags=stats_pvp.get("frags", 0),
-                            xp=stats_pvp.get("xp", 0),
-                            max_damage=stats_pvp.get("max_damage_dealt", 0),
-                            damage_scouting=stats_pvp.get("damage_scouting", 0),
-                            ships_spotted=stats_pvp.get("ships_spotted", 0),
-                            planes_killed=stats_pvp.get("planes_killed", 0),
-                            mb_hits=stats_pvp.get("main_battery", {}).get("hits", 0),
-                            mb_shots=stats_pvp.get("main_battery", {}).get("shots", 0),
-                            torp_hits=stats_pvp.get("torpedoes", {}).get("hits", 0),
-                            torp_shots=stats_pvp.get("torpedoes", {}).get("shots", 0),
-                            art_agro=stats_pvp.get("art_agro", 0),
-                            torpedo_agro=stats_pvp.get("torpedo_agro", 0),
-                            solo_battles=solo.get("battles", 0),
-                            solo_wins=solo.get("wins", 0),
-                            div2_battles=div2.get("battles", 0),
-                            div2_wins=div2.get("wins", 0),
-                            div3_battles=div3.get("battles", 0),
-                            div3_wins=div3.get("wins", 0),
-                            rank_battles=rank.get("battles", 0),
-                            rank_wins=rank.get("wins", 0),
-                        )
-                        session.add(snapshot)
-                        updated_snapshots += 1
+                        try:
+                            snapshot = PlayerSnapshot(
+                                account_id=acc_id,
+                                timestamp=now,
+                                battles=int(curr_battles or 0),
+                                wins=int(stats_pvp.get("wins") or 0),
+                                damage_dealt=int(stats_pvp.get("damage_dealt") or 0),
+                                survived=int(stats_pvp.get("survived_battles") or 0),
+                                frags=int(stats_pvp.get("frags") or 0),
+                                xp=int(stats_pvp.get("xp") or 0),
+                                max_damage=int(stats_pvp.get("max_damage_dealt") or 0),
+                                damage_scouting=int(stats_pvp.get("damage_scouting") or 0),
+                                ships_spotted=int(stats_pvp.get("ships_spotted") or 0),
+                                planes_killed=int(stats_pvp.get("planes_killed") or 0),
+                                mb_hits=int(stats_pvp.get("main_battery", {}).get("hits") or 0),
+                                mb_shots=int(stats_pvp.get("main_battery", {}).get("shots") or 0),
+                                torp_hits=int(stats_pvp.get("torpedoes", {}).get("hits") or 0),
+                                torp_shots=int(stats_pvp.get("torpedoes", {}).get("shots") or 0),
+                                art_agro=int(stats_pvp.get("art_agro") or 0),
+                                torpedo_agro=int(stats_pvp.get("torpedo_agro") or 0),
+                                solo_battles=int(solo.get("battles") or 0),
+                                solo_wins=int(solo.get("wins") or 0),
+                                div2_battles=int(div2.get("battles") or 0),
+                                div2_wins=int(div2.get("wins") or 0),
+                                div3_battles=int(div3.get("battles") or 0),
+                                div3_wins=int(div3.get("wins") or 0),
+                                rank_battles=int(rank.get("battles") or 0),
+                                rank_wins=int(rank.get("wins") or 0),
+                            )
+                            session.add(snapshot)
+                            updated_snapshots += 1
+                        except Exception as sn_err:
+                            print(f"[{job_name}] Snapshot warning for player {acc_id}: {sn_err}")
 
                 session.commit()
 
