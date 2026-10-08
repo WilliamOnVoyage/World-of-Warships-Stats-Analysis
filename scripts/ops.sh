@@ -27,14 +27,14 @@ case "$cmd" in
 from main import engine
 from sqlmodel import Session, text
 with Session(engine) as s:
-    players = s.exec(text(\"SELECT count(*) FROM player\")).one()[0]
-    snapshots = s.exec(text(\"SELECT count(*) FROM player_snapshot\")).one()[0]
-    print(f\"Total Players in DB:    {players:,}\")
-    print(f\"Total Snapshots in DB:  {snapshots:,}\")
+    players = s.exec(text(\"SELECT reltuples::bigint FROM pg_class WHERE relname = 'player'\")).one()[0]
+    snapshots = s.exec(text(\"SELECT COALESCE(SUM(reltuples)::bigint, 0) FROM pg_class WHERE relname LIKE 'player_snapshot_%'\")).one()[0]
+    print(f\"Total Players in DB (est):   {players:,}\")
+    print(f\"Total Snapshots in DB (est): {snapshots:,}\")
     print(\"\nPipeline States:\")
-    states = s.exec(text(\"SELECT job_name, cursor_value, heartbeat_at, status, details FROM pipeline_state\")).all()
+    states = s.exec(text(\"SELECT job_name, cursor_value, heartbeat_at, status, details FROM pipeline_state ORDER BY job_name\")).all()
     for st in states:
-        print(f\"  [{st[0]}] status={st[3]} cursor={st[1]:,} heartbeat={st[2]} | {st[4]}\")
+        print(f\"  [{st[0]:<20}] status={st[3]:<8} cursor={st[1]:>10,} heartbeat={st[2]} | {st[4]}\")
 "
         '
         ;;
@@ -54,14 +54,14 @@ with Session(engine) as s:
         ORDER BY count(*) DESC
     \"\"\")).fetchall()
     total_players = sum(r[1] for r in realms)
-    total_snapshots = s.execute(text(\"SELECT count(*) FROM player_snapshot\")).scalar()
-    recent_snapshots = s.execute(text(\"SELECT count(*) FROM player_snapshot WHERE timestamp >= NOW() - INTERVAL '24 HOURS'\")).scalar()
+    total_snapshots = s.execute(text(\"SELECT COALESCE(SUM(reltuples)::bigint, 0) FROM pg_class WHERE relname LIKE 'player_snapshot_%'\")).scalar()
+    recent_snapshots = s.execute(text(\"SELECT COALESCE((SELECT active_players FROM daily_server_stats WHERE realm = 'all' ORDER BY stat_date DESC LIMIT 1), 0)\")).scalar()
     
     print(\"\n[01 // FLEET REGISTRY BY REALM]\")
     for r in realms:
         print(f\"  • {r[0].upper():<6}: {r[1]:>10,} commanders\")
     print(f\"  • TOTAL : {total_players:>10,} commanders\")
-    print(f\"  • SNAPSHOTS: {total_snapshots:>10,} total | {recent_snapshots:>8,} past 24h\")
+    print(f\"  • SNAPSHOTS (est): {total_snapshots:>10,} total | {recent_snapshots:>8,} past 24h\")
 
     print(\"\n[02 // INGESTION PIPELINE JOBS & HEARTBEATS]\")
     jobs = s.execute(text(\"SELECT job_name, cursor_value, heartbeat_at, status, details FROM pipeline_state ORDER BY job_name\")).fetchall()
