@@ -141,10 +141,15 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
     try:
         for i in range(0, len(account_ids), BATCH_SIZE):
             chunk = account_ids[i:i + BATCH_SIZE]
-            data = await client.get_player_info(
-                chunk,
-                extra="statistics.pvp_solo,statistics.pvp_div2,statistics.pvp_div3,statistics.rank_solo,statistics.pve"
-            )
+            try:
+                data = await client.get_player_info(
+                    chunk,
+                    extra="statistics.pvp_solo,statistics.pvp_div2,statistics.pvp_div3,statistics.rank_solo,statistics.pve"
+                )
+            except Exception as e:
+                print(f"[{job_name}] Warning: Chunk error on accounts {chunk[:2]}...: {e}")
+                continue
+
             if not data:
                 continue
 
@@ -212,16 +217,18 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
                         updated_snapshots += 1
 
                 session.commit()
-            
-            update_heartbeat(
-                job_name=job_name,
-                cursor=i + len(chunk),
-                status="running",
-                details=f"Processed {processed_count} players, {updated_snapshots} active snapshots saved"
-            )
 
+        update_heartbeat(
+            job_name=job_name,
+            cursor=processed_count,
+            status="running",
+            details=f"Processed {processed_count} players, {updated_snapshots} active snapshots saved"
+        )
         record_progress_sample(job_name, processed_count, processed_count, updated_snapshots)
 
+    except Exception as e:
+        print(f"[{job_name}] Telemetry error: {e}")
+        update_heartbeat(job_name, cursor=processed_count, status="error", details=str(e)[:250])
     finally:
         await client.close()
 
@@ -368,19 +375,37 @@ async def run_clan_crawler(realm: str = "eu", max_pages: int = 10) -> int:
 
     try:
         for page in range(current_page, current_page + max_pages):
-            clans_data = await client.get_clans_list(page_no=page, limit=100)
+            try:
+                clans_data = await client.get_clans_list(page_no=page, limit=100)
+            except Exception as e:
+                err_str = str(e)
+                if "504" in err_str or "SOURCE_NOT_AVAILABLE" in err_str or "NOT_FOUND" in err_str:
+                    print(f"[{job_name}] End of clan directory reached at page {page} ({err_str}). Resetting to page 1.")
+                    current_page = 1
+                    break
+                else:
+                    raise
+
             if not clans_data:
-                current_page = 1  # Reset to page 1 for next sweep
+                # End of clan directory -> Reset to page 1 for next sweep
+                print(f"[{job_name}] End of clans reached at page {page}. Resetting to page 1.")
+                current_page = 1
                 break
 
             clan_ids = [c["clan_id"] for c in clans_data if "clan_id" in c]
             if not clan_ids:
+                current_page = page + 1
                 continue
 
             # Batch query clan details and rosters in chunks of 20
             for i in range(0, len(clan_ids), 20):
                 chunk = clan_ids[i:i + 20]
-                details_data = await client.get_clans_batch_info(chunk)
+                try:
+                    details_data = await client.get_clans_batch_info(chunk)
+                except Exception as e:
+                    print(f"[{job_name}] Warning: Failed to fetch clan batch {chunk[:3]}: {e}")
+                    continue
+
                 if not details_data:
                     continue
 
@@ -435,13 +460,16 @@ async def run_clan_crawler(realm: str = "eu", max_pages: int = 10) -> int:
                     session.commit()
 
             current_page = page + 1
-            update_heartbeat(
-                job_name,
-                cursor=current_page,
-                status="running",
-                details=f"Page {page} • {clans_ingested} clans, {players_ingested} players discovered"
-            )
-            record_progress_sample(job_name, current_page, clans_ingested, players_ingested)
+
+        # Always update heartbeat and persist the latest cursor/reset
+        report_page = current_page if current_page > 1 else 1
+        update_heartbeat(
+            job_name,
+            cursor=current_page,
+            status="running",
+            details=f"Page {report_page} • {clans_ingested} clans, {players_ingested} players discovered"
+        )
+        record_progress_sample(job_name, current_page, clans_ingested, players_ingested)
 
     except Exception as e:
         print(f"[{job_name}] Clan crawler error: {e}")

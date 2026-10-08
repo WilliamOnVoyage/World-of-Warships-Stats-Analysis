@@ -25,18 +25,34 @@ class WargamingAPIClient:
         await self.client.aclose()
 
     async def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Internal method to handle rate limiting and JSON parsing."""
+        """Internal method to handle rate limiting, JSON parsing, and transient error retries."""
         params["application_id"] = self.application_id
         
-        async with self.rate_limiter:
-            response = await self.client.get(endpoint, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get("status") != "ok":
-                raise Exception(f"Wargaming API Error: {data.get('error', 'Unknown Error')}")
-                
-            return data.get("data", {})
+        last_error = None
+        for attempt in range(2):
+            async with self.rate_limiter:
+                try:
+                    response = await self.client.get(endpoint, params=params)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    if data.get("status") != "ok":
+                        err_data = data.get("error", "Unknown Error")
+                        if attempt == 0 and isinstance(err_data, dict) and err_data.get("code") in (503, 504):
+                            await asyncio.sleep(1.0)
+                            continue
+                        raise Exception(f"Wargaming API Error: {err_data}")
+                        
+                    return data.get("data", {})
+                except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                    last_error = e
+                    if attempt == 0:
+                        await asyncio.sleep(1.0)
+                        continue
+                    raise last_error
+        if last_error:
+            raise last_error
+        return {}
 
     async def get_account_id(self, username: str) -> Optional[int]:
         """Search for a player and return their exact account ID."""
