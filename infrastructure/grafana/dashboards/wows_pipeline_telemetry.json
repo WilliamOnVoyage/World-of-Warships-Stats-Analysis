@@ -42,7 +42,7 @@
           "datasource": { "type": "postgres", "uid": "wows_postgres" },
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT count(*) AS total_fleet FROM player;",
+          "rawSql": "SELECT reltuples::bigint AS total_fleet FROM pg_class WHERE relname = 'player';",
           "refId": "A"
         }
       ],
@@ -77,7 +77,7 @@
           "datasource": { "type": "postgres", "uid": "wows_postgres" },
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT count(*) AS active_24h FROM player_snapshot WHERE timestamp >= NOW() - INTERVAL '24 HOURS';",
+          "rawSql": "SELECT COALESCE((SELECT active_players FROM daily_server_stats WHERE realm = 'all' ORDER BY stat_date DESC LIMIT 1), 0) AS active_24h;",
           "refId": "A"
         }
       ],
@@ -112,7 +112,7 @@
           "datasource": { "type": "postgres", "uid": "wows_postgres" },
           "editorMode": "code",
           "format": "table",
-          "rawSql": "SELECT count(*) AS total_snapshots FROM player_snapshot;",
+          "rawSql": "SELECT COALESCE(SUM(reltuples)::bigint, 0) AS total_snapshots FROM pg_class WHERE relname LIKE 'player_snapshot_%';",
           "refId": "A"
         }
       ],
