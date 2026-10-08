@@ -29,6 +29,8 @@ services:
       - "8000:8000"
     env_file:
       - ./backend/.env
+    volumes:
+      - ./backend:/app
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -45,6 +47,7 @@ services:
     env_file:
       - ./backend/.env
     volumes:
+      - ./backend:/app
       - scraper_data:/app/data
     restart: unless-stopped
     logging:
