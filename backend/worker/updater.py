@@ -112,19 +112,34 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
 
     client = WargamingAPIClient(application_id=app_id, realm=realm, rate_limiter=GLOBAL_LIMITER)
     
+    current_cursor = 0
     with Session(engine) as session:
+        st = session.exec(select(PipelineState).where(PipelineState.job_name == job_name)).first()
+        if st and st.cursor_value:
+            current_cursor = st.cursor_value
+
         query = (
             select(Player.account_id, Player.last_battle_time)
-            .where(Player.realm == realm)
-            .order_by(Player.last_updated.asc())
+            .where(Player.realm == realm, Player.account_id > current_cursor)
+            .order_by(Player.account_id.asc())
             .limit(limit)
         )
         players_to_refresh = session.exec(query).all()
 
+        if not players_to_refresh and current_cursor > 0:
+            current_cursor = 0
+            query = (
+                select(Player.account_id, Player.last_battle_time)
+                .where(Player.realm == realm, Player.account_id > 0)
+                .order_by(Player.account_id.asc())
+                .limit(limit)
+            )
+            players_to_refresh = session.exec(query).all()
+
     if not players_to_refresh:
         update_heartbeat(
             job_name=job_name,
-            cursor=0,
+            cursor=current_cursor,
             status="idle",
             details=f"Queue empty (0 tracked {realm.upper()} commanders pending)"
         )
@@ -133,6 +148,7 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
 
     known_battle_times = {row[0]: (row[1] or 0) for row in players_to_refresh}
     account_ids = list(known_battle_times.keys())
+    next_cursor = account_ids[-1] if account_ids else current_cursor
     
     processed_count = 0
     updated_snapshots = 0
@@ -220,15 +236,15 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
 
         update_heartbeat(
             job_name=job_name,
-            cursor=processed_count,
+            cursor=next_cursor,
             status="running",
-            details=f"Processed {processed_count} players, {updated_snapshots} active snapshots saved"
+            details=f"Processed {processed_count} players (cursor {next_cursor:,}), {updated_snapshots} active snapshots saved"
         )
-        record_progress_sample(job_name, processed_count, processed_count, updated_snapshots)
+        record_progress_sample(job_name, next_cursor, processed_count, updated_snapshots)
 
     except Exception as e:
         print(f"[{job_name}] Telemetry error: {e}")
-        update_heartbeat(job_name, cursor=processed_count, status="error", details=str(e)[:250])
+        update_heartbeat(job_name, cursor=current_cursor, status="error", details=str(e)[:250])
     finally:
         await client.close()
 
