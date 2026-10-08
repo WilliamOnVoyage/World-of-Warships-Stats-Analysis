@@ -513,15 +513,33 @@ def generate_daily_rollup():
         if existing:
             return
 
-        sql = text("""
-            SELECT 
-                COUNT(DISTINCT account_id) as active_players,
-                COALESCE(SUM(battles), 0) as battles_fought,
-                COALESCE(SUM(damage_dealt), 0) as damage_dealt,
-                COALESCE(SUM(wins)::numeric * 100.0 / NULLIF(SUM(battles), 0), 0) as mean_wr
-            FROM player_snapshot
-            WHERE timestamp >= :start_time AND timestamp < :end_time
-        """)
+        bind = session.get_bind()
+        is_postgres = getattr(bind.dialect, "name", "") == "postgresql"
+        if is_postgres:
+            sql = text("""
+                SELECT 
+                    COUNT(DISTINCT account_id) as active_players,
+                    COALESCE(SUM(battles), 0) as battles_fought,
+                    COALESCE(SUM(damage_dealt), 0) as damage_dealt,
+                    COALESCE(AVG(wins::numeric * 100.0 / NULLIF(battles, 0)), 0) as mean_wr
+                FROM (
+                    SELECT DISTINCT ON (account_id) account_id, wins, battles, damage_dealt
+                    FROM player_snapshot
+                    WHERE timestamp >= :start_time AND timestamp < :end_time
+                    ORDER BY account_id, timestamp DESC
+                ) s
+                WHERE battles > 0
+            """)
+        else:
+            sql = text("""
+                SELECT 
+                    COUNT(DISTINCT account_id) as active_players,
+                    COALESCE(SUM(battles), 0) as battles_fought,
+                    COALESCE(SUM(damage_dealt), 0) as damage_dealt,
+                    COALESCE(AVG(wins * 100.0 / NULLIF(battles, 0)), 0) as mean_wr
+                FROM player_snapshot
+                WHERE timestamp >= :start_time AND timestamp < :end_time AND battles > 0
+            """)
         start_time = datetime.fromisoformat(f"{stat_date}T00:00:00+00:00")
         end_time = datetime.fromisoformat(f"{stat_date}T23:59:59+00:00")
         

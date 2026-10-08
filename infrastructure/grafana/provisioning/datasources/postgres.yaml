@@ -6,7 +6,7 @@ datasources:
     uid: wows_postgres
     access: proxy
     url: ${DB_HOST}:5432
-    database: ${DB_NAME}
+    database: ${DB_NAME:-wows_stats}
     user: ${DB_USER}
     isDefault: true
     secureJsonData:
