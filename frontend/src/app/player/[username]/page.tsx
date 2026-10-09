@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { WinRateChart, AvgDamageChart } from "./charts";
+import { WinRateChart, AvgDamageChart, BattlesChart } from "./charts";
 import { RefreshButton } from "./refresh-button";
 
 const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 async function getPlayerData(username: string) {
   try {
-    const res = await fetch(`${API_BASE}/api/player/${username}`, {
+    const res = await fetch(`${API_BASE}/api/player/${encodeURIComponent(username)}`, {
       next: { revalidate: 60 }
     });
     if (!res.ok) {
@@ -32,7 +32,8 @@ interface ShipRecord {
   avgDamage: number;
   frags: number;
   hitRatio?: number;
-  mainBatteryHitRate: number;
+  mbAccuracy?: number;
+  mainBatteryHitRate?: number;
   maxDamage: number;
   isPremium?: boolean;
 }
@@ -383,7 +384,9 @@ export default async function PlayerProfile({
                     <td className="p-4 text-right">{ship.avgDamage.toLocaleString()}</td>
                     <td className="p-4 text-right">{ship.frags.toLocaleString()}</td>
                     <td className="p-4 text-right">
-                      {ship.mainBatteryHitRate > 0 ? `${ship.mainBatteryHitRate}%` : "—"}
+                      {(ship.mbAccuracy ?? ship.mainBatteryHitRate ?? 0) > 0
+                        ? `${ship.mbAccuracy ?? ship.mainBatteryHitRate}%`
+                        : "—"}
                     </td>
                     <td className="p-4 text-right font-bold">
                       {ship.maxDamage > 0 ? ship.maxDamage.toLocaleString() : "—"}
@@ -408,9 +411,10 @@ export default async function PlayerProfile({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <WinRateChart data={history} />
             <AvgDamageChart data={history} />
+            <BattlesChart data={history} />
           </div>
         </section>
       )}

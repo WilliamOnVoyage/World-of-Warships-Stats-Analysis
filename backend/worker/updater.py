@@ -27,6 +27,7 @@ from database.models import (
     PipelineRun,
     PipelineProgressSample,
     Clan,
+    LeaderboardCache,
     create_partition_if_not_exists,
 )
 from api.wargaming import WargamingAPIClient
@@ -550,19 +551,138 @@ def generate_daily_rollup():
         result = session.execute(sql, {"start_time": start_time, "end_time": end_time}).first()
         total_players = session.exec(select(func.count(Player.account_id))).one()
 
+        battles_fought = int(result[1] or 0)
+        damage_dealt = int(result[2] or 0)
+        calc_mean_damage = round(float(damage_dealt) / float(battles_fought), 0) if battles_fought > 0 else 0.0
+
         rollup = DailyServerStats(
             stat_date=stat_date,
             realm="all",
             active_players=int(result[0] or 0),
-            battles_fought=int(result[1] or 0),
-            damage_dealt=int(result[2] or 0),
+            battles_fought=battles_fought,
+            damage_dealt=damage_dealt,
             total_tracked_players=int(total_players or 0),
             mean_win_rate=round(float(result[3] or 0.0), 2),
-            mean_damage=0.0
+            mean_damage=calc_mean_damage
         )
         session.add(rollup)
         session.commit()
-        print(f"[Rollup] Saved daily_server_stats for {stat_date}: {rollup.active_players} active players.")
+        print(f"[Rollup] Saved daily_server_stats for {stat_date}: {rollup.active_players} active players, mean damage: {calc_mean_damage}.")
+
+def refresh_leaderboard_cache():
+    """Precomputes top 50 leaderboard entries across categories, modes, and realms."""
+    print("[Leaderboard Cache] Refreshing precomputed rankings...")
+    categories = ["win_rate", "damage", "battles", "frags"]
+    modes = ["pvp", "solo", "div", "rank"]
+    realms = ["all", "na", "eu", "asia"]
+
+    with Session(engine) as session:
+        bind = session.get_bind()
+        is_postgres = getattr(bind.dialect, "name", "") == "postgresql"
+        if not is_postgres:
+            return
+
+        for mode in modes:
+            if mode == "solo":
+                b_expr = "s.solo_battles"
+                w_expr = "s.solo_wins"
+            elif mode == "div":
+                b_expr = "(s.div2_battles + s.div3_battles)"
+                w_expr = "(s.div2_wins + s.div3_wins)"
+            elif mode == "rank":
+                b_expr = "s.rank_battles"
+                w_expr = "s.rank_wins"
+            else:
+                b_expr = "s.battles"
+                w_expr = "s.wins"
+
+            min_battles = 20 if mode in ["solo", "div", "rank"] else 500
+            wr_calc = f"ROUND({w_expr} * 100.0 / NULLIF({b_expr}, 0), 2)"
+
+            for realm in realms:
+                realm_filter = "WHERE 1=1"
+                if realm != "all":
+                    realm_filter += f" AND p.realm = '{realm.lower()}'"
+
+                for category in categories:
+                    order_clause = "win_rate DESC"
+                    if category == "damage":
+                        order_clause = "avg_damage DESC"
+                    elif category == "battles":
+                        order_clause = "battles DESC"
+                    elif category == "frags":
+                        order_clause = "frags DESC"
+
+                    try:
+                        query = text(f"""
+                            SELECT 
+                                sub.nickname,
+                                sub.account_id,
+                                sub.realm,
+                                sub.battles,
+                                sub.wins,
+                                sub.win_rate,
+                                sub.avg_damage,
+                                sub.frags,
+                                sub.survived,
+                                sub.kd_ratio
+                            FROM (
+                                SELECT DISTINCT ON (s.account_id)
+                                    p.nickname,
+                                    p.account_id,
+                                    p.realm,
+                                    {b_expr} as battles,
+                                    {w_expr} as wins,
+                                    {wr_calc} as win_rate,
+                                    ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+                                    s.frags,
+                                    s.survived,
+                                    ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
+                                FROM player_snapshot s
+                                JOIN player p ON s.account_id = p.account_id
+                                {realm_filter} AND {b_expr} >= :min_battles
+                                ORDER BY s.account_id, s.timestamp DESC
+                            ) sub
+                            ORDER BY {order_clause}
+                            LIMIT 50
+                        """).bindparams(min_battles=min_battles)
+
+                        rows = session.execute(query).fetchall()
+                        leaderboard = []
+                        for rank, r in enumerate(rows, start=1):
+                            leaderboard.append({
+                                "rank": rank,
+                                "nickname": r[0],
+                                "accountId": r[1],
+                                "realm": r[2],
+                                "battles": r[3] or 0,
+                                "wins": r[4] or 0,
+                                "winRate": float(r[5] or 0.0),
+                                "avgDamage": int(r[6] or 0),
+                                "frags": r[7] or 0,
+                                "survived": r[8] or 0,
+                                "kd": float(r[9] or 0.0)
+                            })
+
+                        payload_str = json.dumps(leaderboard)
+                        cache_entry = session.get(LeaderboardCache, (category, mode, realm))
+                        if not cache_entry:
+                            cache_entry = LeaderboardCache(
+                                category=category,
+                                mode=mode,
+                                realm=realm,
+                                payload=payload_str,
+                                updated_at=datetime.now(timezone.utc)
+                            )
+                            session.add(cache_entry)
+                        else:
+                            cache_entry.payload = payload_str
+                            cache_entry.updated_at = datetime.now(timezone.utc)
+                            session.add(cache_entry)
+                        session.commit()
+                    except Exception as e:
+                        session.rollback()
+                        print(f"[Leaderboard Cache Error] {category}/{mode}/{realm}: {e}")
 
 def prune_old_progress_samples():
     """Prunes progress samples older than 14 days to prevent unbounded growth."""
@@ -608,10 +728,11 @@ async def main():
                 return_exceptions=True
             )
 
-            # Daily rollup & database housekeeping every 10 cycles (~5-10 minutes)
-            if loop_count % 10 == 0:
+            # Daily rollup, leaderboard cache refresh & database housekeeping every 10 cycles (~5-10 minutes)
+            if loop_count == 1 or loop_count % 10 == 0:
                 generate_daily_rollup()
                 prune_old_progress_samples()
+                refresh_leaderboard_cache()
 
             update_heartbeat(
                 "pipeline_orchestrator",

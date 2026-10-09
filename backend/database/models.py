@@ -1,6 +1,6 @@
 from typing import Optional, Any
 from sqlmodel import SQLModel, Field
-from sqlalchemy import text, BigInteger, Column
+from sqlalchemy import text, BigInteger, Column, Text
 from datetime import datetime, timezone
 
 def utc_now() -> datetime:
@@ -140,6 +140,16 @@ class Clan(SQLModel, table=True):
     description: Optional[str] = Field(default=None)
     leader_name: Optional[str] = Field(default=None)
     created_at: Optional[datetime] = Field(default=None)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class LeaderboardCache(SQLModel, table=True):
+    __tablename__ = "leaderboard_cache"
+
+    category: str = Field(primary_key=True)  # win_rate, damage, battles, frags
+    mode: str = Field(primary_key=True)      # pvp, solo, div, rank
+    realm: str = Field(primary_key=True)     # all, na, eu, asia
+    payload: str = Field(sa_column=Column(Text, nullable=False))
     updated_at: datetime = Field(default_factory=utc_now)
 
 

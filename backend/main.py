@@ -14,15 +14,22 @@ from database.models import (
     PipelineRun,
     ShipEncyclopedia,
     Clan,
+    LeaderboardCache,
     create_partition_if_not_exists,
 )
 from api.wargaming import WargamingAPIClient
 from worker.exporter import export_date_to_parquet
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
+import json
+import time
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Fast in-memory cache for leaderboard payloads (60-second TTL)
+_LEADERBOARD_MEMORY_CACHE: Dict[str, Any] = {}
+_LEADERBOARD_CACHE_TTL = 60
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 if DATABASE_URL.startswith("postgresql://"):
@@ -111,6 +118,34 @@ async def get_leaderboard(
     Category: win_rate | damage | battles | frags
     Mode: pvp | solo | div | rank | pve
     """
+    cache_key = f"{category}:{mode}:{realm}:{min_battles}:{limit}"
+    now_ts = time.time()
+
+    # 1. Check fast in-memory cache
+    if cache_key in _LEADERBOARD_MEMORY_CACHE:
+        cached_entry, cached_at = _LEADERBOARD_MEMORY_CACHE[cache_key]
+        if now_ts - cached_at < _LEADERBOARD_CACHE_TTL:
+            return cached_entry
+
+    dialect = getattr(session.get_bind(), "dialect", None)
+    is_postgres = getattr(dialect, "name", "") == "postgresql"
+
+    # 2. Check LeaderboardCache database table on PostgreSQL
+    if is_postgres:
+        try:
+            cache_row = session.get(LeaderboardCache, (category, mode, realm))
+            if cache_row and cache_row.payload:
+                cached_list = json.loads(cache_row.payload)
+                sliced = cached_list[:limit]
+                for idx, item in enumerate(sliced, 1):
+                    item["rank"] = idx
+                result = {"category": category, "mode": mode, "realm": realm, "leaderboard": sliced}
+                _LEADERBOARD_MEMORY_CACHE[cache_key] = (result, now_ts)
+                return result
+        except Exception as e:
+            logger.warning(f"Leaderboard cache read error: {e}")
+
+    # 3. Live fallback query (for SQLite unit tests or cache misses)
     # Pick mode columns
     if mode == "solo":
         b_expr = "s.solo_battles"
@@ -137,9 +172,6 @@ async def get_leaderboard(
     realm_filter = "WHERE 1=1"
     if realm != "all":
         realm_filter += f" AND p.realm = '{realm.lower()}'"
-
-    dialect = getattr(session.get_bind(), "dialect", None)
-    is_postgres = getattr(dialect, "name", "") == "postgresql"
 
     if is_postgres:
         query = text(f"""
@@ -213,7 +245,32 @@ async def get_leaderboard(
             "kd": float(r[9] or 0.0)
         })
 
-    return {"category": category, "mode": mode, "realm": realm, "leaderboard": leaderboard}
+    result = {"category": category, "mode": mode, "realm": realm, "leaderboard": leaderboard}
+    _LEADERBOARD_MEMORY_CACHE[cache_key] = (result, now_ts)
+
+    # Save to database cache table if on PostgreSQL
+    if is_postgres:
+        try:
+            payload_str = json.dumps(leaderboard)
+            cache_obj = session.get(LeaderboardCache, (category, mode, realm))
+            if not cache_obj:
+                cache_obj = LeaderboardCache(
+                    category=category,
+                    mode=mode,
+                    realm=realm,
+                    payload=payload_str,
+                    updated_at=datetime.now(timezone.utc)
+                )
+                session.add(cache_obj)
+            else:
+                cache_obj.payload = payload_str
+                cache_obj.updated_at = datetime.now(timezone.utc)
+                session.add(cache_obj)
+            session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to persist leaderboard cache: {e}")
+
+    return result
 
 @app.get("/api/player/{username}")
 async def get_player_stats(
@@ -248,13 +305,29 @@ async def get_player_stats(
 
         if needs_fetch:
             if not player:
-                account_id = await client.get_account_id(username)
+                account_id = None
+                matched_realm = None
+                for r in ["na", "eu", "asia"]:
+                    temp_client = WargamingAPIClient(application_id=app_id, realm=r)
+                    try:
+                        aid = await temp_client.get_account_id(username)
+                        if aid:
+                            account_id = aid
+                            matched_realm = r
+                            break
+                    except Exception:
+                        pass
+                    finally:
+                        await temp_client.close()
+
                 if not account_id:
                     await client.close()
                     raise HTTPException(status_code=404, detail="Player not found in Wargaming database")
                 
-                player = Player(account_id=account_id, nickname=username, realm="na", last_updated=now, created_at=now)
+                player = Player(account_id=account_id, nickname=username, realm=matched_realm, last_updated=now, created_at=now)
                 session.add(player)
+                await client.close()
+                client = WargamingAPIClient(application_id=app_id, realm=matched_realm)
             else:
                 account_id = player.account_id
                 player.last_updated = now
@@ -376,6 +449,7 @@ async def get_player_stats(
                         "planesKilled": pvp.get("planes_killed", 0),
                         "survivedRate": round(pvp.get("survived_battles", 0) * 100.0 / b, 2) if b > 0 else 0.0,
                         "mbAccuracy": round(mb.get("hits", 0) * 100.0 / mb.get("shots", 1), 1) if mb.get("shots", 0) > 0 else 0.0,
+                        "mainBatteryHitRate": round(mb.get("hits", 0) * 100.0 / mb.get("shots", 1), 1) if mb.get("shots", 0) > 0 else 0.0,
                         "torpAccuracy": round(tp.get("hits", 0) * 100.0 / tp.get("shots", 1), 1) if tp.get("shots", 0) > 0 else 0.0,
                     })
         except Exception as e:
@@ -400,8 +474,16 @@ async def get_player_stats(
     win_rate = (latest.wins / latest.battles * 100) if latest.battles > 0 else 0
     avg_damage = (latest.damage_dealt / latest.battles) if latest.battles > 0 else 0
     
+    seen_dates = set()
+    unique_snapshots = []
+    for s in snapshots:
+        d_str = s.timestamp.strftime("%Y-%m-%d")
+        if d_str not in seen_dates:
+            seen_dates.add(d_str)
+            unique_snapshots.append(s)
+
     history = []
-    for s in reversed(snapshots):
+    for s in reversed(unique_snapshots):
         history.append({
             "date": s.timestamp.strftime("%Y-%m-%d"),
             "battles": s.battles,
@@ -746,19 +828,38 @@ async def get_clan_details(
 ):
     """Returns official clan dossier and member roster."""
     app_id = os.getenv("WARGAMING_APP_ID", "demo")
-    client = WargamingAPIClient(application_id=app_id)
+    clan_db = session.get(Clan, clan_id)
+    target_realm = clan_db.realm if clan_db and clan_db.realm else "na"
+    client = WargamingAPIClient(application_id=app_id, realm=target_realm)
     try:
         data = await client.get_clan_info(clan_id)
         if not data:
-            clan_db = session.get(Clan, clan_id)
+            # Fallback probe remaining realms if clan was not found on default realm
+            for r in ["eu", "asia", "na"]:
+                if r == target_realm:
+                    continue
+                alt_client = WargamingAPIClient(application_id=app_id, realm=r)
+                try:
+                    alt_data = await alt_client.get_clan_info(clan_id)
+                    if alt_data:
+                        data = alt_data
+                        break
+                except Exception:
+                    pass
+                finally:
+                    await alt_client.close()
+
+        if not data:
             if not clan_db:
                 raise HTTPException(status_code=404, detail="Clan not found")
             return {
                 "clanId": clan_db.clan_id,
                 "tag": clan_db.tag,
                 "name": clan_db.name,
+                "realm": clan_db.realm,
                 "membersCount": clan_db.members_count,
                 "description": clan_db.description,
+                "leaderName": clan_db.leader_name or "Commander",
                 "members": []
             }
         
@@ -775,9 +876,10 @@ async def get_clan_details(
             "clanId": data.get("clan_id", clan_id),
             "tag": data.get("tag"),
             "name": data.get("name"),
+            "realm": getattr(clan_db, "realm", "na"),
             "membersCount": data.get("members_count", len(members_list)),
             "description": data.get("description"),
-            "leaderName": data.get("leader_name"),
+            "leaderName": data.get("leader_name") or (clan_db.leader_name if clan_db else "Commander"),
             "createdAt": data.get("created_at"),
             "members": sorted(members_list, key=lambda m: m.get("role") or "")
         }
@@ -796,8 +898,19 @@ async def get_pipeline_status(session: Session = Depends(get_session)):
         select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(10)
     ).all()
     
-    player_count = session.exec(select(func.count()).select_from(Player)).one()
-    snapshot_count = session.exec(select(func.count()).select_from(PlayerSnapshot)).one()
+    dialect = getattr(session.get_bind(), "dialect", None)
+    is_postgres = getattr(dialect, "name", "") == "postgresql"
+    if is_postgres:
+        row = session.execute(text("""
+            SELECT 
+                (SELECT COALESCE(reltuples::bigint, 0) FROM pg_class WHERE relname = 'player'),
+                (SELECT COALESCE(reltuples::bigint, 0) FROM pg_class WHERE relname = 'player_snapshot_2026_10')
+        """)).first()
+        player_count = int(row[0]) if row and row[0] is not None else 0
+        snapshot_count = int(row[1]) if row and row[1] is not None else 0
+    else:
+        player_count = session.exec(select(func.count()).select_from(Player)).one()
+        snapshot_count = session.exec(select(func.count()).select_from(PlayerSnapshot)).one()
 
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),

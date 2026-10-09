@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ClanModal from "@/components/ClanModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -53,6 +54,7 @@ export default function Home() {
   const [mode, setMode] = useState("pvp");
   const [realm, setRealm] = useState("all");
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [selectedClanId, setSelectedClanId] = useState<number | null>(null);
   const router = useRouter();
 
   // Load global overview stats
@@ -360,7 +362,12 @@ export default function Home() {
                   </tr>
                 ) : clans.length > 0 ? (
                   clans.map((c) => (
-                    <tr key={c.clanId} className="hover:bg-[#F7F4EC] transition-colors">
+                    <tr
+                      key={c.clanId}
+                      onClick={() => setSelectedClanId(c.clanId)}
+                      className="hover:bg-[#F7F4EC] transition-colors cursor-pointer group"
+                      title="Click to view clan roster & intelligence dossier"
+                    >
                       <td className="p-4 font-bold text-sm">
                         {c.rank === 1 ? (
                           <span className="text-[#B3261E] font-black">01</span>
@@ -370,7 +377,7 @@ export default function Home() {
                       </td>
                       <td className="p-4 font-sans font-bold text-sm">
                         <span className="font-mono text-[#B3261E] mr-2">[{c.tag}]</span>
-                        <span className="text-[#1A1A17]">{c.name}</span>
+                        <span className="text-[#1A1A17] group-hover:text-[#B3261E] transition-colors">{c.name}</span>
                       </td>
                       <td className="p-4 text-[#5B6770] uppercase">{c.realm}</td>
                       <td className="p-4 text-right font-bold">{c.membersCount} COMMANDERS</td>
@@ -410,6 +417,10 @@ export default function Home() {
           OPEN ENCYCLOPEDIA →
         </Link>
       </section>
+
+      {selectedClanId && (
+        <ClanModal clanId={selectedClanId} onClose={() => setSelectedClanId(null)} />
+      )}
     </div>
   );
 }

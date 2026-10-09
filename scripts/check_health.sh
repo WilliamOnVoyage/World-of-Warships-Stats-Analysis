@@ -9,7 +9,26 @@ COOLDOWN_SECONDS=43200 # 12 hours
 SNS_TOPIC="arn:aws:sns:us-west-2:910534718184:WoWS-Stats-Critical-Alerts"
 AWS_REGION="us-west-2"
 API_URL="http://127.0.0.1:8000/internal/pipeline/status"
-INTERNAL_KEY="wows-secret-internal-key-2026"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_KEY=""
+if [ -f "${SCRIPT_DIR}/../.env" ]; then
+  ENV_KEY=$(grep "^INTERNAL_API_KEY=" "${SCRIPT_DIR}/../.env" | cut -d'=' -f2- | tr -d '"\r\n' || true)
+fi
+INTERNAL_KEY="${INTERNAL_API_KEY:-${ENV_KEY:-7c9f585144fb9234d6839b08aad7fb28987513edc02d83a06ebfe362f3b5a1b8}}"
+
+publish_alert() {
+  local subject="$1"
+  local message="$2"
+  if command -v aws >/dev/null 2>&1; then
+    aws sns publish \
+      --topic-arn "${SNS_TOPIC}" \
+      --subject "${subject}" \
+      --message "${message}" \
+      --region "${AWS_REGION}" || true
+  else
+    echo "[$(date -u)] [ALERT NOTIFICATION] (AWS CLI not available on host): ${subject} - ${message}"
+  fi
+}
 
 STATUS_JSON=$(curl -s --max-time 10 "${API_URL}" -H "X-Internal-Key: ${INTERNAL_KEY}" || echo "")
 
@@ -24,11 +43,7 @@ if [ -z "${STATUS_JSON}" ]; then
     fi
   fi
   echo "${NOW}" > "${LOCK_FILE}"
-  aws sns publish \
-    --topic-arn "${SNS_TOPIC}" \
-    --subject "ALERT: WoWS Stats API & Backend Unresponsive" \
-    --message "The backend API at ${API_URL} did not respond to health check. Further alerts suppressed for 12 hours." \
-    --region "${AWS_REGION}" || true
+  publish_alert "ALERT: WoWS Stats API & Backend Unresponsive" "The backend API at ${API_URL} did not respond to health check. Further alerts suppressed for 12 hours."
   exit 1
 fi
 
@@ -67,11 +82,7 @@ if [ "${HEARTBEAT_AGE_MIN}" -gt 45 ]; then
     fi
   fi
   echo "${NOW}" > "${LOCK_FILE}"
-  aws sns publish \
-    --topic-arn "${SNS_TOPIC}" \
-    --subject "ALERT: WoWS Stats Scraper Pipeline Inactive" \
-    --message "WoWS Stats scraper pipeline newest heartbeat is ${HEARTBEAT_AGE_MIN} minutes old (threshold: 45 min). Next alert suppressed for 12 hours to prevent email spam. Inspect on EC2: docker logs --tail 50 wows-scraper" \
-    --region "${AWS_REGION}" || true
+  publish_alert "ALERT: WoWS Stats Scraper Pipeline Inactive" "WoWS Stats scraper pipeline newest heartbeat is ${HEARTBEAT_AGE_MIN} minutes old (threshold: 45 min). Next alert suppressed for 12 hours to prevent email spam. Inspect on EC2: docker logs --tail 50 wows-scraper"
 else
   if [ -f "${LOCK_FILE}" ]; then
     echo "[$(date -u)] Pipeline recovered. Clearing suppression lock."

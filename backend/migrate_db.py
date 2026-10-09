@@ -149,6 +149,25 @@ SQL_MIGRATIONS = [
         items_found INT DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS ix_pipeline_progress_sample_job_time ON pipeline_progress_sample (job_name, sampled_at);
+    """,
+
+    # 10. Create LeaderboardCache table for sub-50ms leaderboard reads
+    """
+    CREATE TABLE IF NOT EXISTS leaderboard_cache (
+        category VARCHAR NOT NULL,
+        mode VARCHAR NOT NULL,
+        realm VARCHAR NOT NULL,
+        payload TEXT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (category, mode, realm)
+    );
+    """,
+
+    # 11. Backfill mean_damage in daily_server_stats
+    """
+    UPDATE daily_server_stats 
+    SET mean_damage = ROUND(damage_dealt * 1.0 / NULLIF(battles_fought, 0), 0)
+    WHERE (mean_damage IS NULL OR mean_damage = 0.0) AND battles_fought > 0;
     """
 ]
 

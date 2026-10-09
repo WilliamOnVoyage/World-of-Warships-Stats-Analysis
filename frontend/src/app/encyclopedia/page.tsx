@@ -116,6 +116,8 @@ export default function EncyclopediaPage() {
   const [selectedShip, setSelectedShip] = useState<Ship | null>(null);
   const [selectedShipSpecs, setSelectedShipSpecs] = useState<ShipSpecs | null>(null);
   const [loadingSpecs, setLoadingSpecs] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const PAGE_SIZE = 48;
 
   useEffect(() => {
     setLoading(true);
@@ -126,7 +128,8 @@ export default function EncyclopediaPage() {
     if (premiumFilter === "premium") params.append("is_premium", "true");
     if (premiumFilter === "tech") params.append("is_premium", "false");
     if (search.trim()) params.append("search", search.trim());
-    params.append("limit", "100");
+    params.append("limit", String(PAGE_SIZE));
+    params.append("offset", String((page - 1) * PAGE_SIZE));
 
     fetch(`${API_BASE}/api/encyclopedia/ships?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -138,7 +141,7 @@ export default function EncyclopediaPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [selectedNation, selectedType, selectedTier, premiumFilter, search]);
+  }, [selectedNation, selectedType, selectedTier, premiumFilter, search, page]);
 
   const handleOpenDossier = (s: Ship) => {
     setSelectedShip(s);
@@ -383,6 +386,34 @@ export default function EncyclopediaPage() {
         ) : (
           <div className="border-2 border-[#1A1A17] bg-[#F7F4EC] p-16 text-center font-mono text-sm uppercase text-[#5B6770] tracking-widest">
             No commissioned warships matched current filter parameters.
+          </div>
+        )}
+
+        {/* Pagination Toolbar */}
+        {totalCount > PAGE_SIZE && (
+          <div className="mt-8 border-2 border-[#1A1A17] bg-[#F7F4EC] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs">
+            <div className="text-[#5B6770] uppercase">
+              SHOWING {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, totalCount)} OF {totalCount.toLocaleString()} COMMISSIONED HULLS
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                disabled={page <= 1}
+                onClick={() => { setPage((p) => Math.max(p - 1, 1)); window.scrollTo({ top: 350, behavior: "smooth" }); }}
+                className="px-4 py-2 border border-[#1A1A17] bg-white hover:bg-[#1A1A17] hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors font-bold uppercase cursor-pointer"
+              >
+                ← PREVIOUS RECONNAISSANCE
+              </button>
+              <span className="font-bold text-[#1A1A17]">
+                PAGE {page} OF {Math.ceil(totalCount / PAGE_SIZE)}
+              </span>
+              <button
+                disabled={page >= Math.ceil(totalCount / PAGE_SIZE)}
+                onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 350, behavior: "smooth" }); }}
+                className="px-4 py-2 border border-[#1A1A17] bg-white hover:bg-[#1A1A17] hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors font-bold uppercase cursor-pointer"
+              >
+                NEXT RECONNAISSANCE →
+              </button>
+            </div>
           </div>
         )}
       </section>
