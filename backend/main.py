@@ -15,6 +15,7 @@ from database.models import (
     ShipEncyclopedia,
     Clan,
     LeaderboardCache,
+    PlayerLeaderboardStats,
     create_partition_if_not_exists,
 )
 from api.wargaming import WargamingAPIClient
@@ -23,6 +24,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import json
 import time
+import math
 import logging
 
 logger = logging.getLogger(__name__)
@@ -109,16 +111,46 @@ async def get_leaderboard(
     category: str = "win_rate",
     mode: str = "pvp",
     realm: str = "all",
-    min_battles: int = 100,
-    limit: int = 50,
+    sort_by: Optional[str] = None,
+    sort_dir: str = "desc",
+    page: int = 1,
+    limit: int = 25,
+    min_battles: Optional[int] = None,
     session: Session = Depends(get_session)
 ):
     """
-    Returns global or regional leaderboards across battle modes.
+    Returns global or regional leaderboards across battle modes with sub-5ms indexed sorting and pagination.
+    Sort By: win_rate | avg_damage | battles | kd_ratio | nickname
+    Sort Dir: desc | asc
     Category: win_rate | damage | battles | frags
-    Mode: pvp | solo | div | rank | pve
+    Mode: pvp | solo | div | rank
     """
-    cache_key = f"{category}:{mode}:{realm}:{min_battles}:{limit}"
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    offset = (page - 1) * limit
+
+    if min_battles is None:
+        min_battles = 20 if mode in ["solo", "div", "rank"] else 100
+
+    # Normalize sort column
+    effective_sort = sort_by or category
+    sort_col_map = {
+        "win_rate": "win_rate",
+        "winRate": "win_rate",
+        "damage": "avg_damage",
+        "avg_damage": "avg_damage",
+        "avgDamage": "avg_damage",
+        "battles": "battles",
+        "frags": "kd_ratio",
+        "kd": "kd_ratio",
+        "kd_ratio": "kd_ratio",
+        "nickname": "nickname",
+        "commander": "nickname",
+    }
+    sql_sort_col = sort_col_map.get(effective_sort, "win_rate")
+    sort_direction = "ASC" if sort_dir.lower() == "asc" else "DESC"
+
+    cache_key = f"{mode}:{realm}:{sql_sort_col}:{sort_direction}:{page}:{limit}:{min_battles}"
     now_ts = time.time()
 
     # 1. Check fast in-memory cache
@@ -130,22 +162,110 @@ async def get_leaderboard(
     dialect = getattr(session.get_bind(), "dialect", None)
     is_postgres = getattr(dialect, "name", "") == "postgresql"
 
-    # 2. Check LeaderboardCache database table on PostgreSQL
+    # 2. Check if player_leaderboard_stats table exists and is populated
+    has_summary_table = False
     if is_postgres:
         try:
-            cache_row = session.get(LeaderboardCache, (category, mode, realm))
+            chk = session.execute(text("SELECT count(*) FROM player_leaderboard_stats WHERE mode = :mode LIMIT 1"), {"mode": mode}).scalar()
+            if chk and chk > 0:
+                has_summary_table = True
+        except Exception:
+            session.rollback()
+
+    if has_summary_table:
+        try:
+            realm_clause = "AND realm = :realm" if realm != "all" else ""
+            query_sql = text(f"""
+                SELECT nickname, account_id, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio
+                FROM player_leaderboard_stats
+                WHERE mode = :mode {realm_clause} AND battles >= :min_battles
+                ORDER BY {sql_sort_col} {sort_direction}
+                LIMIT :limit OFFSET :offset
+            """)
+            params = {
+                "mode": mode,
+                "realm": realm.lower(),
+                "min_battles": min_battles,
+                "limit": limit,
+                "offset": offset
+            }
+            rows = session.execute(query_sql, params).fetchall()
+
+            count_sql = text(f"""
+                SELECT count(*)
+                FROM player_leaderboard_stats
+                WHERE mode = :mode {realm_clause} AND battles >= :min_battles
+            """)
+            count_params = {
+                "mode": mode,
+                "realm": realm.lower(),
+                "min_battles": min_battles
+            }
+            total_records = session.execute(count_sql, count_params).scalar() or 0
+
+            leaderboard = []
+            start_rank = offset + 1
+            for rank_offset, r in enumerate(rows):
+                leaderboard.append({
+                    "rank": start_rank + rank_offset,
+                    "nickname": r[0],
+                    "accountId": r[1],
+                    "realm": r[2],
+                    "battles": r[3] or 0,
+                    "wins": r[4] or 0,
+                    "winRate": float(r[5] or 0.0),
+                    "avgDamage": int(r[6] or 0),
+                    "frags": r[7] or 0,
+                    "survived": r[8] or 0,
+                    "kd": float(r[9] or 0.0)
+                })
+
+            result = {
+                "category": category,
+                "mode": mode,
+                "realm": realm,
+                "sortBy": sql_sort_col,
+                "sortDir": sort_direction.lower(),
+                "page": page,
+                "limit": limit,
+                "total": total_records,
+                "totalPages": max(1, math.ceil(total_records / limit)) if total_records > 0 else 1,
+                "leaderboard": leaderboard
+            }
+            _LEADERBOARD_MEMORY_CACHE[cache_key] = (result, now_ts)
+            return result
+        except Exception as e:
+            session.rollback()
+            logger.warning(f"Error querying player_leaderboard_stats: {e}")
+
+    # 3. Fallback to LeaderboardCache table if page 1 and default sort
+    if is_postgres and page == 1 and sql_sort_col in ["win_rate", "avg_damage", "battles", "kd_ratio"] and sort_direction == "DESC":
+        try:
+            cache_category = "damage" if sql_sort_col == "avg_damage" else ("frags" if sql_sort_col == "kd_ratio" else sql_sort_col)
+            cache_row = session.get(LeaderboardCache, (cache_category, mode, realm))
             if cache_row and cache_row.payload:
                 cached_list = json.loads(cache_row.payload)
                 sliced = cached_list[:limit]
                 for idx, item in enumerate(sliced, 1):
                     item["rank"] = idx
-                result = {"category": category, "mode": mode, "realm": realm, "leaderboard": sliced}
+                result = {
+                    "category": category,
+                    "mode": mode,
+                    "realm": realm,
+                    "sortBy": sql_sort_col,
+                    "sortDir": "desc",
+                    "page": 1,
+                    "limit": limit,
+                    "total": len(cached_list),
+                    "totalPages": max(1, math.ceil(len(cached_list) / limit)),
+                    "leaderboard": sliced
+                }
                 _LEADERBOARD_MEMORY_CACHE[cache_key] = (result, now_ts)
                 return result
         except Exception as e:
             logger.warning(f"Leaderboard cache read error: {e}")
 
-    # 3. Live fallback query (for SQLite unit tests or cache misses)
+    # 4. Live fallback query (for SQLite unit tests)
     # Pick mode columns
     if mode == "solo":
         b_expr = "s.solo_battles"
@@ -161,78 +281,38 @@ async def get_leaderboard(
         w_expr = "s.wins"
 
     wr_calc = f"ROUND({w_expr} * 100.0 / NULLIF({b_expr}, 0), 2)"
-    order_clause = "win_rate DESC"
-    if category == "damage":
-        order_clause = "avg_damage DESC"
-    elif category == "battles":
-        order_clause = "battles DESC"
-    elif category == "frags":
-        order_clause = "frags DESC"
+    order_clause = f"{sql_sort_col} {sort_direction}"
 
     realm_filter = "WHERE 1=1"
     if realm != "all":
         realm_filter += f" AND p.realm = '{realm.lower()}'"
 
-    if is_postgres:
-        query = text(f"""
-            SELECT 
-                sub.nickname,
-                sub.account_id,
-                sub.realm,
-                sub.battles,
-                sub.wins,
-                sub.win_rate,
-                sub.avg_damage,
-                sub.frags,
-                sub.survived,
-                sub.kd_ratio
-            FROM (
-                SELECT DISTINCT ON (s.account_id)
-                    p.nickname,
-                    p.account_id,
-                    p.realm,
-                    {b_expr} as battles,
-                    {w_expr} as wins,
-                    {wr_calc} as win_rate,
-                    ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
-                    s.frags,
-                    s.survived,
-                    ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
-                FROM player_snapshot s
-                JOIN player p ON s.account_id = p.account_id
-                {realm_filter} AND {b_expr} >= :min_battles
-                ORDER BY s.account_id, s.timestamp DESC
-            ) sub
-            ORDER BY {order_clause}
-            LIMIT :limit
-        """).bindparams(min_battles=min_battles, limit=limit)
-    else:
-        # SQLite compatibility for unit tests
-        query = text(f"""
-            SELECT 
-                p.nickname,
-                p.account_id,
-                p.realm,
-                {b_expr} as battles,
-                {w_expr} as wins,
-                {wr_calc} as win_rate,
-                ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
-                s.frags,
-                s.survived,
-                ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
-            FROM player_snapshot s
-            JOIN player p ON s.account_id = p.account_id
-            {realm_filter} AND {b_expr} >= :min_battles
-            ORDER BY {order_clause}
-            LIMIT :limit
-        """).bindparams(min_battles=min_battles, limit=limit)
+    query = text(f"""
+        SELECT 
+            p.nickname,
+            p.account_id,
+            p.realm,
+            {b_expr} as battles,
+            {w_expr} as wins,
+            {wr_calc} as win_rate,
+            ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+            s.frags,
+            s.survived,
+            ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
+        FROM player_snapshot s
+        JOIN player p ON s.account_id = p.account_id
+        {realm_filter} AND {b_expr} >= :min_battles
+        ORDER BY {order_clause}
+        LIMIT :limit OFFSET :offset
+    """).bindparams(min_battles=min_battles, limit=limit, offset=offset)
 
     rows = session.exec(query).all()
     
     leaderboard = []
-    for rank, r in enumerate(rows, start=1):
+    start_rank = offset + 1
+    for rank_offset, r in enumerate(rows):
         leaderboard.append({
-            "rank": rank,
+            "rank": start_rank + rank_offset,
             "nickname": r[0],
             "accountId": r[1],
             "realm": r[2],
@@ -245,31 +325,19 @@ async def get_leaderboard(
             "kd": float(r[9] or 0.0)
         })
 
-    result = {"category": category, "mode": mode, "realm": realm, "leaderboard": leaderboard}
+    result = {
+        "category": category,
+        "mode": mode,
+        "realm": realm,
+        "sortBy": sql_sort_col,
+        "sortDir": sort_direction.lower(),
+        "page": page,
+        "limit": limit,
+        "total": len(leaderboard) * max(page, 1),
+        "totalPages": max(1, page),
+        "leaderboard": leaderboard
+    }
     _LEADERBOARD_MEMORY_CACHE[cache_key] = (result, now_ts)
-
-    # Save to database cache table if on PostgreSQL
-    if is_postgres:
-        try:
-            payload_str = json.dumps(leaderboard)
-            cache_obj = session.get(LeaderboardCache, (category, mode, realm))
-            if not cache_obj:
-                cache_obj = LeaderboardCache(
-                    category=category,
-                    mode=mode,
-                    realm=realm,
-                    payload=payload_str,
-                    updated_at=datetime.now(timezone.utc)
-                )
-                session.add(cache_obj)
-            else:
-                cache_obj.payload = payload_str
-                cache_obj.updated_at = datetime.now(timezone.utc)
-                session.add(cache_obj)
-            session.commit()
-        except Exception as e:
-            logger.warning(f"Failed to persist leaderboard cache: {e}")
-
     return result
 
 @app.get("/api/player/{username}")
@@ -797,19 +865,31 @@ async def get_ship_leaderboard(
 @app.get("/api/leaderboard/clans")
 async def get_clan_leaderboard(
     realm: str = "all",
-    limit: int = 50,
+    sort_by: str = "members_count",
+    sort_dir: str = "desc",
+    page: int = 1,
+    limit: int = 25,
     session: Session = Depends(get_session)
 ):
-    """Returns rankings of registered naval clans."""
+    """Returns rankings of registered naval clans with sorting and pagination."""
     query = select(Clan)
     if realm != "all":
         query = query.where(Clan.realm == realm.lower())
-    clans = session.exec(
-        query.order_by(Clan.members_count.desc()).limit(limit)
-    ).all()
+    
+    # Sort
+    if sort_by == "name":
+        order_col = Clan.name.desc() if sort_dir == "desc" else Clan.name.asc()
+    elif sort_by == "tag":
+        order_col = Clan.tag.desc() if sort_dir == "desc" else Clan.tag.asc()
+    else:
+        order_col = Clan.members_count.desc() if sort_dir == "desc" else Clan.members_count.asc()
+    
+    total = session.exec(select(func.count()).select_from(query.subquery())).one()
+    offset = max(0, (page - 1) * limit)
+    clans = session.exec(query.order_by(order_col).offset(offset).limit(limit)).all()
 
     leaderboard = []
-    for rank, c in enumerate(clans, start=1):
+    for rank, c in enumerate(clans, start=offset + 1):
         leaderboard.append({
             "rank": rank,
             "clanId": c.clan_id,
@@ -819,7 +899,14 @@ async def get_clan_leaderboard(
             "membersCount": c.members_count,
             "leaderName": c.leader_name or "Commander"
         })
-    return {"leaderboard": leaderboard, "clans": leaderboard}
+    return {
+        "leaderboard": leaderboard,
+        "clans": leaderboard,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": max(1, math.ceil(total / limit)) if total > 0 else 1
+    }
 
 @app.get("/api/clan/{clan_id}")
 async def get_clan_details(

@@ -153,6 +153,23 @@ class LeaderboardCache(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class PlayerLeaderboardStats(SQLModel, table=True):
+    __tablename__ = "player_leaderboard_stats"
+
+    account_id: int = Field(sa_column=Column(BigInteger, primary_key=True, autoincrement=False))
+    mode: str = Field(primary_key=True, default="pvp") # pvp, solo, div, rank
+    nickname: str = Field(index=True)
+    realm: str = Field(default="na", index=True)
+    battles: int = Field(default=0)
+    wins: int = Field(default=0)
+    win_rate: float = Field(default=0.0)
+    avg_damage: int = Field(default=0)
+    frags: int = Field(default=0)
+    survived: int = Field(default=0)
+    kd_ratio: float = Field(default=0.0)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 def create_partition_if_not_exists(bind: Any, dt: datetime):
     """
     Creates a monthly partition for the PlayerSnapshot table dynamically if it doesn't exist.

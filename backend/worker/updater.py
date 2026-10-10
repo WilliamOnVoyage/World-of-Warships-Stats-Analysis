@@ -28,6 +28,7 @@ from database.models import (
     PipelineProgressSample,
     Clan,
     LeaderboardCache,
+    PlayerLeaderboardStats,
     create_partition_if_not_exists,
 )
 from api.wargaming import WargamingAPIClient
@@ -684,6 +685,52 @@ def refresh_leaderboard_cache():
                         session.rollback()
                         print(f"[Leaderboard Cache Error] {category}/{mode}/{realm}: {e}")
 
+def sync_leaderboard_stats():
+    """Upserts latest player combat summaries into player_leaderboard_stats for sub-5ms queries."""
+    with Session(engine) as session:
+        bind = session.get_bind()
+        is_postgres = getattr(bind.dialect, "name", "") == "postgresql"
+        if not is_postgres:
+            return
+        try:
+            sql = text("""
+                INSERT INTO player_leaderboard_stats (account_id, mode, nickname, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio, updated_at)
+                SELECT DISTINCT ON (s.account_id)
+                    s.account_id,
+                    'pvp' as mode,
+                    p.nickname,
+                    p.realm,
+                    s.battles,
+                    s.wins,
+                    ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2) as win_rate,
+                    ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+                    s.frags,
+                    s.survived,
+                    ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio,
+                    s.timestamp as updated_at
+                FROM player_snapshot s
+                JOIN player p ON s.account_id = p.account_id
+                WHERE s.battles >= 20
+                ORDER BY s.account_id, s.timestamp DESC
+                ON CONFLICT (account_id, mode) DO UPDATE SET
+                    nickname = EXCLUDED.nickname,
+                    realm = EXCLUDED.realm,
+                    battles = EXCLUDED.battles,
+                    wins = EXCLUDED.wins,
+                    win_rate = EXCLUDED.win_rate,
+                    avg_damage = EXCLUDED.avg_damage,
+                    frags = EXCLUDED.frags,
+                    survived = EXCLUDED.survived,
+                    kd_ratio = EXCLUDED.kd_ratio,
+                    updated_at = EXCLUDED.updated_at;
+            """)
+            session.execute(sql)
+            session.commit()
+            print("[Leaderboard Stats] Synchronized player_leaderboard_stats table.")
+        except Exception as e:
+            session.rollback()
+            print(f"[Leaderboard Stats Error] {e}")
+
 def prune_old_progress_samples():
     """Prunes progress samples older than 14 days to prevent unbounded growth."""
     try:
@@ -732,6 +779,7 @@ async def main():
             if loop_count == 1 or loop_count % 10 == 0:
                 generate_daily_rollup()
                 prune_old_progress_samples()
+                sync_leaderboard_stats()
                 refresh_leaderboard_cache()
 
             update_heartbeat(

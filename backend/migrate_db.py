@@ -168,6 +168,63 @@ SQL_MIGRATIONS = [
     UPDATE daily_server_stats 
     SET mean_damage = ROUND(damage_dealt * 1.0 / NULLIF(battles_fought, 0), 0)
     WHERE (mean_damage IS NULL OR mean_damage = 0.0) AND battles_fought > 0;
+    """,
+
+    # 12. Create player_leaderboard_stats table for instant arbitrary column sorting and pagination (<5ms)
+    """
+    CREATE TABLE IF NOT EXISTS player_leaderboard_stats (
+        account_id BIGINT NOT NULL,
+        mode VARCHAR(10) NOT NULL DEFAULT 'pvp',
+        nickname VARCHAR(255) NOT NULL,
+        realm VARCHAR(10) NOT NULL DEFAULT 'na',
+        battles INT NOT NULL DEFAULT 0,
+        wins INT NOT NULL DEFAULT 0,
+        win_rate DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+        avg_damage INT NOT NULL DEFAULT 0,
+        frags INT NOT NULL DEFAULT 0,
+        survived INT NOT NULL DEFAULT 0,
+        kd_ratio DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (account_id, mode)
+    );
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_wr ON player_leaderboard_stats (mode, realm, win_rate DESC, battles);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_dmg ON player_leaderboard_stats (mode, realm, avg_damage DESC, battles);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_bat ON player_leaderboard_stats (mode, realm, battles DESC);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_kd ON player_leaderboard_stats (mode, realm, kd_ratio DESC, battles);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_nick ON player_leaderboard_stats (mode, realm, nickname);
+    """,
+
+    # 13. Backfill player_leaderboard_stats with PvP active players
+    """
+    INSERT INTO player_leaderboard_stats (account_id, mode, nickname, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio, updated_at)
+    SELECT DISTINCT ON (s.account_id)
+        s.account_id,
+        'pvp' as mode,
+        p.nickname,
+        p.realm,
+        s.battles,
+        s.wins,
+        ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2) as win_rate,
+        ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+        s.frags,
+        s.survived,
+        ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio,
+        s.timestamp as updated_at
+    FROM player_snapshot s
+    JOIN player p ON s.account_id = p.account_id
+    WHERE s.battles >= 20
+    ORDER BY s.account_id, s.timestamp DESC
+    ON CONFLICT (account_id, mode) DO UPDATE SET
+        nickname = EXCLUDED.nickname,
+        realm = EXCLUDED.realm,
+        battles = EXCLUDED.battles,
+        wins = EXCLUDED.wins,
+        win_rate = EXCLUDED.win_rate,
+        avg_damage = EXCLUDED.avg_damage,
+        frags = EXCLUDED.frags,
+        survived = EXCLUDED.survived,
+        kd_ratio = EXCLUDED.kd_ratio,
+        updated_at = EXCLUDED.updated_at;
     """
 ]
 

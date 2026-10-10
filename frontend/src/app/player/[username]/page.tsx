@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { WinRateChart, AvgDamageChart, BattlesChart } from "./charts";
 import { RefreshButton } from "./refresh-button";
+import { formatMagnitude, formatInteger, formatPercent } from "@/lib/format";
 
 const API_BASE = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -141,7 +142,7 @@ export default async function PlayerProfile({
               01 // WIN RATE (PVP)
             </div>
             <div className="text-5xl md:text-6xl font-black tracking-tight text-[#B3261E]">
-              {stats.winRate.toFixed(2)}%
+              {formatPercent(stats.winRate, 2)}
             </div>
             <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
               VICTORIES IN RANDOM BATTLES
@@ -154,7 +155,7 @@ export default async function PlayerProfile({
               02 // PVP BATTLES
             </div>
             <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
-              {stats.battles.toLocaleString()}
+              {formatInteger(stats.battles)}
             </div>
             <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
               DENOMINATOR: RANDOM ONLY
@@ -167,7 +168,7 @@ export default async function PlayerProfile({
               03 // AVERAGE DAMAGE
             </div>
             <div className="text-5xl md:text-6xl font-black tracking-tight text-[#1A1A17]">
-              {stats.avgDamage.toLocaleString()}
+              {formatInteger(stats.avgDamage)}
             </div>
             <div className="text-xs font-mono text-[#5B6770] mt-4 border-t border-zinc-300 pt-3">
               MEAN STRUCTURAL DAMAGE
@@ -213,11 +214,11 @@ export default async function PlayerProfile({
                 SOLO PVP
               </div>
               <div className="text-3xl font-black text-[#1A1A17] mt-2">
-                {gameModes.solo?.winRate?.toFixed(2) || "0.00"}%
+                {formatPercent(gameModes.solo?.winRate, 2)}
               </div>
               <div className="text-xs font-mono text-[#5B6770] mt-2 flex justify-between border-t border-zinc-300 pt-2">
-                <span>BATTLES: {gameModes.solo?.battles?.toLocaleString() || 0}</span>
-                <span>WINS: {gameModes.solo?.wins?.toLocaleString() || 0}</span>
+                <span>BATTLES: {formatInteger(gameModes.solo?.battles)}</span>
+                <span>WINS: {formatInteger(gameModes.solo?.wins)}</span>
               </div>
             </div>
 
@@ -227,11 +228,11 @@ export default async function PlayerProfile({
                 DIVISION (DUO)
               </div>
               <div className="text-3xl font-black text-[#1A1A17] mt-2">
-                {gameModes.div2?.winRate?.toFixed(2) || "0.00"}%
+                {formatPercent(gameModes.div2?.winRate, 2)}
               </div>
               <div className="text-xs font-mono text-[#5B6770] mt-2 flex justify-between border-t border-zinc-300 pt-2">
-                <span>BATTLES: {gameModes.div2?.battles?.toLocaleString() || 0}</span>
-                <span>WINS: {gameModes.div2?.wins?.toLocaleString() || 0}</span>
+                <span>BATTLES: {formatInteger(gameModes.div2?.battles)}</span>
+                <span>WINS: {formatInteger(gameModes.div2?.wins)}</span>
               </div>
             </div>
 
@@ -241,11 +242,11 @@ export default async function PlayerProfile({
                 DIVISION (TRIO)
               </div>
               <div className="text-3xl font-black text-[#1A1A17] mt-2">
-                {gameModes.div3?.winRate?.toFixed(2) || "0.00"}%
+                {formatPercent(gameModes.div3?.winRate, 2)}
               </div>
               <div className="text-xs font-mono text-[#5B6770] mt-2 flex justify-between border-t border-zinc-300 pt-2">
-                <span>BATTLES: {gameModes.div3?.battles?.toLocaleString() || 0}</span>
-                <span>WINS: {gameModes.div3?.wins?.toLocaleString() || 0}</span>
+                <span>BATTLES: {formatInteger(gameModes.div3?.battles)}</span>
+                <span>WINS: {formatInteger(gameModes.div3?.wins)}</span>
               </div>
             </div>
 
@@ -255,11 +256,11 @@ export default async function PlayerProfile({
                 RANKED COMBAT
               </div>
               <div className="text-3xl font-black text-[#1A1A17] mt-2">
-                {gameModes.rank?.winRate?.toFixed(2) || "0.00"}%
+                {formatPercent(gameModes.rank?.winRate, 2)}
               </div>
               <div className="text-xs font-mono text-[#5B6770] mt-2 flex justify-between border-t border-zinc-300 pt-2">
-                <span>BATTLES: {gameModes.rank?.battles?.toLocaleString() || 0}</span>
-                <span>WINS: {gameModes.rank?.wins?.toLocaleString() || 0}</span>
+                <span>BATTLES: {formatInteger(gameModes.rank?.battles)}</span>
+                <span>WINS: {formatInteger(gameModes.rank?.wins)}</span>
               </div>
             </div>
           </div>
@@ -280,31 +281,31 @@ export default async function PlayerProfile({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
           <div className="border-t border-[#1A1A17] pt-3">
             <div className="text-[10px] font-mono text-[#5B6770] uppercase">WARSHIPS SUNK</div>
-            <div className="text-2xl font-black text-[#1A1A17] mt-1">{stats.frags.toLocaleString()}</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{formatInteger(stats.frags)}</div>
             <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{fragsPerBattle} / battle</div>
           </div>
 
           <div className="border-t border-[#1A1A17] pt-3">
             <div className="text-[10px] font-mono text-[#5B6770] uppercase">SURVIVAL RATE</div>
             <div className="text-2xl font-black text-[#1A1A17] mt-1">{survivalRate}%</div>
-            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{stats.survived.toLocaleString()} survived</div>
+            <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{formatInteger(stats.survived)} survived</div>
           </div>
 
           <div className="border-t border-[#1A1A17] pt-3">
             <div className="text-[10px] font-mono text-[#5B6770] uppercase">PLANES DESTROYED</div>
-            <div className="text-2xl font-black text-[#1A1A17] mt-1">{(stats.planesKilled || 0).toLocaleString()}</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{formatInteger(stats.planesKilled || 0)}</div>
             <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">{planesPerBattle} / battle</div>
           </div>
 
           <div className="border-t border-[#1A1A17] pt-3">
             <div className="text-[10px] font-mono text-[#5B6770] uppercase">MAX DAMAGE RECORD</div>
-            <div className="text-2xl font-black text-[#1A1A17] mt-1">{(stats.maxDamage || 0).toLocaleString()}</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{formatInteger(stats.maxDamage || 0)}</div>
             <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">single battle max</div>
           </div>
 
           <div className="border-t border-[#1A1A17] pt-3">
             <div className="text-[10px] font-mono text-[#5B6770] uppercase">SCOUTING DAMAGE</div>
-            <div className="text-2xl font-black text-[#1A1A17] mt-1">{((stats.damageScouting || 0) / 1_000_000).toFixed(1)}M</div>
+            <div className="text-2xl font-black text-[#1A1A17] mt-1">{formatMagnitude(stats.damageScouting || 0, 2)}</div>
             <div className="text-[10px] font-mono text-[#5B6770] mt-0.5">spotting total</div>
           </div>
 

@@ -113,6 +113,27 @@ async def test_leaderboard_with_modes():
             assert "leaderboard" in data
 
 @pytest.mark.asyncio
+async def test_leaderboard_sorting_and_pagination():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Test custom sort_by and sort_dir
+        response = await ac.get("/api/leaderboard?sort_by=avg_damage&sort_dir=desc&page=1&limit=10&min_battles=0")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["sortBy"] == "avg_damage"
+        assert data["sortDir"] == "desc"
+        assert data["page"] == 1
+        assert data["limit"] == 10
+        assert "totalPages" in data
+        assert "leaderboard" in data
+
+        # Test pagination page 2
+        p2_resp = await ac.get("/api/leaderboard?sort_by=battles&sort_dir=asc&page=2&limit=5&min_battles=0")
+        assert p2_resp.status_code == 200
+        p2_data = p2_resp.json()
+        assert p2_data["page"] == 2
+        assert p2_data["limit"] == 5
+
+@pytest.mark.asyncio
 async def test_encyclopedia_endpoints(mocker):
     # Mock WG API client for sync or direct query
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -125,10 +146,12 @@ async def test_encyclopedia_endpoints(mocker):
 @pytest.mark.asyncio
 async def test_clan_leaderboard():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get("/api/leaderboard/clans")
+        response = await ac.get("/api/leaderboard/clans?sort_by=members_count&sort_dir=desc&page=1&limit=10")
         assert response.status_code == 200
         data = response.json()
         assert "clans" in data
+        assert "page" in data
+        assert "totalPages" in data
 
 @pytest.mark.asyncio
 async def test_internal_pipeline_overview_auth():
