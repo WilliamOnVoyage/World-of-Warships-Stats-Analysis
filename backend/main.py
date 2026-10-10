@@ -357,9 +357,12 @@ async def get_player_stats(
     refresh: bool = False,
     session: Session = Depends(get_session)
 ):
-    # 1. Check if player exists in our DB (case-insensitive)
-    statement = select(Player).where(func.lower(Player.nickname) == username.lower())
+    # 1. Check if player exists in our DB (exact match first for 0.1ms index scan, fallback to lower)
+    statement = select(Player).where(Player.nickname == username)
     player = session.exec(statement).first()
+    if not player:
+        statement = select(Player).where(func.lower(Player.nickname) == username.lower())
+        player = session.exec(statement).first()
     
     app_id = os.getenv("WARGAMING_APP_ID", "demo")
     player_realm = player.realm if player else "na"

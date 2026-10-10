@@ -615,40 +615,51 @@ def refresh_leaderboard_cache():
                         order_clause = "frags DESC"
 
                     try:
-                        query = text(f"""
-                            SELECT 
-                                sub.nickname,
-                                sub.account_id,
-                                sub.realm,
-                                sub.battles,
-                                sub.wins,
-                                sub.win_rate,
-                                sub.avg_damage,
-                                sub.frags,
-                                sub.survived,
-                                sub.kd_ratio
-                            FROM (
-                                SELECT DISTINCT ON (s.account_id)
-                                    p.nickname,
-                                    p.account_id,
-                                    p.realm,
-                                    {b_expr} as battles,
-                                    {w_expr} as wins,
-                                    {wr_calc} as win_rate,
-                                    ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
-                                    s.frags,
-                                    s.survived,
-                                    ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
-                                FROM player_snapshot s
-                                JOIN player p ON s.account_id = p.account_id
-                                {realm_filter} AND {b_expr} >= :min_battles
-                                ORDER BY s.account_id, s.timestamp DESC
-                            ) sub
-                            ORDER BY {order_clause}
-                            LIMIT 50
-                        """).bindparams(min_battles=min_battles)
-
-                        rows = session.execute(query).fetchall()
+                        if is_postgres and mode == "pvp":
+                            pls_realm_clause = "AND realm = :realm" if realm != "all" else ""
+                            pls_sort = "avg_damage" if category == "damage" else ("kd_ratio" if category == "frags" else category)
+                            query = text(f"""
+                                SELECT nickname, account_id, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio
+                                FROM player_leaderboard_stats
+                                WHERE mode = 'pvp' {pls_realm_clause} AND battles >= :min_battles
+                                ORDER BY {pls_sort} DESC
+                                LIMIT 50
+                            """)
+                            rows = session.execute(query, {"realm": realm.lower(), "min_battles": min_battles}).fetchall()
+                        else:
+                            query = text(f"""
+                                SELECT 
+                                    sub.nickname,
+                                    sub.account_id,
+                                    sub.realm,
+                                    sub.battles,
+                                    sub.wins,
+                                    sub.win_rate,
+                                    sub.avg_damage,
+                                    sub.frags,
+                                    sub.survived,
+                                    sub.kd_ratio
+                                FROM (
+                                    SELECT DISTINCT ON (s.account_id)
+                                        p.nickname,
+                                        p.account_id,
+                                        p.realm,
+                                        {b_expr} as battles,
+                                        {w_expr} as wins,
+                                        {wr_calc} as win_rate,
+                                        ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+                                        s.frags,
+                                        s.survived,
+                                        ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
+                                    FROM player_snapshot s
+                                    JOIN player p ON s.account_id = p.account_id
+                                    {realm_filter} AND {b_expr} >= :min_battles
+                                    ORDER BY s.account_id, s.timestamp DESC
+                                ) sub
+                                ORDER BY {order_clause}
+                                LIMIT 50
+                            """).bindparams(min_battles=min_battles)
+                            rows = session.execute(query).fetchall()
                         leaderboard = []
                         for rank, r in enumerate(rows, start=1):
                             leaderboard.append({
