@@ -685,7 +685,7 @@ def refresh_leaderboard_cache():
                         session.rollback()
                         print(f"[Leaderboard Cache Error] {category}/{mode}/{realm}: {e}")
 
-def sync_leaderboard_stats():
+def sync_leaderboard_stats(full: bool = False):
     """Upserts latest player combat summaries into player_leaderboard_stats for sub-5ms queries."""
     with Session(engine) as session:
         bind = session.get_bind()
@@ -693,7 +693,8 @@ def sync_leaderboard_stats():
         if not is_postgres:
             return
         try:
-            sql = text("""
+            time_filter = "" if full else "AND s.timestamp >= NOW() - INTERVAL '2 hours'"
+            sql = text(f"""
                 INSERT INTO player_leaderboard_stats (account_id, mode, nickname, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio, updated_at)
                 SELECT DISTINCT ON (s.account_id)
                     s.account_id,
@@ -702,15 +703,15 @@ def sync_leaderboard_stats():
                     p.realm,
                     s.battles,
                     s.wins,
-                    ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2) as win_rate,
-                    ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+                    COALESCE(ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2), 0.0) as win_rate,
+                    COALESCE(ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0), 0) as avg_damage,
                     s.frags,
                     s.survived,
-                    ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio,
+                    COALESCE(ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2), s.frags * 1.0, 0.0) as kd_ratio,
                     s.timestamp as updated_at
                 FROM player_snapshot s
                 JOIN player p ON s.account_id = p.account_id
-                WHERE s.battles >= 20
+                WHERE s.battles >= 20 {time_filter}
                 ORDER BY s.account_id, s.timestamp DESC
                 ON CONFLICT (account_id, mode) DO UPDATE SET
                     nickname = EXCLUDED.nickname,

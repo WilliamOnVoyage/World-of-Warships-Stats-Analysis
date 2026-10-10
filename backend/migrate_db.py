@@ -183,7 +183,7 @@ SQL_MIGRATIONS = [
         avg_damage INT NOT NULL DEFAULT 0,
         frags INT NOT NULL DEFAULT 0,
         survived INT NOT NULL DEFAULT 0,
-        kd_ratio DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+        kd_ratio DOUBLE PRECISION DEFAULT 0.0,
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         PRIMARY KEY (account_id, mode)
     );
@@ -204,11 +204,11 @@ SQL_MIGRATIONS = [
         p.realm,
         s.battles,
         s.wins,
-        ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2) as win_rate,
-        ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
+        COALESCE(ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2), 0.0) as win_rate,
+        COALESCE(ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0), 0) as avg_damage,
         s.frags,
         s.survived,
-        ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio,
+        COALESCE(ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2), s.frags * 1.0, 0.0) as kd_ratio,
         s.timestamp as updated_at
     FROM player_snapshot s
     JOIN player p ON s.account_id = p.account_id
@@ -230,12 +230,14 @@ SQL_MIGRATIONS = [
 
 def migrate():
     print(f"Applying migrations to {engine.url.render_as_string(hide_password=True)}...")
-    with engine.begin() as conn:
+    with engine.connect() as conn:
         for stmt in SQL_MIGRATIONS:
             try:
                 conn.execute(text(stmt))
+                conn.commit()
                 print(f"Executed: {stmt.strip().splitlines()[0][:60]}...")
             except Exception as e:
+                conn.rollback()
                 print(f"Notice: {e}")
     print("All migrations completed successfully!")
 
