@@ -166,8 +166,8 @@ async def get_leaderboard(
     has_summary_table = False
     if is_postgres:
         try:
-            chk = session.execute(text("SELECT count(*) FROM player_leaderboard_stats WHERE mode = :mode LIMIT 1"), {"mode": mode}).scalar()
-            if chk and chk > 0:
+            chk = session.execute(text("SELECT 1 FROM player_leaderboard_stats WHERE mode = :mode LIMIT 1"), {"mode": mode}).first()
+            if chk:
                 has_summary_table = True
         except Exception:
             session.rollback()
@@ -191,17 +191,28 @@ async def get_leaderboard(
             }
             rows = session.execute(query_sql, params).fetchall()
 
-            count_sql = text(f"""
-                SELECT count(*)
-                FROM player_leaderboard_stats
-                WHERE mode = :mode {realm_clause} AND battles >= :min_battles
-            """)
-            count_params = {
-                "mode": mode,
-                "realm": realm.lower(),
-                "min_battles": min_battles
-            }
-            total_records = session.execute(count_sql, count_params).scalar() or 0
+            if is_postgres:
+                # Sub-millisecond pagination metadata using table reltuples (AGENTS.md rule 2)
+                if len(rows) < limit and page == 1:
+                    total_records = len(rows)
+                else:
+                    rel_row = session.execute(text("SELECT reltuples::bigint FROM pg_class WHERE relname = 'player_leaderboard_stats'")).first()
+                    approx_total = int(rel_row[0] / 4) if rel_row and rel_row[0] > 0 else 500000
+                    if realm != "all":
+                        approx_total = int(approx_total / 4)
+                    total_records = max(offset + len(rows), approx_total)
+            else:
+                count_sql = text(f"""
+                    SELECT count(*)
+                    FROM player_leaderboard_stats
+                    WHERE mode = :mode {realm_clause} AND battles >= :min_battles
+                """)
+                count_params = {
+                    "mode": mode,
+                    "realm": realm.lower(),
+                    "min_battles": min_battles
+                }
+                total_records = session.execute(count_sql, count_params).scalar() or 0
 
             leaderboard = []
             start_rank = offset + 1

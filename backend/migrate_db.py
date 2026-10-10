@@ -192,6 +192,11 @@ SQL_MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_bat ON player_leaderboard_stats (mode, realm, battles DESC);
     CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_kd ON player_leaderboard_stats (mode, realm, kd_ratio DESC, battles);
     CREATE INDEX IF NOT EXISTS idx_pls_mode_realm_nick ON player_leaderboard_stats (mode, realm, nickname);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_wr ON player_leaderboard_stats (mode, win_rate DESC, battles);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_dmg ON player_leaderboard_stats (mode, avg_damage DESC, battles);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_bat ON player_leaderboard_stats (mode, battles DESC);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_kd ON player_leaderboard_stats (mode, kd_ratio DESC, battles);
+    CREATE INDEX IF NOT EXISTS idx_pls_mode_nick ON player_leaderboard_stats (mode, nickname);
     """,
 
     # 13. Backfill player_leaderboard_stats with PvP active players
