@@ -21,7 +21,8 @@ from database.models import (
 from api.wargaming import WargamingAPIClient
 from worker.exporter import export_date_to_parquet
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
+import asyncio
 import json
 import time
 import math
@@ -33,11 +34,25 @@ logger = logging.getLogger(__name__)
 _LEADERBOARD_MEMORY_CACHE: Dict[str, Any] = {}
 _LEADERBOARD_CACHE_TTL = 60
 
+# Fast in-memory cache for player dossier payloads (15-minute TTL)
+_PLAYER_DOSSIER_CACHE: Dict[str, Tuple[Dict[str, Any], float]] = {}
+_PLAYER_DOSSIER_CACHE_TTL = 900  # 15 minutes
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+if "sqlite" in DATABASE_URL:
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=15,
+        max_overflow=25,
+        pool_timeout=10,
+        pool_pre_ping=True,
+        connect_args=connect_args
+    )
 
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "wows-secret-internal-key-2026")
 
@@ -357,6 +372,13 @@ async def get_player_stats(
     refresh: bool = False,
     session: Session = Depends(get_session)
 ):
+    cache_key = username.lower()
+    now_ts = time.time()
+    if not refresh and cache_key in _PLAYER_DOSSIER_CACHE:
+        cached_payload, cached_time = _PLAYER_DOSSIER_CACHE[cache_key]
+        if now_ts - cached_time < _PLAYER_DOSSIER_CACHE_TTL:
+            return cached_payload
+
     # 1. Check if player exists in our DB (exact match first for 0.1ms index scan, fallback to lower)
     statement = select(Player).where(Player.nickname == username)
     player = session.exec(statement).first()
@@ -464,9 +486,66 @@ async def get_player_stats(
             session.commit()
             session.refresh(player)
 
-        # Clan membership lookup
+            # Real-time synchronization into player_leaderboard_stats
+            dialect = getattr(session.get_bind(), "dialect", None)
+            is_postgres = getattr(dialect, "name", "") == "postgresql"
+            b_cnt = stats_pvp.get("battles", 0)
+            if is_postgres and b_cnt >= 20:
+                w_cnt = stats_pvp.get("wins", 0)
+                dmg_cnt = stats_pvp.get("damage_dealt", 0)
+                fr_cnt = stats_pvp.get("frags", 0)
+                surv_cnt = stats_pvp.get("survived_battles", 0)
+                wr_val = round(w_cnt * 100.0 / b_cnt, 2) if b_cnt > 0 else 0.0
+                avg_dmg_val = int(round(dmg_cnt * 1.0 / b_cnt, 0)) if b_cnt > 0 else 0
+                kd_val = round(fr_cnt * 1.0 / max(b_cnt - surv_cnt, 1), 2)
+                try:
+                    session.execute(text("""
+                        INSERT INTO player_leaderboard_stats (account_id, mode, nickname, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio, updated_at)
+                        VALUES (:aid, 'pvp', :nick, :realm, :b, :w, :wr, :dmg, :fr, :surv, :kd, :ts)
+                        ON CONFLICT (account_id, mode) DO UPDATE SET
+                            nickname = EXCLUDED.nickname,
+                            realm = EXCLUDED.realm,
+                            battles = EXCLUDED.battles,
+                            wins = EXCLUDED.wins,
+                            win_rate = EXCLUDED.win_rate,
+                            avg_damage = EXCLUDED.avg_damage,
+                            frags = EXCLUDED.frags,
+                            survived = EXCLUDED.survived,
+                            kd_ratio = EXCLUDED.kd_ratio,
+                            updated_at = EXCLUDED.updated_at
+                    """), {
+                        "aid": account_id,
+                        "nick": player.nickname,
+                        "realm": player.realm,
+                        "b": b_cnt,
+                        "w": w_cnt,
+                        "wr": wr_val,
+                        "dmg": avg_dmg_val,
+                        "fr": fr_cnt,
+                        "surv": surv_cnt,
+                        "kd": kd_val,
+                        "ts": now
+                    })
+                    session.commit()
+                    _LEADERBOARD_MEMORY_CACHE.clear()
+                except Exception as lb_err:
+                    session.rollback()
+                    logger.warning(f"Failed to upsert player_leaderboard_stats on fetch: {lb_err}")
+
+        # Concurrent Clan membership & Top Ships lookup (<50% network latency)
         try:
-            clan_res = await client.get_clan_account_info(player.account_id)
+            clan_task = client.get_clan_account_info(player.account_id)
+            ships_task = client.get_ship_stats(player.account_id)
+            clan_res_raw, ships_data_raw = await asyncio.gather(clan_task, ships_task, return_exceptions=True)
+
+            clan_res = clan_res_raw if not isinstance(clan_res_raw, Exception) else None
+            ships_data = ships_data_raw if not isinstance(ships_data_raw, Exception) else None
+
+            if isinstance(clan_res_raw, Exception):
+                logger.warning(f"Clan lookup exception: {clan_res_raw}")
+            if isinstance(ships_data_raw, Exception):
+                logger.warning(f"Ship stats lookup exception: {ships_data_raw}")
+
             if clan_res and clan_res.get("clan_id"):
                 clan_obj = clan_res.get("clan", {})
                 clan_id = clan_res["clan_id"]
@@ -487,12 +566,7 @@ async def get_player_stats(
                         members_count=clan_obj.get("members_count", 1)
                     ))
                     session.commit()
-        except Exception as e:
-            logger.warning(f"Clan lookup: {e}")
 
-        # Top Ships stats lookup
-        try:
-            ships_data = await client.get_ship_stats(player.account_id)
             if ships_data:
                 pvp_ships = [s for s in ships_data if s.get("pvp", {}).get("battles", 0) > 0]
                 pvp_ships.sort(key=lambda s: s.get("pvp", {}).get("battles", 0), reverse=True)
@@ -535,7 +609,7 @@ async def get_player_stats(
                         "torpAccuracy": round(tp.get("hits", 0) * 100.0 / tp.get("shots", 1), 1) if tp.get("shots", 0) > 0 else 0.0,
                     })
         except Exception as e:
-            logger.warning(f"Ship stats lookup: {e}")
+            logger.warning(f"Error fetching clan or ship telemetry: {e}")
 
     finally:
         await client.close()
@@ -573,7 +647,7 @@ async def get_player_stats(
             "avgDamage": round((s.damage_dealt / s.battles) if s.battles > 0 else 0, 0)
         })
 
-    return {
+    payload = {
         "username": player.nickname,
         "accountId": player.account_id,
         "realm": player.realm,
@@ -622,6 +696,9 @@ async def get_player_stats(
         "topShips": top_ships,
         "history": history
     }
+
+    _PLAYER_DOSSIER_CACHE[username.lower()] = (payload, time.time())
+    return payload
 
 # =========================================================================
 # SHIP ENCYCLOPEDIA & CLAN ENDPOINTS

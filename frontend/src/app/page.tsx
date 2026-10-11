@@ -417,6 +417,7 @@ export default function Home() {
                       <td className="p-4 font-sans font-bold text-sm">
                         <Link
                           href={`/player/${encodeURIComponent(entry.nickname)}`}
+                          prefetch={false}
                           className="hover:text-[#B3261E] transition-colors hover:underline"
                         >
                           {entry.nickname}

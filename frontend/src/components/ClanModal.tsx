@@ -162,6 +162,7 @@ export default function ClanModal({ clanId, onClose }: ClanModalProps) {
                           <td className="p-3 font-sans font-bold text-sm">
                             <Link
                               href={`/player/${encodeURIComponent(m.nickname)}`}
+                              prefetch={false}
                               onClick={onClose}
                               className="text-[#1A1A17] hover:text-[#B3261E] hover:underline transition-colors"
                             >

@@ -230,6 +230,30 @@ SQL_MIGRATIONS = [
         survived = EXCLUDED.survived,
         kd_ratio = EXCLUDED.kd_ratio,
         updated_at = EXCLUDED.updated_at;
+    """,
+
+    # 14. Purge distorted legacy snapshots and sync corrected snapshots
+    """
+    DELETE FROM player_leaderboard_stats
+    WHERE win_rate < 5.0 AND battles > 20000;
+    """,
+    """
+    UPDATE player_leaderboard_stats pls
+    SET battles = s.battles,
+        wins = s.wins,
+        win_rate = COALESCE(ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2), 0.0),
+        avg_damage = COALESCE(ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0), 0),
+        frags = s.frags,
+        survived = s.survived,
+        kd_ratio = COALESCE(ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2), s.frags * 1.0, 0.0),
+        updated_at = s.timestamp
+    FROM (
+        SELECT DISTINCT ON (account_id) account_id, battles, wins, damage_dealt, frags, survived, timestamp
+        FROM player_snapshot
+        WHERE battles >= 20
+        ORDER BY account_id, timestamp DESC
+    ) s
+    WHERE pls.account_id = s.account_id AND pls.mode = 'pvp' AND pls.updated_at < s.timestamp;
     """
 ]
 

@@ -723,6 +723,7 @@ def sync_leaderboard_stats(full: bool = False):
                 FROM player_snapshot s
                 JOIN player p ON s.account_id = p.account_id
                 WHERE s.battles >= 20 {time_filter}
+                  AND NOT (s.wins * 100.0 / NULLIF(s.battles, 0) < 5.0 AND s.battles > 20000 AND s.solo_battles = 0)
                 ORDER BY s.account_id, s.timestamp DESC
                 ON CONFLICT (account_id, mode) DO UPDATE SET
                     nickname = EXCLUDED.nickname,

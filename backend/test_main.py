@@ -168,3 +168,29 @@ async def test_internal_pipeline_overview_auth():
         data = auth_resp.json()
         assert "pipelineJobs" in data
         assert "systemHealth" in data
+
+@pytest.mark.asyncio
+async def test_player_dossier_caching(mocker):
+    mocker.patch.object(WargamingAPIClient, "get_account_id", return_value=12345)
+    mocker.patch.object(WargamingAPIClient, "get_player_info", return_value={
+        "12345": {
+            "statistics": {
+                "pvp": {"battles": 100, "wins": 55, "damage_dealt": 5000000, "frags": 80, "survived_battles": 40},
+                "pvp_solo": {"battles": 100, "wins": 55}
+            }
+        }
+    })
+    mocker.patch.object(WargamingAPIClient, "get_clan_account_info", return_value={"clan_id": 1, "clan": {"tag": "TEST", "name": "Test Clan"}})
+    mocker.patch.object(WargamingAPIClient, "get_ship_stats", return_value=[])
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r1 = await ac.get("/api/player/CachedCommander")
+        assert r1.status_code == 200
+        d1 = r1.json()
+        assert d1["username"] == "CachedCommander"
+
+        # Second request should hit cache
+        r2 = await ac.get("/api/player/CachedCommander")
+        assert r2.status_code == 200
+        assert r2.json()["username"] == "CachedCommander"
+
