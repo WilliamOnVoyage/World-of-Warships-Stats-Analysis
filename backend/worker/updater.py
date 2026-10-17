@@ -769,6 +769,9 @@ def sync_leaderboard_stats(
                 ts = snap_map["timestamp"]
                 if isinstance(ts, str):
                     ts = datetime.fromisoformat(ts)
+                if ts.tzinfo is None:
+                    # player_snapshot.timestamp is stored as naive UTC
+                    ts = ts.replace(tzinfo=timezone.utc)
                 nickname, realm = players[acc_id]
                 rows.extend(build_leaderboard_rows(acc_id, nickname, realm, snap_map, ts))
             try:
