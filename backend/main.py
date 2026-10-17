@@ -18,6 +18,7 @@ from database.models import (
     PlayerLeaderboardStats,
     create_partition_if_not_exists,
 )
+from database.leaderboard import build_leaderboard_rows, upsert_leaderboard_rows
 from api.wargaming import WargamingAPIClient
 from worker.exporter import export_date_to_parquet
 from datetime import datetime, timezone
@@ -486,48 +487,18 @@ async def get_player_stats(
             session.commit()
             session.refresh(player)
 
-            # Real-time synchronization into player_leaderboard_stats
+            # Real-time synchronization into player_leaderboard_stats (all modes)
             dialect = getattr(session.get_bind(), "dialect", None)
             is_postgres = getattr(dialect, "name", "") == "postgresql"
-            b_cnt = stats_pvp.get("battles", 0)
-            if is_postgres and b_cnt >= 20:
-                w_cnt = stats_pvp.get("wins", 0)
-                dmg_cnt = stats_pvp.get("damage_dealt", 0)
-                fr_cnt = stats_pvp.get("frags", 0)
-                surv_cnt = stats_pvp.get("survived_battles", 0)
-                wr_val = round(w_cnt * 100.0 / b_cnt, 2) if b_cnt > 0 else 0.0
-                avg_dmg_val = int(round(dmg_cnt * 1.0 / b_cnt, 0)) if b_cnt > 0 else 0
-                kd_val = round(fr_cnt * 1.0 / max(b_cnt - surv_cnt, 1), 2)
+            if is_postgres and stats_pvp and stats_pvp.get("battles", 0) > 0:
                 try:
-                    session.execute(text("""
-                        INSERT INTO player_leaderboard_stats (account_id, mode, nickname, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio, updated_at)
-                        VALUES (:aid, 'pvp', :nick, :realm, :b, :w, :wr, :dmg, :fr, :surv, :kd, :ts)
-                        ON CONFLICT (account_id, mode) DO UPDATE SET
-                            nickname = EXCLUDED.nickname,
-                            realm = EXCLUDED.realm,
-                            battles = EXCLUDED.battles,
-                            wins = EXCLUDED.wins,
-                            win_rate = EXCLUDED.win_rate,
-                            avg_damage = EXCLUDED.avg_damage,
-                            frags = EXCLUDED.frags,
-                            survived = EXCLUDED.survived,
-                            kd_ratio = EXCLUDED.kd_ratio,
-                            updated_at = EXCLUDED.updated_at
-                    """), {
-                        "aid": account_id,
-                        "nick": player.nickname,
-                        "realm": player.realm,
-                        "b": b_cnt,
-                        "w": w_cnt,
-                        "wr": wr_val,
-                        "dmg": avg_dmg_val,
-                        "fr": fr_cnt,
-                        "surv": surv_cnt,
-                        "kd": kd_val,
-                        "ts": now
-                    })
-                    session.commit()
-                    _LEADERBOARD_MEMORY_CACHE.clear()
+                    lb_rows = build_leaderboard_rows(
+                        account_id, player.nickname, player.realm, snapshot.model_dump(), now
+                    )
+                    if lb_rows:
+                        upsert_leaderboard_rows(session, lb_rows)
+                        session.commit()
+                        _LEADERBOARD_MEMORY_CACHE.clear()
                 except Exception as lb_err:
                     session.rollback()
                     logger.warning(f"Failed to upsert player_leaderboard_stats on fetch: {lb_err}")

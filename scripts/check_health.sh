@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# cron runs with PATH=/usr/bin:/bin; AWS CLI v2 installs to /usr/local/bin
+export PATH="/usr/local/bin:${PATH}"
+
 LOCK_FILE="/tmp/wows_scraper_alert.lock"
 COOLDOWN_SECONDS=43200 # 12 hours
 SNS_TOPIC="arn:aws:sns:us-west-2:910534718184:WoWS-Stats-Critical-Alerts"
@@ -20,14 +23,19 @@ publish_alert() {
   local subject="$1"
   local message="$2"
   if command -v aws >/dev/null 2>&1; then
-    aws sns publish \
+    if aws sns publish \
       --topic-arn "${SNS_TOPIC}" \
       --subject "${subject}" \
       --message "${message}" \
-      --region "${AWS_REGION}" || true
+      --region "${AWS_REGION}" --output text --query MessageId; then
+      echo "[$(date -u)] [ALERT SENT] ${subject}"
+      return 0
+    fi
+    echo "[$(date -u)] [ALERT FAILED] sns publish failed: ${subject}"
   else
     echo "[$(date -u)] [ALERT NOTIFICATION] (AWS CLI not available on host): ${subject} - ${message}"
   fi
+  return 1
 }
 
 STATUS_JSON=$(curl -s --max-time 10 "${API_URL}" -H "X-Internal-Key: ${INTERNAL_KEY}" || echo "")
@@ -42,8 +50,9 @@ if [ -z "${STATUS_JSON}" ]; then
       exit 0
     fi
   fi
-  echo "${NOW}" > "${LOCK_FILE}"
-  publish_alert "ALERT: WoWS Stats API & Backend Unresponsive" "The backend API at ${API_URL} did not respond to health check. Further alerts suppressed for 12 hours."
+  if publish_alert "ALERT: WoWS Stats API & Backend Unresponsive" "The backend API at ${API_URL} did not respond to health check. Further alerts suppressed for 12 hours."; then
+    echo "${NOW}" > "${LOCK_FILE}"
+  fi
   exit 1
 fi
 
@@ -81,8 +90,9 @@ if [ "${HEARTBEAT_AGE_MIN}" -gt 45 ]; then
       exit 0
     fi
   fi
-  echo "${NOW}" > "${LOCK_FILE}"
-  publish_alert "ALERT: WoWS Stats Scraper Pipeline Inactive" "WoWS Stats scraper pipeline newest heartbeat is ${HEARTBEAT_AGE_MIN} minutes old (threshold: 45 min). Next alert suppressed for 12 hours to prevent email spam. Inspect on EC2: docker logs --tail 50 wows-scraper"
+  if publish_alert "ALERT: WoWS Stats Scraper Pipeline Inactive" "WoWS Stats scraper pipeline newest heartbeat is ${HEARTBEAT_AGE_MIN} minutes old (threshold: 45 min). Next alert suppressed for 12 hours to prevent email spam. Inspect on EC2: docker logs --tail 50 wows-scraper"; then
+    echo "${NOW}" > "${LOCK_FILE}"
+  fi
 else
   if [ -f "${LOCK_FILE}" ]; then
     echo "[$(date -u)] Pipeline recovered. Clearing suppression lock."

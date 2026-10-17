@@ -46,6 +46,20 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
 
+  # Lets scripts/check_health.sh (cron on the host) email alerts via SNS.
+  # Standalone RolePolicy so stack updates never touch other inline policies.
+  EC2AlertsPublishPolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref EC2Role
+      PolicyName: wows-sns-alerts-publish
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sns:Publish
+            Resource: !Sub arn:aws:sns:${AWS::Region}:${AWS::AccountId}:WoWS-Stats-Critical-Alerts
+
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:

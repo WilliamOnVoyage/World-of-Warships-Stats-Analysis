@@ -28,8 +28,12 @@ from database.models import (
     PipelineProgressSample,
     Clan,
     LeaderboardCache,
-    PlayerLeaderboardStats,
     create_partition_if_not_exists,
+)
+from database.leaderboard import (
+    LEADERBOARD_MODES,
+    build_leaderboard_rows,
+    upsert_leaderboard_rows,
 )
 from api.wargaming import WargamingAPIClient
 
@@ -38,6 +42,26 @@ if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+
+def is_postgres_engine(db_engine) -> bool:
+    return getattr(db_engine.dialect, "name", "") == "postgresql"
+
+
+# Housekeeping runs on its own small pool with a hard per-statement timeout so a
+# bad plan can never stall the orchestrator for long (cycle #1060 hung >53 min).
+HOUSEKEEPING_STATEMENT_TIMEOUT_MS = int(os.getenv("HOUSEKEEPING_STATEMENT_TIMEOUT_MS", "120000"))
+if is_postgres_engine(engine):
+    housekeeping_engine = create_engine(
+        DATABASE_URL,
+        pool_size=1,
+        max_overflow=1,
+        connect_args={"options": f"-c statement_timeout={HOUSEKEEPING_STATEMENT_TIMEOUT_MS}"},
+    )
+else:
+    housekeeping_engine = engine
+
+HOUSEKEEPING_HEARTBEAT_INTERVAL_S = 30
 
 # Shared global rate limiter enforcing strictly <= 10 req/s across all concurrent workers
 GLOBAL_LIMITER = AsyncLimiter(10, 1.0)
@@ -178,6 +202,7 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
             if not data:
                 continue
 
+            leaderboard_rows = []
             with Session(engine) as session:
                 create_partition_if_not_exists(session.get_bind(), now)
                 
@@ -241,10 +266,23 @@ async def refresh_known_players(realm: str = "na", limit: int = 2000) -> int:
                             )
                             session.add(snapshot)
                             updated_snapshots += 1
+                            if player:
+                                leaderboard_rows.extend(build_leaderboard_rows(
+                                    acc_id, player.nickname, player.realm, snapshot.model_dump(), now
+                                ))
                         except Exception as sn_err:
                             print(f"[{job_name}] Snapshot warning for player {acc_id}: {sn_err}")
 
                 session.commit()
+
+                # Write-through: keep player_leaderboard_stats current without scanning player_snapshot
+                if leaderboard_rows:
+                    try:
+                        upsert_leaderboard_rows(session, leaderboard_rows)
+                        session.commit()
+                    except Exception as lb_err:
+                        session.rollback()
+                        print(f"[{job_name}] Leaderboard upsert warning: {lb_err}")
 
         update_heartbeat(
             job_name=job_name,
@@ -507,12 +545,12 @@ async def run_clan_crawler(realm: str = "eu", max_pages: int = 10) -> int:
 
     return players_ingested
 
-def generate_daily_rollup():
+def generate_daily_rollup(db_engine=None):
     """Generates daily summary rows for daily_server_stats table using weighted server totals."""
     now = datetime.now(timezone.utc)
     stat_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    with Session(engine) as session:
+    with Session(db_engine or housekeeping_engine) as session:
         existing = session.exec(
             select(DailyServerStats).where(DailyServerStats.stat_date == stat_date)
         ).first()
@@ -550,7 +588,13 @@ def generate_daily_rollup():
         end_time = datetime.fromisoformat(f"{stat_date}T23:59:59+00:00")
         
         result = session.execute(sql, {"start_time": start_time, "end_time": end_time}).first()
-        total_players = session.exec(select(func.count(Player.account_id))).one()
+        if is_postgres:
+            # Planner estimate instead of count(*) over ~5M players (AGENTS.md rule 2)
+            total_players = session.execute(
+                text("SELECT reltuples::bigint FROM pg_class WHERE relname = 'player'")
+            ).scalar()
+        else:
+            total_players = session.exec(select(func.count(Player.account_id))).one()
 
         battles_fought = int(result[1] or 0)
         damage_dealt = int(result[2] or 0)
@@ -570,96 +614,39 @@ def generate_daily_rollup():
         session.commit()
         print(f"[Rollup] Saved daily_server_stats for {stat_date}: {rollup.active_players} active players, mean damage: {calc_mean_damage}.")
 
-def refresh_leaderboard_cache():
-    """Precomputes top 50 leaderboard entries across categories, modes, and realms."""
+LEADERBOARD_CATEGORIES = {
+    "win_rate": "win_rate",
+    "damage": "avg_damage",
+    "battles": "battles",
+    "frags": "kd_ratio",
+}
+LEADERBOARD_REALMS = ["all", "na", "eu", "asia"]
+
+
+def refresh_leaderboard_cache(db_engine=None):
+    """
+    Precomputes top 50 leaderboard entries across categories, modes, and realms.
+    Every read is an index range scan on player_leaderboard_stats
+    (idx_pls_mode_realm_* / idx_pls_mode_*); player_snapshot is never touched.
+    """
     print("[Leaderboard Cache] Refreshing precomputed rankings...")
-    categories = ["win_rate", "damage", "battles", "frags"]
-    modes = ["pvp", "solo", "div", "rank"]
-    realms = ["all", "na", "eu", "asia"]
-
-    with Session(engine) as session:
-        bind = session.get_bind()
-        is_postgres = getattr(bind.dialect, "name", "") == "postgresql"
-        if not is_postgres:
-            return
-
-        for mode in modes:
-            if mode == "solo":
-                b_expr = "s.solo_battles"
-                w_expr = "s.solo_wins"
-            elif mode == "div":
-                b_expr = "(s.div2_battles + s.div3_battles)"
-                w_expr = "(s.div2_wins + s.div3_wins)"
-            elif mode == "rank":
-                b_expr = "s.rank_battles"
-                w_expr = "s.rank_wins"
-            else:
-                b_expr = "s.battles"
-                w_expr = "s.wins"
-
-            min_battles = 20 if mode in ["solo", "div", "rank"] else 500
-            wr_calc = f"ROUND({w_expr} * 100.0 / NULLIF({b_expr}, 0), 2)"
-
-            for realm in realms:
-                realm_filter = "WHERE 1=1"
-                if realm != "all":
-                    realm_filter += f" AND p.realm = '{realm.lower()}'"
-
-                for category in categories:
-                    order_clause = "win_rate DESC"
-                    if category == "damage":
-                        order_clause = "avg_damage DESC"
-                    elif category == "battles":
-                        order_clause = "battles DESC"
-                    elif category == "frags":
-                        order_clause = "frags DESC"
-
+    with Session(db_engine or housekeeping_engine) as session:
+        for mode in LEADERBOARD_MODES:
+            min_battles = 500 if mode == "pvp" else 20
+            for realm in LEADERBOARD_REALMS:
+                realm_clause = "AND realm = :realm" if realm != "all" else ""
+                for category, sort_col in LEADERBOARD_CATEGORIES.items():
                     try:
-                        if is_postgres and mode == "pvp":
-                            pls_realm_clause = "AND realm = :realm" if realm != "all" else ""
-                            pls_sort = "avg_damage" if category == "damage" else ("kd_ratio" if category == "frags" else category)
-                            query = text(f"""
-                                SELECT nickname, account_id, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio
-                                FROM player_leaderboard_stats
-                                WHERE mode = 'pvp' {pls_realm_clause} AND battles >= :min_battles
-                                ORDER BY {pls_sort} DESC
-                                LIMIT 50
-                            """)
-                            rows = session.execute(query, {"realm": realm.lower(), "min_battles": min_battles}).fetchall()
-                        else:
-                            query = text(f"""
-                                SELECT 
-                                    sub.nickname,
-                                    sub.account_id,
-                                    sub.realm,
-                                    sub.battles,
-                                    sub.wins,
-                                    sub.win_rate,
-                                    sub.avg_damage,
-                                    sub.frags,
-                                    sub.survived,
-                                    sub.kd_ratio
-                                FROM (
-                                    SELECT DISTINCT ON (s.account_id)
-                                        p.nickname,
-                                        p.account_id,
-                                        p.realm,
-                                        {b_expr} as battles,
-                                        {w_expr} as wins,
-                                        {wr_calc} as win_rate,
-                                        ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0) as avg_damage,
-                                        s.frags,
-                                        s.survived,
-                                        ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2) as kd_ratio
-                                    FROM player_snapshot s
-                                    JOIN player p ON s.account_id = p.account_id
-                                    {realm_filter} AND {b_expr} >= :min_battles
-                                    ORDER BY s.account_id, s.timestamp DESC
-                                ) sub
-                                ORDER BY {order_clause}
-                                LIMIT 50
-                            """).bindparams(min_battles=min_battles)
-                            rows = session.execute(query).fetchall()
+                        query = text(f"""
+                            SELECT nickname, account_id, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio
+                            FROM player_leaderboard_stats
+                            WHERE mode = :mode {realm_clause} AND battles >= :min_battles
+                            ORDER BY {sort_col} DESC
+                            LIMIT 50
+                        """)
+                        rows = session.execute(
+                            query, {"mode": mode, "realm": realm, "min_battles": min_battles}
+                        ).fetchall()
                         leaderboard = []
                         for rank, r in enumerate(rows, start=1):
                             leaderboard.append({
@@ -686,68 +673,134 @@ def refresh_leaderboard_cache():
                                 payload=payload_str,
                                 updated_at=datetime.now(timezone.utc)
                             )
-                            session.add(cache_entry)
                         else:
                             cache_entry.payload = payload_str
                             cache_entry.updated_at = datetime.now(timezone.utc)
-                            session.add(cache_entry)
+                        session.add(cache_entry)
                         session.commit()
                     except Exception as e:
                         session.rollback()
                         print(f"[Leaderboard Cache Error] {category}/{mode}/{realm}: {e}")
 
-def sync_leaderboard_stats(full: bool = False):
-    """Upserts latest player combat summaries into player_leaderboard_stats for sub-5ms queries."""
-    with Session(engine) as session:
-        bind = session.get_bind()
-        is_postgres = getattr(bind.dialect, "name", "") == "postgresql"
-        if not is_postgres:
-            return
-        try:
-            time_filter = "" if full else "AND s.timestamp >= NOW() - INTERVAL '2 hours'"
-            sql = text(f"""
-                INSERT INTO player_leaderboard_stats (account_id, mode, nickname, realm, battles, wins, win_rate, avg_damage, frags, survived, kd_ratio, updated_at)
-                SELECT DISTINCT ON (s.account_id)
-                    s.account_id,
-                    'pvp' as mode,
-                    p.nickname,
-                    p.realm,
-                    s.battles,
-                    s.wins,
-                    COALESCE(ROUND(s.wins * 100.0 / NULLIF(s.battles, 0), 2), 0.0) as win_rate,
-                    COALESCE(ROUND(s.damage_dealt * 1.0 / NULLIF(s.battles, 0), 0), 0) as avg_damage,
-                    s.frags,
-                    s.survived,
-                    COALESCE(ROUND(s.frags * 1.0 / NULLIF(s.battles - s.survived, 0), 2), s.frags * 1.0, 0.0) as kd_ratio,
-                    s.timestamp as updated_at
-                FROM player_snapshot s
-                JOIN player p ON s.account_id = p.account_id
-                WHERE s.battles >= 20 {time_filter}
-                  AND NOT (s.wins * 100.0 / NULLIF(s.battles, 0) < 5.0 AND s.battles > 20000 AND s.solo_battles = 0)
-                ORDER BY s.account_id, s.timestamp DESC
-                ON CONFLICT (account_id, mode) DO UPDATE SET
-                    nickname = EXCLUDED.nickname,
-                    realm = EXCLUDED.realm,
-                    battles = EXCLUDED.battles,
-                    wins = EXCLUDED.wins,
-                    win_rate = EXCLUDED.win_rate,
-                    avg_damage = EXCLUDED.avg_damage,
-                    frags = EXCLUDED.frags,
-                    survived = EXCLUDED.survived,
-                    kd_ratio = EXCLUDED.kd_ratio,
-                    updated_at = EXCLUDED.updated_at;
-            """)
-            session.execute(sql)
-            session.commit()
-            print("[Leaderboard Stats] Synchronized player_leaderboard_stats table.")
-        except Exception as e:
-            session.rollback()
-            print(f"[Leaderboard Stats Error] {e}")
 
-def prune_old_progress_samples():
+LEADERBOARD_SYNC_JOB = "leaderboard_sync"
+LEADERBOARD_SYNC_BATCH = 2000
+
+_SNAPSHOT_COLUMNS = (
+    "account_id", "timestamp", "battles", "wins", "damage_dealt", "frags", "survived",
+    "solo_battles", "solo_wins", "div2_battles", "div2_wins",
+    "div3_battles", "div3_wins", "rank_battles", "rank_wins",
+)
+
+
+def sync_leaderboard_stats(
+    time_budget_s: float = 45.0,
+    batch_size: int = LEADERBOARD_SYNC_BATCH,
+    db_engine=None,
+) -> int:
+    """
+    Incremental, cursor-based reconciliation of player_leaderboard_stats for all
+    modes (pvp, solo, div, rank). New snapshots are already written through by
+    refresh_known_players; this sweep backfills solo/div/rank for existing
+    accounts and repairs drift.
+
+    Each batch walks the next `batch_size` account_ids from the player primary key
+    and reads their latest snapshot through player_snapshot_pkey
+    (account_id, timestamp) - index range scans only. The cursor persists in
+    pipeline_state so the sweep resumes across cycles and restarts.
+
+    Returns the number of accounts processed. time_budget_s <= 0 runs a full pass.
+    """
+    db_engine = db_engine or housekeeping_engine
+    started = datetime.now(timezone.utc)
+    cursor = 0
+    with Session(db_engine) as session:
+        st = session.get(PipelineState, LEADERBOARD_SYNC_JOB)
+        if st and st.cursor_value:
+            cursor = int(st.cursor_value)
+
+    processed = 0
+    pass_complete = False
+    while True:
+        with Session(db_engine) as session:
+            account_rows = session.execute(
+                text("""
+                    SELECT account_id, nickname, realm FROM player
+                    WHERE account_id > :cursor
+                    ORDER BY account_id
+                    LIMIT :lim
+                """),
+                {"cursor": cursor, "lim": batch_size},
+            ).fetchall()
+            if not account_rows:
+                cursor = 0
+                pass_complete = True
+                break
+
+            lo, hi = account_rows[0][0], account_rows[-1][0]
+            players = {r[0]: (r[1], r[2]) for r in account_rows}
+            cols = ", ".join(f"s.{c}" if c != "timestamp" else 's."timestamp"' for c in _SNAPSHOT_COLUMNS)
+            snapshots = session.execute(
+                text(f"""
+                    SELECT DISTINCT ON (s.account_id) {cols}
+                    FROM player_snapshot s
+                    WHERE s.account_id BETWEEN :lo AND :hi
+                    ORDER BY s.account_id, s."timestamp" DESC
+                """)
+                if is_postgres_engine(db_engine) else
+                text(f"""
+                    SELECT {cols}
+                    FROM player_snapshot s
+                    WHERE s.account_id BETWEEN :lo AND :hi
+                      AND s."timestamp" = (
+                          SELECT MAX(s2."timestamp") FROM player_snapshot s2
+                          WHERE s2.account_id = s.account_id
+                      )
+                """),
+                {"lo": lo, "hi": hi},
+            ).fetchall()
+
+            rows = []
+            for snap in snapshots:
+                snap_map = dict(zip(_SNAPSHOT_COLUMNS, snap))
+                acc_id = snap_map["account_id"]
+                if acc_id not in players:
+                    continue
+                ts = snap_map["timestamp"]
+                if isinstance(ts, str):
+                    ts = datetime.fromisoformat(ts)
+                nickname, realm = players[acc_id]
+                rows.extend(build_leaderboard_rows(acc_id, nickname, realm, snap_map, ts))
+            try:
+                upsert_leaderboard_rows(session, rows)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                print(f"[Leaderboard Stats Error] accounts {lo}..{hi}: {e}")
+
+        processed += len(account_rows)
+        cursor = int(account_rows[-1][0])
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        if time_budget_s > 0 and elapsed >= time_budget_s:
+            break
+
+    elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+    update_heartbeat(
+        LEADERBOARD_SYNC_JOB,
+        cursor=cursor,
+        status="idle" if pass_complete else "running",
+        details=(
+            f"Reconciled {processed:,} accounts in {elapsed:.1f}s"
+            + (" - pass complete, restarting from first account" if pass_complete else f" (cursor {cursor:,})")
+        ),
+    )
+    print(f"[Leaderboard Stats] Reconciled {processed} accounts in {elapsed:.1f}s (cursor {cursor}).")
+    return processed
+
+def prune_old_progress_samples(db_engine=None):
     """Prunes progress samples older than 14 days to prevent unbounded growth."""
     try:
-        with Session(engine) as session:
+        with Session(db_engine or housekeeping_engine) as session:
             cutoff = datetime.now(timezone.utc) - timedelta(days=14)
             session.execute(
                 text("DELETE FROM pipeline_progress_sample WHERE sampled_at < :cutoff"),
@@ -756,6 +809,32 @@ def prune_old_progress_samples():
             session.commit()
     except Exception:
         pass
+
+async def run_housekeeping_step(loop_count: int, label: str, fn, *args) -> bool:
+    """
+    Runs a blocking housekeeping step in a worker thread while the event loop keeps
+    the orchestrator heartbeat fresh every HOUSEKEEPING_HEARTBEAT_INTERVAL_S.
+    Errors are logged and swallowed so ingestion always resumes.
+    """
+    started = datetime.now(timezone.utc)
+    details = f"Cycle #{loop_count}: Housekeeping - {label}"
+    update_heartbeat("pipeline_orchestrator", status="running", details=details)
+    task = asyncio.create_task(asyncio.to_thread(fn, *args))
+    while True:
+        done, _ = await asyncio.wait({task}, timeout=HOUSEKEEPING_HEARTBEAT_INTERVAL_S)
+        if done:
+            break
+        elapsed = int((datetime.now(timezone.utc) - started).total_seconds())
+        update_heartbeat("pipeline_orchestrator", status="running", details=f"{details} ({elapsed}s elapsed)")
+    elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+    try:
+        task.result()
+        print(f"[Housekeeping] {label} finished in {elapsed:.1f}s")
+        return True
+    except Exception as e:
+        print(f"[Housekeeping] {label} failed after {elapsed:.1f}s: {e}")
+        return False
+
 
 async def main():
     """High-throughput concurrent orchestrator."""
@@ -790,10 +869,13 @@ async def main():
 
             # Daily rollup, leaderboard cache refresh & database housekeeping every 10 cycles (~5-10 minutes)
             if loop_count == 1 or loop_count % 10 == 0:
-                generate_daily_rollup()
-                prune_old_progress_samples()
-                sync_leaderboard_stats()
-                refresh_leaderboard_cache()
+                for label, step in (
+                    ("daily rollup", generate_daily_rollup),
+                    ("prune progress samples", prune_old_progress_samples),
+                    ("leaderboard stats sync", sync_leaderboard_stats),
+                    ("leaderboard cache refresh", refresh_leaderboard_cache),
+                ):
+                    await run_housekeeping_step(loop_count, label, step)
 
             update_heartbeat(
                 "pipeline_orchestrator",
@@ -809,4 +891,15 @@ async def main():
             await asyncio.sleep(15)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+    if "--backfill-leaderboard" in sys.argv:
+        # One-off full pass: populates solo/div/rank for every tracked account
+        sync_leaderboard_stats(time_budget_s=0)
+        if is_postgres_engine(engine):
+            # Sampled statistics refresh so the planner picks idx_pls_mode_realm_* for new modes
+            with engine.connect() as conn:
+                conn.execute(text("ANALYZE player_leaderboard_stats"))
+                conn.commit()
+        refresh_leaderboard_cache()
+    else:
+        asyncio.run(main())
