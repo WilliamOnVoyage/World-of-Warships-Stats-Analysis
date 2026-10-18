@@ -11,13 +11,20 @@ from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-from sqlmodel import create_engine, Session, text
+from sqlmodel import create_engine, text
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 S3_BUCKET = os.getenv("S3_ANALYTICS_BUCKET", "wows-stats-analytics")
 LOCAL_DATA_DIR = os.getenv("LOCAL_ANALYTICS_DIR", "./analytics_data")
 
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
+
+EXPORT_BATCH_SIZE = 50_000
+INT_COLUMNS = [
+    "battles", "wins", "damage_dealt", "survived", "frags", "xp", "max_damage",
+    "damage_scouting", "ships_spotted", "planes_killed", "solo_battles", "solo_wins",
+    "div2_battles", "div2_wins", "div3_battles", "div3_wins", "rank_battles", "rank_wins",
+]
 
 def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
     """
@@ -66,35 +73,47 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
         WHERE s.timestamp >= :start_ts AND s.timestamp < :end_ts
     """)
 
-    with Session(engine) as session:
-        result = session.execute(query, {"start_ts": start_ts, "end_ts": end_ts}).all()
-
-    if not result:
-        print(f"[Exporter] No snapshots found for date {target_date}.")
-        return None
-
-    # Convert to column-oriented dictionary
-    columns = [
-        "account_id", "timestamp", "realm", "battles", "wins", "damage_dealt",
-        "survived", "frags", "xp", "max_damage", "damage_scouting", "ships_spotted",
-        "planes_killed", "solo_battles", "solo_wins", "div2_battles", "div2_wins",
-        "div3_battles", "div3_wins", "rank_battles", "rank_wins"
-    ]
-    data_dict = {col: [getattr(row, col, row[i]) for row in result] for i, col in enumerate(columns)}
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    arrow_table = pa.Table.from_pydict(data_dict)
-    
-    # Save locally or to S3
+    # Explicit schema so every streamed batch matches (column order == SELECT order).
+    schema = pa.schema(
+        [("account_id", pa.int64()), ("timestamp", pa.timestamp("us")), ("realm", pa.string())]
+        + [(c, pa.int64()) for c in INT_COLUMNS]
+    )
+
     year, month, _ = target_date.split("-")
     partition_relpath = f"snapshots/year={year}/month={month}/date={target_date}"
     os.makedirs(f"{LOCAL_DATA_DIR}/{partition_relpath}", exist_ok=True)
     local_file = f"{LOCAL_DATA_DIR}/{partition_relpath}/snapshots.parquet"
 
-    pq.write_table(arrow_table, local_file, compression="SNAPPY")
+    # Stream with a server-side cursor and write one row group per batch: a full day
+    # (~500K rows) held as Python objects needs ~900 MB and gets OOM-killed on the host.
+    total_rows = 0
+    writer = None
+    try:
+        with engine.connect().execution_options(stream_results=True, yield_per=EXPORT_BATCH_SIZE) as conn:
+            result = conn.execute(query, {"start_ts": start_ts, "end_ts": end_ts})
+            for rows in result.partitions():
+                columns = list(zip(*rows))
+                batch = pa.Table.from_arrays(
+                    [pa.array(col, type=field.type) for col, field in zip(columns, schema)],
+                    schema=schema,
+                )
+                if writer is None:
+                    writer = pq.ParquetWriter(local_file, schema, compression="SNAPPY")
+                writer.write_table(batch)
+                total_rows += batch.num_rows
+    finally:
+        if writer is not None:
+            writer.close()
+
+    if total_rows == 0:
+        print(f"[Exporter] No snapshots found for date {target_date}.")
+        return None
+
     file_size_kb = os.path.getsize(local_file) / 1024
-    print(f"[Exporter] Wrote {len(result)} rows to {local_file} ({file_size_kb:.1f} KB).")
+    print(f"[Exporter] Wrote {total_rows} rows to {local_file} ({file_size_kb:.1f} KB).")
 
     # Upload to S3 if boto3 is available and AWS credentials configured
     try:
