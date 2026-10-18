@@ -32,8 +32,9 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
         now = datetime.now(timezone.utc)
         target_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
 
+    next_date = (datetime.strptime(target_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
     start_ts = f"{target_date} 00:00:00+00"
-    end_ts = f"{target_date} 23:59:59+00"
+    end_ts = f"{next_date} 00:00:00+00"
     
     print(f"[Exporter] Querying snapshots for date {target_date}...")
 
@@ -62,7 +63,7 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
             s.rank_wins
         FROM player_snapshot s
         JOIN player p ON s.account_id = p.account_id
-        WHERE s.timestamp >= :start_ts AND s.timestamp <= :end_ts
+        WHERE s.timestamp >= :start_ts AND s.timestamp < :end_ts
     """)
 
     with Session(engine) as session:
@@ -102,6 +103,8 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
         s3_key = f"{partition_relpath}/snapshots.parquet"
         s3.upload_file(local_file, S3_BUCKET, s3_key)
         print(f"[Exporter] Successfully uploaded to s3://{S3_BUCKET}/{s3_key}")
+        # S3 is the system of record; don't let daily files pile up on the host disk.
+        os.remove(local_file)
         return f"s3://{S3_BUCKET}/{s3_key}"
     except Exception as e:
         print(f"[Exporter] Note: S3 upload skipped or not configured: {e}")
@@ -109,4 +112,6 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
 
 if __name__ == "__main__":
     t_date = sys.argv[1] if len(sys.argv) > 1 else None
-    export_date_to_parquet(t_date)
+    dest = export_date_to_parquet(t_date)
+    # Non-zero exit when nothing reached S3, so cron logs and callers can tell.
+    sys.exit(0 if dest and dest.startswith("s3://") else 1)

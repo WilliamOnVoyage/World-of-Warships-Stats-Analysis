@@ -13,11 +13,16 @@ SNS_TOPIC="arn:aws:sns:us-west-2:910534718184:WoWS-Stats-Critical-Alerts"
 AWS_REGION="us-west-2"
 API_URL="http://127.0.0.1:8000/internal/pipeline/status"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/../backend/.env"
 ENV_KEY=""
-if [ -f "${SCRIPT_DIR}/../.env" ]; then
-  ENV_KEY=$(grep "^INTERNAL_API_KEY=" "${SCRIPT_DIR}/../.env" | cut -d'=' -f2- | tr -d '"\r\n' || true)
+if [ -f "${ENV_FILE}" ]; then
+  ENV_KEY=$(grep "^INTERNAL_API_KEY=" "${ENV_FILE}" | cut -d'=' -f2- | tr -d '"\r\n' || true)
 fi
-INTERNAL_KEY="${INTERNAL_API_KEY:-${ENV_KEY:-7c9f585144fb9234d6839b08aad7fb28987513edc02d83a06ebfe362f3b5a1b8}}"
+INTERNAL_KEY="${INTERNAL_API_KEY:-${ENV_KEY}}"
+if [ -z "${INTERNAL_KEY}" ]; then
+  echo "[$(date -u)] INTERNAL_API_KEY not set (checked env and ${ENV_FILE}); cannot query pipeline status."
+  exit 1
+fi
 
 publish_alert() {
   local subject="$1"

@@ -102,3 +102,5 @@ config/config.json
 .idea/*
 *.iml
 .claude/settings.local.json
+backend/analytics_data/
+backend/.env.bak*

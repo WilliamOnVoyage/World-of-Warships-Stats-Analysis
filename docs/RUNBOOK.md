@@ -73,41 +73,50 @@ To create a read-only user (`wows_analyst`) safe against accidental drops or wri
 ```
 Credentials:
 - **Username:** `wows_analyst`
-- **Password:** `AnalystRead2026!`
+- **Password:** generated on the server; read it with
+  `ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 "grep ^ANALYST_DB_PASSWORD= ~/app/backend/.env"`
 - **Host:** `localhost:5433` (through tunnel)
+
+Re-running `setup-analyst` is idempotent; delete the `ANALYST_DB_PASSWORD` line from the server's `.env` first to rotate it.
 
 ---
 
 ## 4. Internal Developer REST API (`/internal/*`)
 
-All internal endpoints require the `X-Internal-Key` HTTP header (set in `.env` as `INTERNAL_API_KEY`):
+The backend listens on `127.0.0.1:8000` on the EC2 host only (port 8000 is closed in the security group). The public site reaches it through the frontend's `/api/*` proxy. All internal endpoints require the `X-Internal-Key` header, whose value lives only in the server's `backend/.env` as `INTERNAL_API_KEY`.
+
+Open a tunnel and load the key once per shell:
+```bash
+ssh -i ~/.ssh/wows-stats-ec2-key.pem -N -L 8000:127.0.0.1:8000 ubuntu@44.253.134.12 &
+export WOWS_KEY=$(ssh -i ~/.ssh/wows-stats-ec2-key.pem ubuntu@44.253.134.12 "grep ^INTERNAL_API_KEY= ~/app/backend/.env | cut -d= -f2-")
+```
+Swagger UI is then at http://localhost:8000/docs.
 
 ### 4.1 Check Pipeline Status & Heartbeats
 ```bash
-curl -s -H "X-Internal-Key: wows-secret-internal-key-2026" \
-  "http://44.253.134.12:8000/internal/pipeline/status" | jq .
+curl -s -H "X-Internal-Key: $WOWS_KEY" "http://localhost:8000/internal/pipeline/status" | jq .
 ```
 
 ### 4.2 Query Recently Active Players
 ```bash
-curl -s -H "X-Internal-Key: wows-secret-internal-key-2026" \
-  "http://44.253.134.12:8000/internal/players/active?days=30&limit=20" | jq .
+curl -s -H "X-Internal-Key: $WOWS_KEY" "http://localhost:8000/internal/players/active?days=30&limit=20" | jq .
 ```
 
 ### 4.3 Ad-hoc Read-Only SQL Query Runner
+Avoid full-table scans (`count(*)` over `player`); prefer `pg_class.reltuples` and indexed predicates.
 ```bash
-curl -s -X POST -H "X-Internal-Key: wows-secret-internal-key-2026" \
+curl -s -X POST -H "X-Internal-Key: $WOWS_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query": "SELECT realm, count(*) FROM player GROUP BY realm;"}' \
-  "http://44.253.134.12:8000/internal/query" | jq .
+  -d '{"query": "SELECT relname, reltuples::bigint FROM pg_class WHERE relname IN (\u0027player\u0027, \u0027player_leaderboard_stats\u0027);"}' \
+  "http://localhost:8000/internal/query" | jq .
 ```
 
 ### 4.4 Trigger Parquet Data Lake Export
 ```bash
-curl -s -X POST -H "X-Internal-Key: wows-secret-internal-key-2026" \
+curl -s -X POST -H "X-Internal-Key: $WOWS_KEY" \
   -H "Content-Type: application/json" \
   -d '{"target_date": "2026-10-05"}' \
-  "http://44.253.134.12:8000/internal/analytics/export" | jq .
+  "http://localhost:8000/internal/analytics/export" | jq .
 ```
 
 ---
@@ -174,3 +183,37 @@ print(df)
 - **Tenant:** All historical snapshots and player records are immutable.
 - Table partitions are generated automatically each month (`player_snapshot_YYYY_MM`).
 - Migrations must strictly use `ADD COLUMN IF NOT EXISTS` and never execute destructive `DROP TABLE` or `TRUNCATE`.
+
+---
+
+## 8. Scheduled Jobs on the EC2 Host (`crontab -l` as `ubuntu`)
+
+| Schedule | Command | Log |
+| :--- | :--- | :--- |
+| `0 * * * *` | `scripts/check_health.sh`: pipeline heartbeat / API probe, SNS alert with 12h cooldown | `~/health_check.log` |
+| `0 2 * * *` | `scripts/export_daily.sh`: exports yesterday's `player_snapshot` rows to `s3://wows-stats-analytics/snapshots/year=YYYY/month=MM/date=YYYY-MM-DD/` | `~/export.log` |
+
+Backfill a missed day: `ssh ... "~/app/scripts/export_daily.sh 2026-10-07"`. The exporter exits non-zero when nothing reached S3 and deletes its local copy after a successful upload.
+
+---
+
+## 9. Secrets, Network Access & Infrastructure-as-Code
+
+### 9.1 Secrets
+- Every secret lives only in `/home/ubuntu/app/backend/.env` on the EC2 host (mode `600`): `DATABASE_URL`/`DB_PASSWORD` (RDS master), `INTERNAL_API_KEY`, `ANALYST_DB_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD` (Grafana admin), `WARGAMING_APP_ID`.
+- The code has no fallback secrets: the backend rejects every `/internal/*` call if `INTERNAL_API_KEY` is unset, and `scripts/db.sh` fetches passwords from the server over SSH.
+- Values that were committed in the past (before Oct 2026) were all rotated and are no longer valid.
+
+To rotate the RDS master password: write the new value to `DATABASE_URL` and `DB_PASSWORD` in the server `.env`, run `aws rds modify-db-instance --db-instance-identifier wows-stats-db --master-user-password <new> --apply-immediately`, wait for `PendingModifiedValues` to clear, then `docker compose up -d --force-recreate backend scraper grafana`. Rotate Grafana admin with `docker exec wows-grafana grafana cli admin reset-admin-password <new>`.
+
+### 9.2 Network access (security group `wows-stats-stack-EC2SecurityGroup-*`)
+- Public: `3000` (frontend), `80`/`443` (reserved).
+- SSH `22`: restricted to the operator's IP (`/32`). If your IP changes, either update the rule:
+  ```bash
+  aws ec2 authorize-security-group-ingress --region us-west-2 --group-id sg-01397a3d1827db4ba --protocol tcp --port 22 --cidr $(curl -s https://checkip.amazonaws.com)/32
+  ```
+  or get a shell without SSH via SSM: `aws ssm start-session --region us-west-2 --target i-06bef9ba2c963cd36`.
+- Backend `8000`: not exposed. Compose binds it to `127.0.0.1` and the security group has no rule for it.
+
+### 9.3 CloudFormation (`infrastructure/template.yaml`, stack `wows-stats-stack`)
+The template mirrors the live resources (t3.small, Ubuntu 24.04 AMI, SSH CIDR parameter, no port 8000, SNS + S3 inline policies). The deployed stack itself was not updated: applying the template would change the recorded instance type, and EC2 changes may stop or replace the instance. Before any `update-stack`, create a change set and review it, and pass the **current** RDS password as `DBPassword` (the stack's stored parameter is the pre-rotation value).

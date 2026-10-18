@@ -26,7 +26,9 @@ services:
       dockerfile: Dockerfile
     container_name: wows-backend
     ports:
-      - "8000:8000"
+      # Host-only: the frontend reaches the backend over the compose network and
+      # proxies /api/* to it; ops scripts use 127.0.0.1:8000 on the host.
+      - "127.0.0.1:8000:8000"
     env_file:
       - ./backend/.env
     volumes:
@@ -66,8 +68,9 @@ services:
       - "127.0.0.1:3001:3000"
     env_file:
       - ./backend/.env
+    # Admin password comes from GF_SECURITY_ADMIN_PASSWORD in backend/.env (first start only;
+    # rotate later with: docker exec wows-grafana grafana cli admin reset-admin-password <pw>).
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-AdminWows2026!}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer

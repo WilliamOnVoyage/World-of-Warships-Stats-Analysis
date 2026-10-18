@@ -38,30 +38,47 @@ case "$cmd" in
         ;;
     psql)
         echo "Connecting to RDS via localhost:${LOCAL_PORT}..."
-        PGPASSWORD="${PGPASSWORD:-aCR6H3sOwBFiWbs2vbKo}" psql -h localhost -p "${LOCAL_PORT}" -U "${DB_USER}" -d "${DB_NAME}"
+        # Password lives only in the server's backend/.env; fetch it unless PGPASSWORD is already set.
+        if [ -z "${PGPASSWORD:-}" ]; then
+            PGPASSWORD=$(ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" "grep '^DB_PASSWORD=' /home/ubuntu/app/backend/.env | cut -d= -f2-")
+        fi
+        PGPASSWORD="${PGPASSWORD}" psql -h localhost -p "${LOCAL_PORT}" -U "${DB_USER}" -d "${DB_NAME}"
         ;;
     setup-analyst)
         echo "Setting up read-only user 'wows_analyst'..."
-        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" "docker exec -i wows-backend python -" << 'EOF'
+        # The analyst password is generated on the server and kept in backend/.env (ANALYST_DB_PASSWORD).
+        ssh -i "${KEY_PATH}" "ubuntu@${EC2_HOST}" '
+            ENV_FILE=/home/ubuntu/app/backend/.env
+            if ! grep -q "^ANALYST_DB_PASSWORD=" "$ENV_FILE"; then
+                echo "ANALYST_DB_PASSWORD=$(openssl rand -hex 24)" >> "$ENV_FILE"
+            fi
+            ANALYST_DB_PASSWORD=$(grep "^ANALYST_DB_PASSWORD=" "$ENV_FILE" | cut -d= -f2-)
+            docker exec -i -e ANALYST_DB_PASSWORD="$ANALYST_DB_PASSWORD" wows-backend python -
+        ' << 'EOF'
+import os
 from main import engine
 from sqlmodel import Session, text
 
+pw = os.environ["ANALYST_DB_PASSWORD"].replace("'", "''")
 with Session(engine) as s:
     s.exec(text("""
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'wows_analyst') THEN
-                CREATE ROLE wows_analyst WITH LOGIN PASSWORD 'AnalystRead2026!';
+                CREATE ROLE wows_analyst WITH LOGIN;
             END IF;
         END
         $$;
+    """))
+    s.exec(text(f"ALTER ROLE wows_analyst WITH LOGIN PASSWORD '{pw}'"))
+    s.exec(text("""
         GRANT CONNECT ON DATABASE wows_stats TO wows_analyst;
         GRANT USAGE ON SCHEMA public TO wows_analyst;
         GRANT SELECT ON ALL TABLES IN SCHEMA public TO wows_analyst;
         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO wows_analyst;
     """))
     s.commit()
-    print("Role wows_analyst configured successfully!")
+    print("Role wows_analyst configured. Password: ANALYST_DB_PASSWORD in /home/ubuntu/app/backend/.env")
 EOF
         ;;
     *)

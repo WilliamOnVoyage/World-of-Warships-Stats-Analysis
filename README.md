@@ -20,9 +20,8 @@ The application is deployed on a dedicated AWS EC2 instance backed by AWS RDS Po
 | **Live Web App** | [http://44.253.134.12:3000](http://44.253.134.12:3000) | Next.js 16 Naval Record Office UI |
 | **Fleet Leaderboards** | [http://44.253.134.12:3000/#leaderboard](http://44.253.134.12:3000/#leaderboard) | Global & Regional PvP Rankings |
 | **Sample Dossier** | [http://44.253.134.12:3000/player/zmlzeze](http://44.253.134.12:3000/player/zmlzeze) | Verified Combat Telemetry Profile |
-| **API Documentation (Swagger)** | [http://44.253.134.12:8000/docs](http://44.253.134.12:8000/docs) | Interactive Swagger UI / OpenAPI 3.0 |
-| **API Health Check** | [http://44.253.134.12:8000/health](http://44.253.134.12:8000/health) | Uptime probe (`{"status":"healthy"}`) |
-| **Leaderboard API** | [http://44.253.134.12:8000/api/leaderboard](http://44.253.134.12:8000/api/leaderboard) | Top commanders by WR, damage, battles |
+| **Leaderboard API** | [http://44.253.134.12:3000/api/leaderboard](http://44.253.134.12:3000/api/leaderboard) | Top commanders by WR, damage, battles (via the frontend's `/api` proxy) |
+| **API Documentation (Swagger)** | `http://localhost:8000/docs` through an SSH tunnel | Backend listens on the host only; see [RUNBOOK §4](docs/RUNBOOK.md#4-internal-developer-rest-api-internal) |
 | **Developer Runbook** | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Operations, incident response, & DuckDB guides |
 
 ---
@@ -44,7 +43,7 @@ flowchart TD
             Exporter["Nightly Parquet Exporter\n(Exports daily snapshots to S3)"]
         end
 
-        subgraph BackendService ["Backend Service (:8000)"]
+        subgraph BackendService ["Backend Service (127.0.0.1:8000, host-only)"]
             FastAPIApp["FastAPI REST API\n- SQLModel / SQLAlchemy 2.0\n- Leaderboards & Player Dossiers\n- Secure /internal/* Endpoints"]
         end
 

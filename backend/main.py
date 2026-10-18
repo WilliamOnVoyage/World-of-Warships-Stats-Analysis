@@ -1,4 +1,5 @@
 import os
+import secrets
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -55,7 +56,8 @@ else:
         connect_args=connect_args
     )
 
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "wows-secret-internal-key-2026")
+# No default: /internal/* stays locked (401) unless INTERNAL_API_KEY is set.
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
 
 app = FastAPI(
     title="World of Warships Stats API",
@@ -76,7 +78,7 @@ def get_session():
         yield session
 
 def verify_internal_key(x_internal_key: Optional[str] = Header(None)):
-    if not x_internal_key or x_internal_key != INTERNAL_API_KEY:
+    if not INTERNAL_API_KEY or not x_internal_key or not secrets.compare_digest(x_internal_key, INTERNAL_API_KEY):
         raise HTTPException(status_code=401, detail="Invalid or missing X-Internal-Key header")
     return True
 

@@ -94,7 +94,7 @@ async def test_leaderboard_endpoint():
 
 @pytest.mark.asyncio
 async def test_internal_pipeline_status():
-    headers = {"X-Internal-Key": "wows-secret-internal-key-2026"}
+    headers = {"X-Internal-Key": os.environ["INTERNAL_API_KEY"]}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/internal/pipeline/status", headers=headers)
     assert response.status_code == 200
@@ -161,7 +161,7 @@ async def test_internal_pipeline_overview_auth():
         assert unauth.status_code == 401
 
     # 2. Authenticated request with secret key succeeds
-    headers = {"X-Internal-Key": "wows-secret-internal-key-2026"}
+    headers = {"X-Internal-Key": os.environ["INTERNAL_API_KEY"]}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         auth_resp = await ac.get("/internal/pipeline/overview", headers=headers)
         assert auth_resp.status_code == 200
