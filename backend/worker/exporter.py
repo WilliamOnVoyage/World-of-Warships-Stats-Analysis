@@ -92,9 +92,13 @@ def export_date_to_parquet(target_date: Optional[str] = None) -> Optional[str]:
     total_rows = 0
     writer = None
     try:
-        with engine.connect().execution_options(stream_results=True, yield_per=EXPORT_BATCH_SIZE) as conn:
-            result = conn.execute(query, {"start_ts": start_ts, "end_ts": end_ts})
-            for rows in result.partitions():
+        with engine.connect() as conn:
+            # max_row_buffer + an explicit partitions() size are what keep the psycopg2
+            # named cursor bounded; yield_per on the connection alone buffered the whole day.
+            result = conn.execution_options(
+                stream_results=True, max_row_buffer=EXPORT_BATCH_SIZE
+            ).execute(query, {"start_ts": start_ts, "end_ts": end_ts})
+            for rows in result.partitions(EXPORT_BATCH_SIZE):
                 columns = list(zip(*rows))
                 batch = pa.Table.from_arrays(
                     [pa.array(col, type=field.type) for col, field in zip(columns, schema)],
