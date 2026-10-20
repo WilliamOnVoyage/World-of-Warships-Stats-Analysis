@@ -88,7 +88,8 @@ def build_leaderboard_rows(
 def upsert_leaderboard_rows(session: Any, rows: List[Dict[str, Any]]) -> int:
     """
     Upserts rows by primary key (account_id, mode). An existing row is only
-    overwritten by data that is at least as new. Does not commit.
+    overwritten by strictly newer data, so re-reconciling an unchanged account
+    writes nothing (no heap or index churn across the 11 pls indexes). Does not commit.
     """
     if not rows:
         return 0
@@ -99,7 +100,7 @@ def upsert_leaderboard_rows(session: Any, rows: List[Dict[str, Any]]) -> int:
     stmt = stmt.on_conflict_do_update(
         index_elements=[table.c.account_id, table.c.mode],
         set_={col: stmt.excluded[col] for col in _UPDATE_COLUMNS},
-        where=table.c.updated_at <= stmt.excluded.updated_at,
+        where=table.c.updated_at < stmt.excluded.updated_at,
     )
     session.execute(stmt)
     return len(rows)

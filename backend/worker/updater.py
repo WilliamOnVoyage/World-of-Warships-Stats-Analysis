@@ -693,6 +693,66 @@ _SNAPSHOT_COLUMNS = (
 )
 
 
+def _sync_leaderboard_batch(db_engine, cursor: int, batch_size: int):
+    """
+    Reconciles the next `batch_size` players after `cursor`.
+    Returns (accounts_processed, new_cursor), or None when the pass is complete.
+    """
+    with Session(db_engine) as session:
+        account_rows = session.execute(
+            text("""
+                SELECT account_id, nickname, realm FROM player
+                WHERE account_id > :cursor
+                ORDER BY account_id
+                LIMIT :lim
+            """),
+            {"cursor": cursor, "lim": batch_size},
+        ).fetchall()
+        if not account_rows:
+            return None
+
+        lo, hi = account_rows[0][0], account_rows[-1][0]
+        players = {r[0]: (r[1], r[2]) for r in account_rows}
+        cols = ", ".join(f"s.{c}" if c != "timestamp" else 's."timestamp"' for c in _SNAPSHOT_COLUMNS)
+        snapshots = session.execute(
+            text(f"""
+                SELECT DISTINCT ON (s.account_id) {cols}
+                FROM player_snapshot s
+                WHERE s.account_id BETWEEN :lo AND :hi
+                ORDER BY s.account_id, s."timestamp" DESC
+            """)
+            if is_postgres_engine(db_engine) else
+            text(f"""
+                SELECT {cols}
+                FROM player_snapshot s
+                WHERE s.account_id BETWEEN :lo AND :hi
+                  AND s."timestamp" = (
+                      SELECT MAX(s2."timestamp") FROM player_snapshot s2
+                      WHERE s2.account_id = s.account_id
+                  )
+            """),
+            {"lo": lo, "hi": hi},
+        ).fetchall()
+
+        rows = []
+        for snap in snapshots:
+            snap_map = dict(zip(_SNAPSHOT_COLUMNS, snap))
+            acc_id = snap_map["account_id"]
+            if acc_id not in players:
+                continue
+            ts = snap_map["timestamp"]
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
+            if ts.tzinfo is None:
+                # player_snapshot.timestamp is stored as naive UTC
+                ts = ts.replace(tzinfo=timezone.utc)
+            nickname, realm = players[acc_id]
+            rows.extend(build_leaderboard_rows(acc_id, nickname, realm, snap_map, ts))
+        upsert_leaderboard_rows(session, rows)
+        session.commit()
+    return len(account_rows), int(account_rows[-1][0])
+
+
 def sync_leaderboard_stats(
     time_budget_s: float = 45.0,
     batch_size: int = LEADERBOARD_SYNC_BATCH,
@@ -721,81 +781,43 @@ def sync_leaderboard_stats(
 
     processed = 0
     pass_complete = False
+    failed = False
     while True:
-        with Session(db_engine) as session:
-            account_rows = session.execute(
-                text("""
-                    SELECT account_id, nickname, realm FROM player
-                    WHERE account_id > :cursor
-                    ORDER BY account_id
-                    LIMIT :lim
-                """),
-                {"cursor": cursor, "lim": batch_size},
-            ).fetchall()
-            if not account_rows:
-                cursor = 0
-                pass_complete = True
-                break
-
-            lo, hi = account_rows[0][0], account_rows[-1][0]
-            players = {r[0]: (r[1], r[2]) for r in account_rows}
-            cols = ", ".join(f"s.{c}" if c != "timestamp" else 's."timestamp"' for c in _SNAPSHOT_COLUMNS)
-            snapshots = session.execute(
-                text(f"""
-                    SELECT DISTINCT ON (s.account_id) {cols}
-                    FROM player_snapshot s
-                    WHERE s.account_id BETWEEN :lo AND :hi
-                    ORDER BY s.account_id, s."timestamp" DESC
-                """)
-                if is_postgres_engine(db_engine) else
-                text(f"""
-                    SELECT {cols}
-                    FROM player_snapshot s
-                    WHERE s.account_id BETWEEN :lo AND :hi
-                      AND s."timestamp" = (
-                          SELECT MAX(s2."timestamp") FROM player_snapshot s2
-                          WHERE s2.account_id = s.account_id
-                      )
-                """),
-                {"lo": lo, "hi": hi},
-            ).fetchall()
-
-            rows = []
-            for snap in snapshots:
-                snap_map = dict(zip(_SNAPSHOT_COLUMNS, snap))
-                acc_id = snap_map["account_id"]
-                if acc_id not in players:
-                    continue
-                ts = snap_map["timestamp"]
-                if isinstance(ts, str):
-                    ts = datetime.fromisoformat(ts)
-                if ts.tzinfo is None:
-                    # player_snapshot.timestamp is stored as naive UTC
-                    ts = ts.replace(tzinfo=timezone.utc)
-                nickname, realm = players[acc_id]
-                rows.extend(build_leaderboard_rows(acc_id, nickname, realm, snap_map, ts))
-            try:
-                upsert_leaderboard_rows(session, rows)
-                session.commit()
-            except Exception as e:
-                session.rollback()
-                print(f"[Leaderboard Stats Error] accounts {lo}..{hi}: {e}")
-
-        processed += len(account_rows)
-        cursor = int(account_rows[-1][0])
+        try:
+            batch = _sync_leaderboard_batch(db_engine, cursor, batch_size)
+        except Exception as e:
+            # Keep the last good cursor; the next housekeeping run resumes from it
+            failed = True
+            print(f"[Leaderboard Stats Error] batch after cursor {cursor}: {str(e).splitlines()[0][:200]}")
+            break
+        if batch is None:
+            cursor = 0
+            pass_complete = True
+            break
+        processed += batch[0]
+        cursor = batch[1]
         elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        update_heartbeat(
+            LEADERBOARD_SYNC_JOB,
+            cursor=cursor,
+            status="running",
+            details=f"Reconciling: {processed:,} accounts in {elapsed:.0f}s (cursor {cursor:,})",
+        )
         if time_budget_s > 0 and elapsed >= time_budget_s:
             break
 
     elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+    if pass_complete:
+        status, suffix = "idle", " - pass complete, restarting from first account"
+    elif failed:
+        status, suffix = "error", f" - stopped on a DB error, will resume at cursor {cursor:,}"
+    else:
+        status, suffix = "running", f" (cursor {cursor:,})"
     update_heartbeat(
         LEADERBOARD_SYNC_JOB,
         cursor=cursor,
-        status="idle" if pass_complete else "running",
-        details=(
-            f"Reconciled {processed:,} accounts in {elapsed:.1f}s"
-            + (" - pass complete, restarting from first account" if pass_complete else f" (cursor {cursor:,})")
-        ),
+        status=status,
+        details=f"Reconciled {processed:,} accounts in {elapsed:.1f}s{suffix}",
     )
     print(f"[Leaderboard Stats] Reconciled {processed} accounts in {elapsed:.1f}s (cursor {cursor}).")
     return processed

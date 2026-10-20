@@ -135,3 +135,30 @@ async def test_housekeeping_step_keeps_heartbeat_fresh(db, monkeypatch):
         raise RuntimeError("statement timeout")
 
     assert await updater.run_housekeeping_step(7, "bad step", boom) is False
+
+
+def test_sync_keeps_cursor_when_db_errors(db, monkeypatch):
+    t0 = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    with Session(db) as s:
+        for acc in (10, 20, 30):
+            s.add(Player(account_id=acc, nickname=f"P{acc}", realm="eu"))
+            s.add(PlayerSnapshot(account_id=acc, timestamp=t0, **_snapshot()))
+        s.commit()
+
+    real_batch = updater._sync_leaderboard_batch
+    calls = {"n": 0}
+
+    def flaky(db_engine, cursor, batch_size):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("canceling statement due to statement timeout")
+        return real_batch(db_engine, cursor, batch_size)
+
+    monkeypatch.setattr(updater, "_sync_leaderboard_batch", flaky)
+
+    # First batch commits, second raises: no exception escapes, cursor stays at the last good batch
+    assert updater.sync_leaderboard_stats(time_budget_s=0, batch_size=1) == 1
+    with Session(db) as s:
+        st = s.get(PipelineState, updater.LEADERBOARD_SYNC_JOB)
+        assert st.cursor_value == 10 and st.status == "error"
+        assert s.get(PlayerLeaderboardStats, (10, "pvp")) is not None
