@@ -206,6 +206,12 @@ Backfill a missed day: `ssh ... "~/app/scripts/export_daily.sh 2026-10-07"`. The
 
 To rotate the RDS master password: write the new value to `DATABASE_URL` and `DB_PASSWORD` in the server `.env`, run `aws rds modify-db-instance --db-instance-identifier wows-stats-db --master-user-password <new> --apply-immediately`, wait for `PendingModifiedValues` to clear, then `docker compose up -d --force-recreate backend scraper grafana`. Rotate Grafana admin with `docker exec wows-grafana grafana cli admin reset-admin-password <new>`.
 
+### 9.1.1 RDS instance size
+`wows-stats-db` moves from `db.t4g.micro` (1 GB) to `db.t4g.small` (2 GB) in the maintenance window **Sat 2026-10-31 12:50–13:20 UTC** (scheduled with `--no-apply-immediately`). The micro instance ran at ~80–100 MB freeable memory, and RDS restarted it three times on 2026-10-19 to shrink `shared_buffers`. The class change is single-AZ, so expect a few minutes of DB downtime in that window. The scraper retries, and stats are cumulative, so a missed refresh is picked up on the next pass. Check that it applied with:
+```bash
+aws rds describe-db-instances --region us-west-2 --db-instance-identifier wows-stats-db --query 'DBInstances[0].[DBInstanceClass,PendingModifiedValues]'
+```
+
 ### 9.2 Network access (security group `wows-stats-stack-EC2SecurityGroup-*`)
 - Public: `3000` (frontend), `80`/`443` (reserved).
 - SSH `22`: restricted to the operator's IP (`/32`). If your IP changes, either update the rule:
@@ -216,4 +222,4 @@ To rotate the RDS master password: write the new value to `DATABASE_URL` and `DB
 - Backend `8000`: not exposed. Compose binds it to `127.0.0.1` and the security group has no rule for it.
 
 ### 9.3 CloudFormation (`infrastructure/template.yaml`, stack `wows-stats-stack`)
-The template mirrors the live resources (t3.small, Ubuntu 24.04 AMI, SSH CIDR parameter, no port 8000, SNS + S3 inline policies). The deployed stack itself was not updated: applying the template would change the recorded instance type, and EC2 changes may stop or replace the instance. Before any `update-stack`, create a change set and review it, and pass the **current** RDS password as `DBPassword` (the stack's stored parameter is the pre-rotation value).
+The template mirrors the live resources (t3.small, Ubuntu 24.04 AMI, db.t4g.small RDS, SSH CIDR parameter, no port 8000, SNS + S3 inline policies). The deployed stack itself was not updated: applying the template would change the recorded instance type, and EC2 changes may stop or replace the instance. Before any `update-stack`, create a change set and review it, and pass the **current** RDS password as `DBPassword` (the stack's stored parameter is the pre-rotation value).

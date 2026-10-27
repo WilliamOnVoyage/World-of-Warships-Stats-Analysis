@@ -147,7 +147,7 @@ Resources:
       DBName: wows_stats
       Engine: postgres
       EngineVersion: '16.14'
-      DBInstanceClass: db.t4g.micro
+      DBInstanceClass: db.t4g.small  # micro (1 GB) hit RDS low-memory restarts on 2026-10-19
       AllocatedStorage: 20
       StorageType: gp3
       MasterUsername: wows_admin
